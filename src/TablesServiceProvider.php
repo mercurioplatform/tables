@@ -16,10 +16,7 @@ class TablesServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'tables');
 
-        Blade::anonymousComponentPath(
-            __DIR__.'/../resources/views/components',
-            'tables',
-        );
+        Blade::anonymousComponentPath(__DIR__.'/../resources/views/components');
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
