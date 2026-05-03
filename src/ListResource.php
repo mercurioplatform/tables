@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\View\SavedView;
 
@@ -37,7 +38,7 @@ abstract class ListResource
     }
 
     /**
-     * @return array<int, mixed>
+     * @return array<int, BulkAction>
      */
     public function bulkActions(): array
     {

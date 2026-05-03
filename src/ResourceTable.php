@@ -4,6 +4,7 @@ namespace Mercurio\Tables;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\View\SavedView;
 
@@ -12,7 +13,7 @@ final class ResourceTable
     /**
      * @param  array<int, Field>  $fields
      * @param  array<int, SavedView>  $savedViews
-     * @param  array<int, mixed>  $bulkActions
+     * @param  array<int, BulkAction>  $bulkActions
      * @param  array<int, mixed>  $rowActions
      * @param  array{column: string, direction: string}|null  $sort
      */
