@@ -1,0 +1,23 @@
+/* ============================================================
+ * Tables Engine SCSS — entry manifest.
+ *
+ * Подключается через Vite alias @tables-scss в
+ * resources/scss/admin.scss проекта-приложения.
+ *
+ * Порядок:
+ *   1. _tokens     — public CSS custom properties (:root)
+ *   2. _loading    — overlay + spinner для [data-tables-root].is-loading
+ *   3. _table      — fallback для [data-tables-row].is-selected
+ *   4. _saved-views — placeholder, перенос в cutover
+ *   5. _chips      — placeholder, итерация 2.3
+ *   6. _bulk-bar   — placeholder, перенос в cutover
+ *   7. _pagination — placeholder, BS5 paginator достаточен
+ * ============================================================ */
+
+@import 'tokens';
+@import 'loading';
+@import 'table';
+@import 'saved-views';
+@import 'chips';
+@import 'bulk-bar';
+@import 'pagination';

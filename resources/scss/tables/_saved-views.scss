@@ -1,0 +1,11 @@
+/* ============================================================
+ * Tables Engine — saved-views chip-tabs.
+ *
+ * Текущие стили — resources/scss/admin/components/_admin-shell.scss
+ * (.ap-saved-views, .ap-saved-views__item.is-active,
+ * .ap-saved-views__count). Перенос в пакет — после
+ * Catalog/products-cutover (см. ROADMAP), через rebase селекторов
+ * с .ap-saved-views на [data-tables-saved-view].
+ *
+ * На текущем этапе E9 — точка расширения для будущей итерации.
+ * ============================================================ */

@@ -1,0 +1,10 @@
+/* ============================================================
+ * Tables Engine — bulk-bar.
+ *
+ * Текущие стили — resources/scss/admin/components/_admin-shell.scss
+ * (.ap-bulk, .ap-bulk__count, .ap-bulk__sep, .ap-bulk__actions,
+ * .ap-bulk__close). Перенос в пакет — после Catalog/products-cutover,
+ * через rebase селекторов с .ap-bulk на [data-tables-bulk-form].
+ *
+ * Точка расширения для cutover.
+ * ============================================================ */

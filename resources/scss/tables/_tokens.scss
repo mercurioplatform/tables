@@ -1,0 +1,20 @@
+/* ============================================================
+ * Tables Engine — public CSS custom properties.
+ *
+ * Override извне:
+ *   :root { --tables-row-height: 32px; }
+ *   [data-tables-page="products"] { --tables-row-selected-bg: #ffe; }
+ *
+ * Fallback hex значения подобраны под admin tokens; работают
+ * автономно при выносе пакета в свой repo.
+ * ============================================================ */
+
+:root {
+    --tables-row-height: 44px;
+    --tables-row-selected-bg: var(--accent-soft, #eaf2ff);
+    --tables-loading-bg: rgba(255, 255, 255, 0.6);
+    --tables-loading-spinner-color: var(--text-dim, #6b7280);
+    --tables-pill-radius: 999px;
+    --tables-chip-bg: var(--surface-alt, #f5f6f8);
+    --tables-chip-bg-active: var(--accent-soft, #eaf2ff);
+}

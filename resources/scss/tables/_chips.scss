@@ -1,0 +1,9 @@
+/* ============================================================
+ * Tables Engine — filter chips.
+ *
+ * Чипы фильтров появляются на итерации 2.3 (Tables/2.3-chip-filters).
+ * На E9 в DOM их нет (filter-bar содержит только search input).
+ *
+ * Точка расширения. Будущий filter-bar.scss через
+ * [data-tables-filter-chip]/[data-tables-filter-popover] селекторы.
+ * ============================================================ */

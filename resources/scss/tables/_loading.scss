@@ -1,0 +1,43 @@
+/* ============================================================
+ * Tables Engine — loading overlay.
+ *
+ * JS-ядро (packages/tables/resources/js/tables/core.js)
+ * навешивает class `is-loading` на [data-tables-root] во время
+ * AJAX и снимает его в `xhr.always`. Этот partial рисует
+ * полупрозрачный overlay + CSS-only spinner.
+ * ============================================================ */
+
+[data-tables-root] {
+    position: relative;
+}
+
+[data-tables-root].is-loading {
+    pointer-events: none;
+}
+
+[data-tables-root].is-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--tables-loading-bg);
+    z-index: 5;
+}
+
+[data-tables-root].is-loading::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 28px;
+    height: 28px;
+    margin: -14px 0 0 -14px;
+    border: 2px solid var(--tables-loading-spinner-color);
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: tables-spin 0.7s linear infinite;
+    z-index: 6;
+}
+
+@keyframes tables-spin {
+    to { transform: rotate(360deg); }
+}

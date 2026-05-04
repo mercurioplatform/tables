@@ -1,0 +1,16 @@
+/* ============================================================
+ * Tables Engine — table-root.
+ *
+ * Основные стили `<table>` берутся из BS5 + admin
+ * resources/scss/admin/components/_table.scss. Этот partial
+ * содержит только пакет-специфичные fallback'и через
+ * [data-tables-*] селекторы — для самодостаточности пакета.
+ *
+ * Sortable header иконка стилизуется через BS5 utilities
+ * (text-decoration-none + bi-arrow-up/down) в Blade — overrides
+ * не требуются.
+ * ============================================================ */
+
+[data-tables-row].is-selected {
+    background-color: var(--tables-row-selected-bg);
+}
