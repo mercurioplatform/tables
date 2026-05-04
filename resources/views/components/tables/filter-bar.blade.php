@@ -5,7 +5,7 @@
     $dir = $table->sort['direction'] ?? null;
 @endphp
 
-<form method="GET" action="{{ request()->url() }}" class="d-flex align-items-center gap-2 py-2">
+<form method="GET" action="{{ request()->url() }}" class="d-flex align-items-center gap-2 py-2" data-tables-search-form="{{ $table->key }}">
     @if ($table->currentView !== null)
         <input type="hidden" name="view" value="{{ $table->currentView }}">
     @endif

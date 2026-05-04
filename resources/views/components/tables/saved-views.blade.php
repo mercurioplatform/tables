@@ -15,7 +15,12 @@
                 $isActive = $current === $view->key;
                 $href = request()->fullUrlWithQuery(['view' => $view->key, 'page' => null]);
             @endphp
-            <a href="{{ $href }}" class="ap-saved-views__item {{ $isActive ? 'is-active' : '' }}">
+            <a
+                href="{{ $href }}"
+                class="ap-saved-views__item {{ $isActive ? 'is-active' : '' }}"
+                data-tables-saved-view
+                data-tables-saved-view-key="{{ $view->key }}"
+            >
                 {{ $view->label }}
             </a>
         @endforeach
