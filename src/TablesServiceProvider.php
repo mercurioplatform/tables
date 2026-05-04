@@ -2,8 +2,10 @@
 
 namespace Mercurio\Tables;
 
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
+use Mercurio\Tables\Routing\PendingTablesResource;
 
 class TablesServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,11 @@ class TablesServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'tables');
 
         Blade::anonymousComponentPath(__DIR__.'/../resources/views/components');
+
+        Router::macro('tablesResource', function (string $path, string $controller): PendingTablesResource {
+            /** @var Router $this */
+            return new PendingTablesResource($this, $path, $controller);
+        });
 
         if ($this->app->runningInConsole()) {
             $this->publishes([

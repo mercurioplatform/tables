@@ -19,10 +19,11 @@ return [
     | Route Prefix
     |--------------------------------------------------------------------------
     |
-    | Base URL prefix used by the `Route::tablesResource()` helper macro
-    | (registered in iteration E7). Combined with the per-resource path
-    | passed to the macro: `Route::tablesResource('catalog/products/v2', ...)`
-    | resolves to `<route_prefix>/catalog/products/v2`.
+    | Optional prefix kept for documentation / future helpers.
+    | The `Route::tablesResource()` macro does NOT auto-prepend this — use
+    | the surrounding `Route::prefix(...)->group(...)` of the host application.
+    | This config is consumed by future helpers (export URLs, self-links)
+    | when needed.
     |
     */
     'route_prefix' => 'admin',
