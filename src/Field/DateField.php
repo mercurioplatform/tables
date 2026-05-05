@@ -10,15 +10,19 @@ use Illuminate\Support\HtmlString;
 class DateField extends Field
 {
     public const MODE_RELATIVE = 'relative';
+
     public const MODE_ABSOLUTE = 'absolute';
 
     protected string $mode = self::MODE_RELATIVE;
+
     protected string $format = 'd.m.Y';
+
     protected string $emptyText = '—';
 
     public function relative(): static
     {
         $this->mode = self::MODE_RELATIVE;
+
         return $this;
     }
 
@@ -26,13 +30,20 @@ class DateField extends Field
     {
         $this->mode = self::MODE_ABSOLUTE;
         $this->format = $format;
+
         return $this;
     }
 
     public function emptyText(string $text): static
     {
         $this->emptyText = $text;
+
         return $this;
+    }
+
+    protected function defaultFilterPopoverType(): string
+    {
+        return 'daterange';
     }
 
     protected function renderDefault(mixed $value, ?Model $row): Htmlable
@@ -44,6 +55,7 @@ class DateField extends Field
         $output = $this->mode === self::MODE_RELATIVE
             ? $carbon->diffForHumans()
             : $carbon->format($this->format);
+
         return new HtmlString(e($output));
     }
 }

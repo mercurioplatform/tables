@@ -18,6 +18,23 @@
     --tables-pill-radius: 999px;
     --tables-chip-bg: var(--surface-alt, #f5f6f8);
     --tables-chip-bg-active: var(--accent-soft, #eaf2ff);
+    --tables-chip-radius: 999px;
+    --tables-chip-hover-bg: #e5e7eb;
+    --tables-chip-add-color: #6b7280;
+    --tables-chip-add-hover-color: #111827;
+    --tables-chip-active-bg: var(--accent-soft, #eff6ff);
+    --tables-chip-active-hover-bg: #dbeafe;
+    --tables-chip-active-border: #93c5fd;
+    --tables-chip-active-color: #1e3a8a;
+    --tables-chip-remove-color: #6b7280;
+    --tables-chip-remove-hover-color: #111827;
+    --tables-popover-min-width: 240px;
+    --tables-popover-max-height: 240px;
+    --tables-popover-results-max-height: 240px;
+    --tables-popover-border: var(--bs-border-color, #e5e7eb);
+    --tables-autocomplete-result-hover-bg: var(--bs-tertiary-bg, #f4f4f5);
+    --tables-autocomplete-chip-bg: var(--bs-primary-bg-subtle, #eaf2ff);
+    --tables-autocomplete-chip-color: var(--bs-primary-text-emphasis, #1e3a8a);
 
     --tables-summary-card-bg: #fff;
     --tables-summary-card-border: #e5e7eb;

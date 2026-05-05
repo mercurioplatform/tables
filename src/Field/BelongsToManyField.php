@@ -3,17 +3,20 @@
 namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use Mercurio\Tables\Filter\Operator;
 
-class BelongsToField extends Field
+class BelongsToManyField extends Field
 {
     protected string $relation;
 
     protected string $displayKey = 'name';
 
-    protected ?string $foreignKey = null;
+    protected string $relatedKey = 'id';
+
+    protected int $previewLimit = 3;
 
     protected string $emptyText = '—';
 
@@ -37,9 +40,16 @@ class BelongsToField extends Field
         return $this;
     }
 
-    public function foreignKey(string $column): static
+    public function relatedKey(string $key): static
     {
-        $this->foreignKey = $column;
+        $this->relatedKey = $key;
+
+        return $this;
+    }
+
+    public function previewLimit(int $n): static
+    {
+        $this->previewLimit = max(0, $n);
 
         return $this;
     }
@@ -61,14 +71,14 @@ class BelongsToField extends Field
         return $this->displayKey;
     }
 
-    public function getForeignKey(): ?string
+    public function getRelatedKey(): string
     {
-        return $this->foreignKey;
+        return $this->relatedKey;
     }
 
     public function getFilterColumn(): string
     {
-        return $this->foreignKey ?? ($this->name.'_id');
+        return $this->relation;
     }
 
     protected function defaultFilterAutocomplete(): bool
@@ -78,12 +88,38 @@ class BelongsToField extends Field
 
     public function isFilterMultiple(?Operator $op = null): bool
     {
-        if ($op === null) {
-            return in_array(Operator::In, $this->filterableOperators, true)
-                || in_array(Operator::NotIn, $this->filterableOperators, true);
+        return true;
+    }
+
+    public function applyFilter(Builder $query, Operator $op, mixed $value): bool
+    {
+        if (! in_array($op, [Operator::In, Operator::NotIn], true)) {
+            return false;
         }
 
-        return in_array($op, [Operator::In, Operator::NotIn], true);
+        $ids = is_array($value) ? $value : [$value];
+        $ids = array_values(array_filter($ids, fn ($v) => $v !== null && $v !== ''));
+
+        if ($ids === []) {
+            return true;
+        }
+
+        $relation = $this->relation;
+        $relatedColumn = str_contains($this->relatedKey, '.')
+            ? $this->relatedKey
+            : $relation.'.'.$this->relatedKey;
+
+        if ($op === Operator::In) {
+            $query->whereHas($relation, function (Builder $qq) use ($relatedColumn, $ids): void {
+                $qq->whereIn($relatedColumn, $ids);
+            });
+        } else {
+            $query->whereDoesntHave($relation, function (Builder $qq) use ($relatedColumn, $ids): void {
+                $qq->whereIn($relatedColumn, $ids);
+            });
+        }
+
+        return true;
     }
 
     public function denormalizeFilterValue(mixed $value): mixed
@@ -112,15 +148,24 @@ class BelongsToField extends Field
         if ($row === null) {
             return new HtmlString(e($this->emptyText));
         }
+
         $related = $row->{$this->relation} ?? null;
         if ($related === null) {
             return new HtmlString(e($this->emptyText));
         }
-        $display = $related->{$this->displayKey} ?? null;
-        if ($display === null || $display === '') {
+
+        $labels = collect($related)
+            ->take($this->previewLimit)
+            ->map(fn ($item) => $item->{$this->displayKey} ?? null)
+            ->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v) => (string) $v)
+            ->values()
+            ->all();
+
+        if ($labels === []) {
             return new HtmlString(e($this->emptyText));
         }
 
-        return new HtmlString(e((string) $display));
+        return new HtmlString(e(implode(', ', $labels)));
     }
 }

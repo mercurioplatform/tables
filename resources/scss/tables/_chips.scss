@@ -1,9 +1,83 @@
 /* ============================================================
- * Tables Engine — filter chips.
+ * Tables Engine — filter chips (Tables/2.3-chip-filters).
  *
- * Чипы фильтров появляются на итерации 2.3 (Tables/2.3-chip-filters).
- * На E9 в DOM их нет (filter-bar содержит только search input).
+ * Chips живут в filter-bar (рядом со search). Кнопка-add (`+ Бренд`)
+ * — неактивный state. После применения filter — active state с
+ * лейблом значения и кнопкой `×` для сброса.
  *
- * Точка расширения. Будущий filter-bar.scss через
- * [data-tables-filter-chip]/[data-tables-filter-popover] селекторы.
+ * Bootstrap 5 dropdown — без JS-инициализации, через data-attrs.
  * ============================================================ */
+
+.tables-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border-radius: var(--tables-chip-radius, 999px);
+    background: var(--tables-chip-bg, #f3f4f6);
+    border: 1px solid transparent;
+    padding: 0;
+    font-size: 12.5px;
+    line-height: 1;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+
+    &--add {
+        color: var(--tables-chip-add-color, #6b7280);
+
+        &:hover {
+            background: var(--tables-chip-hover-bg, #e5e7eb);
+            color: var(--tables-chip-add-hover-color, #111827);
+        }
+    }
+
+    &--active {
+        background: var(--tables-chip-active-bg, #eff6ff);
+        border-color: var(--tables-chip-active-border, #93c5fd);
+        color: var(--tables-chip-active-color, #1e3a8a);
+
+        &:hover {
+            background: var(--tables-chip-active-hover-bg, #dbeafe);
+        }
+    }
+
+    &__btn {
+        background: transparent;
+        border: 0;
+        padding: 6px 12px;
+        line-height: 1;
+        font-size: inherit;
+        color: inherit;
+        cursor: pointer;
+        max-width: 240px;
+
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &:focus {
+            outline: none;
+            box-shadow: none;
+        }
+    }
+
+    &__remove {
+        background: transparent;
+        border: 0;
+        padding: 4px 10px 4px 2px;
+        margin-left: -4px;
+        color: var(--tables-chip-remove-color, #6b7280);
+        cursor: pointer;
+        line-height: 1;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+
+        &:hover {
+            color: var(--tables-chip-remove-hover-color, #111827);
+        }
+    }
+
+    &__popover {
+        min-width: var(--tables-popover-min-width, 240px);
+        padding: 12px;
+    }
+}

@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\Filter\FilterApplier;
+use Mercurio\Tables\Filter\FilterCondition;
+use Mercurio\Tables\Filter\FilterParser;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
@@ -97,6 +100,20 @@ abstract class ListResource
             $this->findView($currentView, $savedViews)?->apply($query);
         }
 
+        $rawFilters = $request->input('f', []);
+        $conditions = is_array($rawFilters)
+            ? FilterParser::parse($rawFilters, $this)
+            : [];
+
+        $activeFilters = [];
+        foreach ($conditions as $cond) {
+            $field = $this->fieldByName($cond->field, $fields);
+            if ($field !== null) {
+                FilterApplier::apply($query, $field, $cond);
+                $activeFilters[$cond->field] = $cond;
+            }
+        }
+
         $sort = $this->resolveSort(
             $request->query('sort'),
             $request->query('dir'),
@@ -121,6 +138,8 @@ abstract class ListResource
             'total' => $paginator->total(),
             'density' => $this->density(),
             'summary' => $summary !== null ? class_basename($summary) : null,
+            'filters' => count($conditions),
+            'active_filters' => array_map(fn (FilterCondition $c) => $c->field.':'.$c->operator->value, $conditions),
         ]);
 
         return new ResourceTable(
@@ -135,7 +154,42 @@ abstract class ListResource
             search: $search,
             density: $this->normalizeDensity($this->density()),
             summary: $summary,
+            resource: $this,
+            activeFilters: $activeFilters,
         );
+    }
+
+    /**
+     * @param  array<int, Field>  $fields
+     */
+    private function fieldByName(string $name, array $fields): ?Field
+    {
+        foreach ($fields as $field) {
+            if ($field->name === $name) {
+                return $field;
+            }
+        }
+
+        return null;
+    }
+
+    public function findField(string $name): ?Field
+    {
+        return $this->fieldByName($name, $this->fields());
+    }
+
+    /**
+     * @param  array<int, int|string>  $selectedIds
+     * @return array<int|string, string>
+     */
+    public function filterOptions(string $fieldName, ?string $q, Request $request, array $selectedIds = []): array
+    {
+        $field = $this->findField($fieldName);
+        if ($field === null || ! $field->isFilterable() || ! $field->isFilterAutocomplete()) {
+            return [];
+        }
+
+        return $field->resolveFilterOptions($q, $request, $selectedIds);
     }
 
     private function normalizeSearch(mixed $raw): ?string

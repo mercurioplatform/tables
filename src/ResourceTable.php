@@ -6,6 +6,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
@@ -17,6 +18,7 @@ final class ResourceTable
      * @param  array<int, BulkAction>  $bulkActions
      * @param  array<int, mixed>  $rowActions
      * @param  array{column: string, direction: string}|null  $sort
+     * @param  array<string, FilterCondition>  $activeFilters
      */
     public function __construct(
         public readonly string $key,
@@ -30,6 +32,8 @@ final class ResourceTable
         public readonly ?string $search,
         public readonly string $density = 'comfortable',
         public readonly ?Summary $summary = null,
+        public readonly ?ListResource $resource = null,
+        public readonly array $activeFilters = [],
     ) {}
 
     public function rows(): Collection
@@ -44,7 +48,18 @@ final class ResourceTable
     {
         return array_values(array_filter(
             $this->fields,
-            fn (Field $f) => ! $f->isHidden(),
+            fn (Field $f) => ! $f->isHidden() && ! $f->isOnlyFilterable(),
+        ));
+    }
+
+    /**
+     * @return array<int, Field>
+     */
+    public function filterableFields(): array
+    {
+        return array_values(array_filter(
+            $this->fields,
+            fn (Field $f) => $f->isFilterable(),
         ));
     }
 }

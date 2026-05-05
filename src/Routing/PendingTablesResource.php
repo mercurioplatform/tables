@@ -11,14 +11,21 @@ class PendingTablesResource
 
     private Route $bulkActionRoute;
 
+    private Route $optionsRoute;
+
     public function __construct(Router $router, string $path, string $controller)
     {
         $normalized = ltrim($path, '/');
+        $optionsSuffix = (string) config('tables.route_options_suffix', '/options');
 
         $this->indexRoute = $router->get($normalized, [$controller, 'index']);
         $this->bulkActionRoute = $router->post(
             rtrim($normalized, '/').'/bulk-action',
             [$controller, 'bulkAction'],
+        );
+        $this->optionsRoute = $router->get(
+            rtrim($normalized, '/').$optionsSuffix,
+            [$controller, 'options'],
         );
     }
 
@@ -26,6 +33,7 @@ class PendingTablesResource
     {
         $this->indexRoute->name($base.'.index');
         $this->bulkActionRoute->name($base.'.bulk_action');
+        $this->optionsRoute->name($base.'.options');
 
         return $this;
     }
@@ -35,6 +43,7 @@ class PendingTablesResource
     {
         $this->indexRoute->middleware($middleware);
         $this->bulkActionRoute->middleware($middleware);
+        $this->optionsRoute->middleware($middleware);
 
         return $this;
     }
@@ -44,6 +53,7 @@ class PendingTablesResource
     {
         $this->indexRoute->where($constraints);
         $this->bulkActionRoute->where($constraints);
+        $this->optionsRoute->where($constraints);
 
         return $this;
     }

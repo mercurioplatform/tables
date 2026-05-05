@@ -66,8 +66,18 @@ function requestPartial(url, $page, options) {
         }
         const oldRoot = $root.get(0);
         oldRoot.replaceWith(newRoot);
+
+        const newFilterBar = doc.querySelector('[data-tables-filter-bar]');
+        if (newFilterBar) {
+            const $oldFilterBar = $page.find('[data-tables-filter-bar]').first();
+            if ($oldFilterBar.length > 0) {
+                $oldFilterBar.get(0).replaceWith(newFilterBar);
+            }
+        }
+
         syncSavedViews($page, url);
         $(newRoot).trigger('tables:rendered');
+        document.dispatchEvent(new CustomEvent('tables:rendered', { detail: { url } }));
         if (push) {
             window.history.pushState(
                 { tablesPage: $page.attr('data-tables-page'), url: url },
@@ -128,6 +138,14 @@ $(document).on('click', '[data-tables-root] .pagination a[href]', function (e) {
     if (isModifiedClick(e)) return;
     e.preventDefault();
     requestPartial($a.attr('href'), $page);
+});
+
+document.addEventListener('tables:navigate', function (e) {
+    const url = e?.detail?.url;
+    if (!url) return;
+    const $page = $('[data-tables-page]').first();
+    if ($page.length === 0) return;
+    requestPartial(url, $page);
 });
 
 window.addEventListener('popstate', function (e) {

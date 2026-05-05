@@ -61,4 +61,21 @@ return [
     */
     'js_event_prefix' => 'tables',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Filter Autocomplete
+    |--------------------------------------------------------------------------
+    |
+    | Settings for the relation autocomplete popover (Tables/2.4).
+    |   - autocomplete_limit:        max items returned by /options endpoint.
+    |   - autocomplete_min_chars:    min input length before XHR (0 = open on focus).
+    |   - autocomplete_debounce_ms:  delay before issuing XHR after input change.
+    |   - route_options_suffix:      suffix appended to resource path for the JSON route.
+    |
+    */
+    'autocomplete_limit' => 50,
+    'autocomplete_min_chars' => 0,
+    'autocomplete_debounce_ms' => 250,
+    'route_options_suffix' => '/options',
+
 ];

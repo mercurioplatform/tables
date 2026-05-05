@@ -2,6 +2,7 @@
 
 namespace Mercurio\Tables\Concerns;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +25,56 @@ trait HandlesResourceListing
         }
 
         return view($this->tableView, ['table' => $table]);
+    }
+
+    public function options(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'field' => ['required', 'string', 'max:64', 'regex:/^[a-zA-Z_][a-zA-Z0-9_]*$/'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'selected' => ['nullable', 'array'],
+            'selected.*' => ['nullable'],
+        ]);
+
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        $fieldName = $data['field'];
+        $field = $resource->findField($fieldName);
+
+        if ($field === null) {
+            abort(404);
+        }
+
+        if (! $field->isFilterable() || ! $field->isFilterAutocomplete()) {
+            abort(422);
+        }
+
+        $selected = array_values(array_filter(
+            array_map(fn ($v) => is_scalar($v) ? (string) $v : null, $data['selected'] ?? []),
+            fn ($v) => $v !== null && $v !== '',
+        ));
+
+        $q = $data['q'] ?? null;
+        if (is_string($q) && $q === '') {
+            $q = null;
+        }
+
+        $items = $resource->filterOptions($fieldName, $q, $request, $selected);
+
+        Log::debug('tables.options', [
+            'resource' => $this->resource,
+            'field' => $fieldName,
+            'q_len' => mb_strlen($q ?? ''),
+            'selected' => count($selected),
+            'count' => count($items),
+        ]);
+
+        $payload = [];
+        foreach ($items as $value => $label) {
+            $payload[] = ['value' => (string) $value, 'label' => (string) $label];
+        }
+
+        return response()->json(['items' => $payload]);
     }
 
     public function bulkAction(Request $request): RedirectResponse
