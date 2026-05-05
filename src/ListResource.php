@@ -10,6 +10,12 @@ use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterApplier;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Filter\FilterParser;
+use Mercurio\Tables\Filter\Operator;
+use Mercurio\Tables\Filter\Qb\AtomCondition;
+use Mercurio\Tables\Filter\Qb\AtomGroup;
+use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
+use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
+use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
@@ -114,6 +120,19 @@ abstract class ListResource
             }
         }
 
+        $rawQb = $request->query('qb');
+        $qbRoot = is_string($rawQb) && $rawQb !== ''
+            ? QueryBuilderParser::parse($rawQb, $this)
+            : null;
+        if ($qbRoot !== null) {
+            $qbRoot = QueryBuilderNormalizer::normalize($qbRoot);
+        }
+        if ($qbRoot !== null) {
+            $query->where(function (Builder $sub) use ($qbRoot): void {
+                QueryBuilderApplier::apply($sub, $qbRoot, $this);
+            });
+        }
+
         $sort = $this->resolveSort(
             $request->query('sort'),
             $request->query('dir'),
@@ -140,7 +159,18 @@ abstract class ListResource
             'summary' => $summary !== null ? class_basename($summary) : null,
             'filters' => count($conditions),
             'active_filters' => array_map(fn (FilterCondition $c) => $c->field.':'.$c->operator->value, $conditions),
+            'qb' => $qbRoot !== null
+                ? ['atoms' => QueryBuilderNormalizer::countAtoms($qbRoot), 'depth' => QueryBuilderNormalizer::maxDepth($qbRoot)]
+                : null,
         ]);
+
+        $qbVo = $qbRoot !== null
+            ? [
+                'json' => json_encode(self::astToArray($qbRoot), JSON_UNESCAPED_UNICODE),
+                'atoms' => QueryBuilderNormalizer::countAtoms($qbRoot),
+                'depth' => QueryBuilderNormalizer::maxDepth($qbRoot),
+            ]
+            : null;
 
         return new ResourceTable(
             key: $this->key(),
@@ -156,7 +186,75 @@ abstract class ListResource
             summary: $summary,
             resource: $this,
             activeFilters: $activeFilters,
+            qb: $qbVo,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function astToArray(AtomCondition|AtomGroup $node): array
+    {
+        if ($node instanceof AtomCondition) {
+            return [
+                'type' => 'cond',
+                'field' => $node->field,
+                'operator' => $node->operator->value,
+                'value' => $node->value,
+                'not' => $node->not,
+            ];
+        }
+
+        return [
+            'type' => 'group',
+            'op' => $node->op,
+            'not' => $node->not,
+            'children' => array_map(fn ($c) => self::astToArray($c), $node->children),
+        ];
+    }
+
+    /**
+     * @return array{fields: array<int, array<string, mixed>>}
+     */
+    public function qbSchema(): array
+    {
+        $fields = [];
+        foreach ($this->fields() as $field) {
+            if (! $field->isFilterable()) {
+                continue;
+            }
+            $ops = $field->getFilterableOperators();
+            if ($ops === []) {
+                continue;
+            }
+            $entry = [
+                'name' => $field->name,
+                'label' => $field->label,
+                'type' => $field->getQbValueType(),
+                'operators' => array_map(fn (Operator $op) => $op->value, $ops),
+                'multiple' => $field->isFilterMultiple(),
+            ];
+            if ($field->isFilterAutocomplete()) {
+                $current = \Illuminate\Support\Facades\Route::currentRouteName();
+                $base = is_string($current) && $current !== ''
+                    ? preg_replace('/\.[^.]+$/', '', $current)
+                    : null;
+                $entry['optionsUrl'] = $base
+                    ? route($base.'.options')
+                    : url()->current().'/options';
+            }
+            $options = $field->getQbOptions();
+            if ($options !== null) {
+                $entry['options'] = $options;
+            }
+            $fields[] = $entry;
+        }
+
+        Log::debug('tables.qb.schema', [
+            'fields' => array_column($fields, 'name'),
+        ]);
+
+        return ['fields' => $fields];
     }
 
     /**

@@ -78,4 +78,23 @@ return [
     'autocomplete_debounce_ms' => 250,
     'route_options_suffix' => '/options',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Query Builder (Tables/2.5)
+    |--------------------------------------------------------------------------
+    |
+    | Limits and defaults for the AST-based advanced filter (`?qb=base64(json)`).
+    |   - qb_max_payload_size:   max length (bytes) of the base64 query string.
+    |   - qb_max_depth:          max nesting depth of group nodes.
+    |   - qb_max_atoms:          max total atomic conditions in the tree.
+    |   - qb_button_label:       label of the trigger button in filter-bar.
+    |   - qb_offcanvas_width:    CSS class applied to the offcanvas root.
+    |
+    */
+    'qb_max_payload_size' => 4096,
+    'qb_max_depth' => 5,
+    'qb_max_atoms' => 100,
+    'qb_button_label' => 'Расширенный фильтр',
+    'qb_offcanvas_width' => 'qb-offcanvas-md',
+
 ];

@@ -46,6 +46,11 @@ class DateField extends Field
         return 'daterange';
     }
 
+    protected function defaultQbValueType(): string
+    {
+        return 'date';
+    }
+
     protected function renderDefault(mixed $value, ?Model $row): Htmlable
     {
         if ($value === null || $value === '') {

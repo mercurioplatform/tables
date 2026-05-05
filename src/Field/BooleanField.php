@@ -46,6 +46,11 @@ class BooleanField extends Field
         return 'select';
     }
 
+    protected function defaultQbValueType(): string
+    {
+        return 'boolean';
+    }
+
     protected function renderDefault(mixed $value, ?Model $row): Htmlable
     {
         $bool = (bool) $value;

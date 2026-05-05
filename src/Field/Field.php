@@ -279,6 +279,28 @@ abstract class Field
         return false;
     }
 
+    public function getQbValueType(): string
+    {
+        if ($this->isFilterAutocomplete()) {
+            return 'autocomplete';
+        }
+
+        return $this->defaultQbValueType();
+    }
+
+    protected function defaultQbValueType(): string
+    {
+        return 'text';
+    }
+
+    /**
+     * @return array<int, array{value: int|string, label: string}>|null
+     */
+    public function getQbOptions(): ?array
+    {
+        return null;
+    }
+
     public function isFilterMultiple(?Operator $op = null): bool
     {
         $resolvedOp = $op ?? ($this->filterableOperators[0] ?? null);

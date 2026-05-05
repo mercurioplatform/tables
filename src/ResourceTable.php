@@ -19,6 +19,7 @@ final class ResourceTable
      * @param  array<int, mixed>  $rowActions
      * @param  array{column: string, direction: string}|null  $sort
      * @param  array<string, FilterCondition>  $activeFilters
+     * @param  array{json: string, atoms: int, depth: int}|null  $qb
      */
     public function __construct(
         public readonly string $key,
@@ -34,6 +35,7 @@ final class ResourceTable
         public readonly ?Summary $summary = null,
         public readonly ?ListResource $resource = null,
         public readonly array $activeFilters = [],
+        public readonly ?array $qb = null,
     ) {}
 
     public function rows(): Collection

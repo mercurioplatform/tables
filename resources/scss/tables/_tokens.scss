@@ -56,6 +56,12 @@
     --tables-funnel-dot-good: #16a34a;
     --tables-funnel-dot-bad: #dc2626;
     --tables-funnel-dot-neutral: #9ca3af;
+
+    --tables-qb-group-border: var(--bs-border-color, #e5e7eb);
+    --tables-qb-group-bg: var(--bs-tertiary-bg, #f8f9fa);
+    --tables-qb-group-bg-nested: var(--bs-body-bg, #fff);
+    --tables-qb-inverted-color: var(--bs-danger, #dc3545);
+    --tables-qb-cond-bg: transparent;
 }
 
 .tables-density-compact {

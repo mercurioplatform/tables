@@ -41,6 +41,13 @@
         />
     @endforeach
 
+    @if ($table->resource && method_exists($table->resource, 'qbSchema'))
+        @php $qbSchema = $table->resource->qbSchema(); @endphp
+        @if (! empty($qbSchema['fields']))
+            <x-tables.qb-button :table="$table"/>
+        @endif
+    @endif
+
     {{ $slot }}
 
     @isset($right)

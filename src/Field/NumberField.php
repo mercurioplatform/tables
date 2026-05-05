@@ -43,6 +43,11 @@ class NumberField extends Field
         return 'range';
     }
 
+    protected function defaultQbValueType(): string
+    {
+        return 'number';
+    }
+
     protected function renderDefault(mixed $value, ?Model $row): Htmlable
     {
         if ($value === null) {

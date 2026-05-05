@@ -71,6 +71,28 @@ class StatusField extends Field
         return 'select';
     }
 
+    protected function defaultQbValueType(): string
+    {
+        return 'select';
+    }
+
+    /**
+     * @return array<int, array{value: int|string, label: string}>|null
+     */
+    public function getQbOptions(): ?array
+    {
+        $opts = $this->getFilterOptions();
+        if ($opts === []) {
+            return null;
+        }
+        $result = [];
+        foreach ($opts as $key => $label) {
+            $result[] = ['value' => $key, 'label' => (string) $label];
+        }
+
+        return $result;
+    }
+
     /**
      * @return array<int|string, string>
      */
