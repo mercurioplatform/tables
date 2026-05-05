@@ -16,7 +16,11 @@
 
     {{ $afterSavedViews ?? '' }}
 
-    {{ $summary ?? '' }}
+    @isset($summary)
+        {{ $summary }}
+    @elseif ($table->summary !== null)
+        <x-tables.summary :summary="$table->summary"/>
+    @endif
 
     {{ $beforeFilterBar ?? '' }}
 
