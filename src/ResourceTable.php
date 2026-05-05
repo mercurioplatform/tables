@@ -6,6 +6,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
 final class ResourceTable
@@ -28,6 +29,7 @@ final class ResourceTable
         public readonly ?string $currentView,
         public readonly ?string $search,
         public readonly string $density = 'comfortable',
+        public readonly ?Summary $summary = null,
     ) {}
 
     public function rows(): Collection

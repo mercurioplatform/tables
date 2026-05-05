@@ -2,12 +2,12 @@
 
 namespace Mercurio\Tables;
 
-use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
 abstract class ListResource
@@ -71,6 +71,11 @@ abstract class ListResource
         return 'comfortable';
     }
 
+    public function summary(): ?Summary
+    {
+        return null;
+    }
+
     private function normalizeDensity(string $raw): string
     {
         return in_array($raw, ['compact', 'comfortable'], true) ? $raw : 'comfortable';
@@ -105,6 +110,8 @@ abstract class ListResource
             ->paginate($this->perPage())
             ->withQueryString();
 
+        $summary = $this->summary();
+
         Log::debug('tables.list', [
             'key' => $this->key(),
             'q' => $search,
@@ -113,6 +120,7 @@ abstract class ListResource
             'per_page' => $this->perPage(),
             'total' => $paginator->total(),
             'density' => $this->density(),
+            'summary' => $summary !== null ? class_basename($summary) : null,
         ]);
 
         return new ResourceTable(
@@ -126,6 +134,7 @@ abstract class ListResource
             currentView: $currentView,
             search: $search,
             density: $this->normalizeDensity($this->density()),
+            summary: $summary,
         );
     }
 
