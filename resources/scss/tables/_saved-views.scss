@@ -1,11 +1,137 @@
 /* ============================================================
- * Tables Engine — saved-views chip-tabs.
+ * Tables Engine — saved-views chip-tabs (Tables/2.6).
  *
- * Текущие стили — resources/scss/admin/components/_admin-shell.scss
- * (.ap-saved-views, .ap-saved-views__item.is-active,
- * .ap-saved-views__count). Перенос в пакет — после
- * Catalog/products-cutover (см. ROADMAP), через rebase селекторов
- * с .ap-saved-views на [data-tables-saved-view].
- *
- * На текущем этапе E9 — точка расширения для будущей итерации.
+ * Selectors namespaced by [data-tables-saved-views]; legacy
+ * `.ap-saved-views` rules in admin shell remain untouched for
+ * preview pages.
  * ============================================================ */
+
+:root {
+    --tables-color-neutral: #6b7280;
+    --tables-color-blue: #3b82f6;
+    --tables-color-green: #10b981;
+    --tables-color-amber: #f59e0b;
+    --tables-color-red: #ef4444;
+    --tables-color-purple: #a855f7;
+}
+
+[data-tables-saved-views] {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border-bottom: 1px solid var(--tables-saved-views-border, var(--border, #e5e7eb));
+    overflow: visible;
+
+    .ap-saved-views__scroll {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        &::-webkit-scrollbar { display: none; }
+    }
+
+    .ap-saved-views__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        color: var(--tables-saved-views-fg, var(--text-dim, #6b7280));
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        background: transparent;
+        border-top: 0;
+        border-left: 0;
+        border-right: 0;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: color .15s ease;
+
+        &:hover { color: var(--tables-saved-views-fg-hover, var(--text, #111827)); }
+        &.is-active {
+            color: var(--tables-saved-views-fg-active, var(--text, #111827));
+            font-weight: 600;
+            border-bottom-color: var(--tables-saved-views-border-active, var(--text, #111827));
+        }
+    }
+
+    .ap-saved-views__count {
+        font-family: var(--tables-mono, var(--font-mono, monospace));
+        font-size: 11px;
+        color: var(--tables-saved-views-count-fg, var(--text-mute, #9ca3af));
+        margin-left: 4px;
+    }
+    .is-active .ap-saved-views__count { color: var(--tables-saved-views-count-fg-active, inherit); }
+
+    .ap-saved-views__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dot, var(--text-mute, #9ca3af));
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .ap-saved-views__more {
+        margin-left: auto;
+        flex-shrink: 0;
+        align-self: stretch;
+        display: flex;
+        align-items: center;
+        .dropdown-toggle::after { display: none; }
+        .dropdown-menu { font-size: 13px; min-width: 240px; }
+        .dropdown-item.active,
+        .dropdown-item:active {
+            background-color: var(--tables-saved-views-active-bg, rgba(59, 130, 246, .08));
+            color: inherit;
+        }
+    }
+
+    .ap-saved-views__remove {
+        opacity: 0;
+        transition: opacity .15s ease;
+        margin-left: auto;
+        padding: 0;
+        font-size: 0.6em;
+        background-image: var(--bs-btn-close-bg);
+    }
+    .dropdown-item:hover .ap-saved-views__remove,
+    .dropdown-item:focus .ap-saved-views__remove { opacity: 0.6; }
+    .ap-saved-views__remove:hover { opacity: 1 !important; }
+}
+
+.ap-saved-views__palette {
+    .ap-saved-views__color {
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        transition: border-color .15s ease;
+    }
+    .ap-saved-views__color:hover {
+        border-color: var(--tables-saved-views-color-border-hover, rgba(0, 0, 0, .12));
+    }
+    .ap-saved-views__color input:checked + .ap-saved-views__dot {
+        outline: 2px solid var(--tables-saved-views-color-selected, var(--text, #111827));
+        outline-offset: 3px;
+    }
+    .ap-saved-views__dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--dot, var(--text-mute, #9ca3af));
+        display: inline-block;
+    }
+    .ap-saved-views__dot--none {
+        background: transparent;
+        border: 1px dashed var(--text-mute, #9ca3af);
+    }
+}
