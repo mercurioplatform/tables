@@ -5,7 +5,8 @@
     $sortCol = $table->sort['column'] ?? null;
     $sortDir = $table->sort['direction'] ?? 'asc';
     $hasBulk = count($table->bulkActions) > 0;
-    $colspan = max(1, count($fields) + ($hasBulk ? 1 : 0));
+    $hasRowActions = $table->hasRowActions();
+    $colspan = max(1, count($fields) + ($hasBulk ? 1 : 0) + ($hasRowActions ? 1 : 0));
 @endphp
 
 <div data-tables-root data-tables-key="{{ $table->key }}" class="tables-density-{{ $table->density }}">
@@ -52,6 +53,11 @@
                             @endif
                         </th>
                     @endforeach
+                    @if ($hasRowActions)
+                        <th class="ap-table__more text-end">
+                            <span class="visually-hidden">Действия</span>
+                        </th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -73,6 +79,11 @@
                         @foreach ($fields as $field)
                             <x-tables.cell :field="$field" :row="$row"/>
                         @endforeach
+                        @if ($hasRowActions)
+                            <td class="ap-table__more text-end">
+                                <x-tables.row-actions :table="$table" :row="$row"/>
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>

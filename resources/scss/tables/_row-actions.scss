@@ -1,0 +1,65 @@
+/* ============================================================
+ * Row actions (Tables/2.7)
+ *
+ * Крайняя правая колонка таблицы с кнопками-иконками.
+ * Используется компонентом <x-tables.row-actions> и offcanvas-формой
+ * <x-tables.row-action-offcanvas>.
+ * ============================================================ */
+
+.ap-table__more {
+    width: 1%;
+    white-space: nowrap;
+    text-align: end;
+}
+
+.ap-table__actions {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+
+    .btn {
+        padding: 4px 6px;
+        line-height: 1;
+        border-radius: 4px;
+        color: var(--bs-body-color);
+
+        &:hover,
+        &:focus-visible {
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-body-color);
+        }
+
+        &[disabled] {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+    }
+
+    .text-danger {
+        color: var(--bs-danger) !important;
+
+        &:hover,
+        &:focus-visible {
+            color: var(--bs-danger) !important;
+            background: rgba(var(--bs-danger-rgb), 0.08);
+        }
+    }
+}
+
+.ap-row-action-offcanvas {
+    --bs-offcanvas-width: 420px;
+}
+
+.ap-row-action-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+
+    .invalid-feedback {
+        display: block;
+    }
+
+    .ap-row-action-form__footer {
+        margin-top: 1rem;
+    }
+}

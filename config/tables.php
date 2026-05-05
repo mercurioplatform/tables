@@ -97,4 +97,37 @@ return [
     'qb_button_label' => 'Расширенный фильтр',
     'qb_offcanvas_width' => 'qb-offcanvas-md',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Saved Views (Tables/2.6)
+    |--------------------------------------------------------------------------
+    |
+    | Settings for the unified saved-views storage (system + user views).
+    |   - sync_system_views:           toggles SystemViewSyncer auto-call in TablesServiceProvider::boot().
+    |   - resources:                   array of FQN ListResource classes for ResourceRegistry (optional).
+    |   - saved_view_color_palette:    whitelist of color keys allowed in saveView endpoint.
+    |   - saved_view_icons:            whitelist of Bootstrap Icons names allowed in saveView endpoint.
+    |
+    */
+    'sync_system_views' => true,
+    'resources' => [],
+    'saved_view_color_palette' => ['neutral', 'blue', 'green', 'amber', 'red', 'purple'],
+    'saved_view_icons' => ['bi-bookmark', 'bi-star', 'bi-flag', 'bi-funnel', 'bi-tag', 'bi-eye', 'bi-archive'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Row Actions (Tables/2.7)
+    |--------------------------------------------------------------------------
+    |
+    | Path suffixes used by `Route::tablesResource()` for the row-action
+    | endpoints declared via `RowAction` VO.
+    |   - suffix:        POST endpoint base (kind=instant|confirm|form submit).
+    |   - form_suffix:   GET endpoint suffix for kind=form partial render.
+    |
+    */
+    'row_actions' => [
+        'suffix' => '/row-action',
+        'form_suffix' => '/form',
+    ],
+
 ];

@@ -5,7 +5,9 @@ namespace Mercurio\Tables;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
+use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterApplier;
 use Mercurio\Tables\Filter\FilterCondition;
@@ -16,6 +18,7 @@ use Mercurio\Tables\Filter\Qb\AtomGroup;
 use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
 use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
+use Mercurio\Tables\Services\SavedViewCountsCalculator;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
@@ -55,11 +58,44 @@ abstract class ListResource
     }
 
     /**
-     * @return array<int, mixed>
+     * @return array<int, RowAction>
      */
     public function rowActions(): array
     {
         return [];
+    }
+
+    /**
+     * Per-row visibility filter for declared rowActions().
+     *
+     * @return array<int, RowAction>
+     */
+    public function resolveRowActions(mixed $row): array
+    {
+        $visible = [];
+
+        foreach ($this->rowActions() as $action) {
+            if (! $action instanceof RowAction) {
+                continue;
+            }
+
+            if ($action->isHiddenFor($row)) {
+                continue;
+            }
+
+            $visible[] = $action;
+        }
+
+        return $visible;
+    }
+
+    /**
+     * Optional override for row-action route name base (e.g. `admin.catalog.products.v2`).
+     * When null, the engine derives it from `Route::currentRouteName()`.
+     */
+    public function routeBaseName(): ?string
+    {
+        return null;
     }
 
     public function perPage(): int
@@ -95,6 +131,9 @@ abstract class ListResource
         $query = $this->query();
         $fields = $this->fields();
         $savedViews = $this->savedViews();
+        $savedViewCounts = $savedViews === []
+            ? []
+            : app(SavedViewCountsCalculator::class)->counts($this);
 
         $search = $this->normalizeSearch($request->query('q'));
         if ($search !== null) {
@@ -187,6 +226,7 @@ abstract class ListResource
             resource: $this,
             activeFilters: $activeFilters,
             qb: $qbVo,
+            savedViewCounts: $savedViewCounts,
         );
     }
 
@@ -235,7 +275,7 @@ abstract class ListResource
                 'multiple' => $field->isFilterMultiple(),
             ];
             if ($field->isFilterAutocomplete()) {
-                $current = \Illuminate\Support\Facades\Route::currentRouteName();
+                $current = Route::currentRouteName();
                 $base = is_string($current) && $current !== ''
                     ? preg_replace('/\.[^.]+$/', '', $current)
                     : null;

@@ -5,6 +5,7 @@ namespace Mercurio\Tables;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Mercurio\Tables\Action\BulkAction;
+use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Summary\Summary;
@@ -16,10 +17,11 @@ final class ResourceTable
      * @param  array<int, Field>  $fields
      * @param  array<int, SavedView>  $savedViews
      * @param  array<int, BulkAction>  $bulkActions
-     * @param  array<int, mixed>  $rowActions
+     * @param  array<int, RowAction>  $rowActions
      * @param  array{column: string, direction: string}|null  $sort
      * @param  array<string, FilterCondition>  $activeFilters
      * @param  array{json: string, atoms: int, depth: int}|null  $qb
+     * @param  array<string, int>  $savedViewCounts
      */
     public function __construct(
         public readonly string $key,
@@ -36,11 +38,28 @@ final class ResourceTable
         public readonly ?ListResource $resource = null,
         public readonly array $activeFilters = [],
         public readonly ?array $qb = null,
+        public readonly array $savedViewCounts = [],
     ) {}
 
     public function rows(): Collection
     {
         return collect($this->paginator->items());
+    }
+
+    public function hasRowActions(): bool
+    {
+        return $this->rowActions !== [];
+    }
+
+    public function hasRowActionForms(): bool
+    {
+        foreach ($this->rowActions as $action) {
+            if ($action instanceof RowAction && $action->getKind() === 'form') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

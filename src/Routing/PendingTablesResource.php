@@ -13,20 +13,50 @@ class PendingTablesResource
 
     private Route $optionsRoute;
 
+    private Route $saveViewRoute;
+
+    private Route $deleteUserViewRoute;
+
+    private Route $rowActionRoute;
+
+    private Route $rowActionFormRoute;
+
     public function __construct(Router $router, string $path, string $controller)
     {
         $normalized = ltrim($path, '/');
         $optionsSuffix = (string) config('tables.route_options_suffix', '/options');
+        $rowActionSuffix = (string) config('tables.row_actions.suffix', '/row-action');
+        $rowActionFormSuffix = (string) config('tables.row_actions.form_suffix', '/form');
+
+        $base = rtrim($normalized, '/');
 
         $this->indexRoute = $router->get($normalized, [$controller, 'index']);
         $this->bulkActionRoute = $router->post(
-            rtrim($normalized, '/').'/bulk-action',
+            $base.'/bulk-action',
             [$controller, 'bulkAction'],
         );
         $this->optionsRoute = $router->get(
-            rtrim($normalized, '/').$optionsSuffix,
+            $base.$optionsSuffix,
             [$controller, 'options'],
         );
+        $this->saveViewRoute = $router->post(
+            $base.'/save-view',
+            [$controller, 'saveView'],
+        );
+        $this->deleteUserViewRoute = $router->delete(
+            $base.'/user-views/{id}',
+            [$controller, 'deleteUserView'],
+        )->where('id', '[0-9]+');
+
+        $this->rowActionRoute = $router->post(
+            $base.$rowActionSuffix.'/{id}/{action}',
+            [$controller, 'rowAction'],
+        )->where(['id' => '[0-9]+', 'action' => '[a-z0-9_-]+']);
+
+        $this->rowActionFormRoute = $router->get(
+            $base.$rowActionSuffix.'/{id}/{action}'.$rowActionFormSuffix,
+            [$controller, 'rowActionForm'],
+        )->where(['id' => '[0-9]+', 'action' => '[a-z0-9_-]+']);
     }
 
     public function name(string $base): self
@@ -34,6 +64,10 @@ class PendingTablesResource
         $this->indexRoute->name($base.'.index');
         $this->bulkActionRoute->name($base.'.bulk_action');
         $this->optionsRoute->name($base.'.options');
+        $this->saveViewRoute->name($base.'.save_view');
+        $this->deleteUserViewRoute->name($base.'.delete_user_view');
+        $this->rowActionRoute->name($base.'.row_action');
+        $this->rowActionFormRoute->name($base.'.row_action_form');
 
         return $this;
     }
@@ -44,6 +78,10 @@ class PendingTablesResource
         $this->indexRoute->middleware($middleware);
         $this->bulkActionRoute->middleware($middleware);
         $this->optionsRoute->middleware($middleware);
+        $this->saveViewRoute->middleware($middleware);
+        $this->deleteUserViewRoute->middleware($middleware);
+        $this->rowActionRoute->middleware($middleware);
+        $this->rowActionFormRoute->middleware($middleware);
 
         return $this;
     }
@@ -54,6 +92,10 @@ class PendingTablesResource
         $this->indexRoute->where($constraints);
         $this->bulkActionRoute->where($constraints);
         $this->optionsRoute->where($constraints);
+        $this->saveViewRoute->where($constraints);
+        $this->deleteUserViewRoute->where($constraints);
+        $this->rowActionRoute->where($constraints);
+        $this->rowActionFormRoute->where($constraints);
 
         return $this;
     }

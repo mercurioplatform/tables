@@ -75,6 +75,14 @@ function requestPartial(url, $page, options) {
             }
         }
 
+        const newSavedViews = doc.querySelector('[data-tables-saved-views]');
+        if (newSavedViews) {
+            const $oldSavedViews = $page.find('[data-tables-saved-views]').first();
+            if ($oldSavedViews.length > 0) {
+                $oldSavedViews.get(0).replaceWith(newSavedViews);
+            }
+        }
+
         syncSavedViews($page, url);
         $(newRoot).trigger('tables:rendered');
         document.dispatchEvent(new CustomEvent('tables:rendered', { detail: { url } }));
@@ -143,9 +151,10 @@ $(document).on('click', '[data-tables-root] .pagination a[href]', function (e) {
 document.addEventListener('tables:navigate', function (e) {
     const url = e?.detail?.url;
     if (!url) return;
+    const push = e?.detail?.push !== false;
     const $page = $('[data-tables-page]').first();
     if ($page.length === 0) return;
-    requestPartial(url, $page);
+    requestPartial(url, $page, { push });
 });
 
 window.addEventListener('popstate', function (e) {

@@ -49,4 +49,8 @@
     @if ($table->resource && method_exists($table->resource, 'qbSchema') && ! empty($table->resource->qbSchema()['fields']))
         <x-tables.qb-offcanvas :table="$table"/>
     @endif
+
+    @if ($table->hasRowActionForms())
+        <x-tables.row-action-offcanvas :table="$table"/>
+    @endif
 </div>
