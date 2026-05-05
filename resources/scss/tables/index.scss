@@ -9,15 +9,17 @@
  *   2. _loading    — overlay + spinner для [data-tables-root].is-loading
  *   3. _table      — fallback для [data-tables-row].is-selected
  *   4. _saved-views — placeholder, перенос в cutover
- *   5. _chips      — placeholder, итерация 2.3
- *   6. _bulk-bar   — placeholder, перенос в cutover
- *   7. _pagination — placeholder, BS5 paginator достаточен
+ *   5. _summary    — KPI + Funnel cards (Tables/2.2)
+ *   6. _chips      — placeholder, итерация 2.3
+ *   7. _bulk-bar   — placeholder, перенос в cutover
+ *   8. _pagination — placeholder, BS5 paginator достаточен
  * ============================================================ */
 
 @import 'tokens';
 @import 'loading';
 @import 'table';
 @import 'saved-views';
+@import 'summary';
 @import 'chips';
 @import 'bulk-bar';
 @import 'pagination';

@@ -18,6 +18,27 @@
     --tables-pill-radius: 999px;
     --tables-chip-bg: var(--surface-alt, #f5f6f8);
     --tables-chip-bg-active: var(--accent-soft, #eaf2ff);
+
+    --tables-summary-card-bg: #fff;
+    --tables-summary-card-border: #e5e7eb;
+    --tables-summary-card-radius: 10px;
+    --tables-summary-card-hover-bg: #fafafa;
+    --tables-summary-card-hover-border: #c4cdd5;
+    --tables-summary-gap: 12px;
+    --tables-summary-mb: 16px;
+
+    --tables-kpi-value-size: 22px;
+    --tables-funnel-value-size: 24px;
+
+    --tables-kpi-delta-good: #16a34a;
+    --tables-kpi-delta-bad: #dc2626;
+
+    --tables-funnel-dot-accent: #2563eb;
+    --tables-funnel-dot-warn: #f59e0b;
+    --tables-funnel-dot-info: #06b6d4;
+    --tables-funnel-dot-good: #16a34a;
+    --tables-funnel-dot-bad: #dc2626;
+    --tables-funnel-dot-neutral: #9ca3af;
 }
 
 .tables-density-compact {
