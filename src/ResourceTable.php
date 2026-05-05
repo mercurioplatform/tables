@@ -27,6 +27,7 @@ final class ResourceTable
         public readonly ?array $sort,
         public readonly ?string $currentView,
         public readonly ?string $search,
+        public readonly string $density = 'comfortable',
     ) {}
 
     public function rows(): Collection

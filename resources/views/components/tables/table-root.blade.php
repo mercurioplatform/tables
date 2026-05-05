@@ -8,7 +8,7 @@
     $colspan = max(1, count($fields) + ($hasBulk ? 1 : 0));
 @endphp
 
-<div data-tables-root data-tables-key="{{ $table->key }}">
+<div data-tables-root data-tables-key="{{ $table->key }}" class="tables-density-{{ $table->density }}">
     <div class="card overflow-hidden">
         <table class="table table-hover align-middle mb-0" @if ($hasBulk) data-tables-bulk-scope="{{ $table->key }}" @endif>
             <thead>

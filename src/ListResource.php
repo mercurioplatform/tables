@@ -66,6 +66,16 @@ abstract class ListResource
         return null;
     }
 
+    public function density(): string
+    {
+        return 'comfortable';
+    }
+
+    private function normalizeDensity(string $raw): string
+    {
+        return in_array($raw, ['compact', 'comfortable'], true) ? $raw : 'comfortable';
+    }
+
     public function table(Request $request): ResourceTable
     {
         $query = $this->query();
@@ -102,6 +112,7 @@ abstract class ListResource
             'sort' => $sort,
             'per_page' => $this->perPage(),
             'total' => $paginator->total(),
+            'density' => $this->density(),
         ]);
 
         return new ResourceTable(
@@ -114,6 +125,7 @@ abstract class ListResource
             sort: $sort,
             currentView: $currentView,
             search: $search,
+            density: $this->normalizeDensity($this->density()),
         );
     }
 

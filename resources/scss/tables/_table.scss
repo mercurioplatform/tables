@@ -14,3 +14,8 @@
 [data-tables-row].is-selected {
     background-color: var(--tables-row-selected-bg);
 }
+
+.tables-density-compact .table > :not(caption) > * > * {
+    padding-top: var(--tables-row-padding-y);
+    padding-bottom: var(--tables-row-padding-y);
+}
