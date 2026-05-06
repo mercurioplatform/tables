@@ -5,6 +5,12 @@
 
 @php
     $actions = $table->bulkActions;
+    $resource = $table->resource ?? null;
+    $baseName = $resource?->routeBaseName();
+    if ($baseName === null) {
+        $current = (string) (\Illuminate\Support\Facades\Route::currentRouteName() ?? '');
+        $baseName = $current !== '' ? \Illuminate\Support\Str::beforeLast($current, '.') : '';
+    }
 @endphp
 
 @if ($actions !== [])
@@ -31,17 +37,38 @@
                         'primary' => 'btn btn-sm btn-primary',
                         default   => 'btn btn-sm btn-outline-secondary',
                     };
-                    $confirm = $bulk->getKind() === 'confirm' ? ($bulk->getConfirmText() ?? 'Подтвердить?') : null;
+                    $kind = $bulk->getKind();
+                    $confirm = $kind === 'confirm' ? ($bulk->getConfirmText() ?? 'Подтвердить?') : null;
                 @endphp
-                <button
-                    type="submit"
-                    class="{{ $btnClass }}"
-                    data-tables-bulk-action="{{ $bulk->name }}"
-                    @if ($confirm !== null) data-tables-bulk-confirm="{{ $confirm }}" @endif
-                >
-                    @if ($bulk->getIcon()) <i class="bi {{ $bulk->getIcon() }}"></i> @endif
-                    {{ $bulk->label }}
-                </button>
+                @if ($kind === 'form')
+                    @php
+                        $formUrl = $baseName !== '' ? route($baseName.'.bulk_action_form', ['action' => $bulk->name]) : '#';
+                        $tooltip = $bulk->getTooltip() ?? $bulk->label;
+                    @endphp
+                    <button
+                        type="button"
+                        class="{{ $btnClass }}"
+                        data-tables-bulk-action-form-button
+                        data-action="{{ $bulk->name }}"
+                        data-action-label="{{ $bulk->label }}"
+                        data-form-url="{{ $formUrl }}"
+                        data-reload-after="{{ $bulk->shouldReloadAfterSubmit() ? '1' : '0' }}"
+                        title="{{ $tooltip }}"
+                    >
+                        @if ($bulk->getIcon()) <i class="bi {{ $bulk->getIcon() }}"></i> @endif
+                        {{ $bulk->label }}
+                    </button>
+                @else
+                    <button
+                        type="submit"
+                        class="{{ $btnClass }}"
+                        data-tables-bulk-action="{{ $bulk->name }}"
+                        @if ($confirm !== null) data-tables-bulk-confirm="{{ $confirm }}" @endif
+                    >
+                        @if ($bulk->getIcon()) <i class="bi {{ $bulk->getIcon() }}"></i> @endif
+                        {{ $bulk->label }}
+                    </button>
+                @endif
             @endforeach
         </span>
         <button

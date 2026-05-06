@@ -53,4 +53,8 @@
     @if ($table->hasRowActionForms())
         <x-tables.row-action-offcanvas :table="$table"/>
     @endif
+
+    @if ($table->hasBulkActionForms())
+        <x-tables.bulk-action-offcanvas :table="$table"/>
+    @endif
 </div>

@@ -1,0 +1,33 @@
+/* ============================================================
+ * Bulk action form (Tables/2.8)
+ *
+ * Singleton offcanvas справа, открывается по клику на bulk-кнопке
+ * с kind=form. Внутри — форма-обёртка <x-tables.bulk-action-form>
+ * с превью-счётчиком выбранных объектов и слотом для полей.
+ * ============================================================ */
+
+.ap-bulk-action-offcanvas {
+    --bs-offcanvas-width: 480px;
+
+    @media (max-width: 768px) {
+        --bs-offcanvas-width: 100%;
+    }
+}
+
+.ap-bulk-action-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+
+    .invalid-feedback {
+        display: block;
+    }
+
+    .ap-bulk-action-form__preview {
+        margin-bottom: 1rem;
+    }
+
+    .ap-bulk-action-form__footer {
+        margin-top: 1rem;
+    }
+}
