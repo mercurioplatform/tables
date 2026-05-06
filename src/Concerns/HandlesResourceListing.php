@@ -2,6 +2,7 @@
 
 namespace Mercurio\Tables\Concerns;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -168,8 +169,7 @@ trait HandlesResourceListing
             return $this->bulkActionError($isXhr, 'Не выбрано ни одного объекта.', 422);
         }
 
-        $ability = $action->getAbility();
-        if ($ability !== null) {
+        if ($action->hasPolicy() || $action->getAbility() !== null) {
             $probe = $resource->query()->whereKey($ids[0])->first();
             if ($probe === null) {
                 Log::warning('tables.bulk.probe_missing', [
@@ -181,13 +181,15 @@ trait HandlesResourceListing
 
                 return $this->bulkActionError($isXhr, 'Запись не найдена.', 404);
             }
-            if (! Gate::check($ability, $probe)) {
-                Log::warning('tables.bulk.forbidden', [
-                    'resource' => $this->resource,
-                    'action' => $name,
-                    'kind' => $kind,
-                    'ability' => $ability,
-                ]);
+            if (! $this->authorizeAction($action, $probe, 'bulk')) {
+                if (! $action->hasPolicy()) {
+                    Log::warning('tables.bulk.forbidden', [
+                        'resource' => $this->resource,
+                        'action' => $name,
+                        'kind' => $kind,
+                        'ability' => $action->getAbility(),
+                    ]);
+                }
                 abort(403);
             }
         }
@@ -211,10 +213,32 @@ trait HandlesResourceListing
             $payload = $action->getPayload();
         }
 
+        $callback = $action->getCallback();
         $handlerClass = $action->getHandler();
+        $mode = $action->hasCallback() ? 'callback' : ($handlerClass !== null ? 'handler' : 'none');
         $result = null;
 
-        if ($handlerClass !== null) {
+        Log::debug('tables.action.dispatch', [
+            'resource' => $this->resource,
+            'kind' => 'bulk',
+            'action' => $name,
+            'mode' => $mode,
+        ]);
+
+        if ($mode === 'callback') {
+            try {
+                $result = $callback($ids, $payload, $this->currentTableActor());
+            } catch (Throwable $e) {
+                Log::error('tables.bulk.callback_threw', [
+                    'resource' => $this->resource,
+                    'action' => $name,
+                    'kind' => $kind,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return $this->bulkActionError($isXhr, 'Внутренняя ошибка. См. логи.', 500);
+            }
+        } elseif ($mode === 'handler') {
             try {
                 /** @var Action $handler */
                 $handler = app($handlerClass);
@@ -236,6 +260,8 @@ trait HandlesResourceListing
             'resource' => $this->resource,
             'action' => $name,
             'kind' => $kind,
+            'mode' => $mode,
+            'authz' => $this->authzMode($action),
             'has_form_request' => $formRequestClass !== null,
             'validation' => $validationSource,
             'ids_count' => count($ids),
@@ -283,8 +309,7 @@ trait HandlesResourceListing
             abort(422, 'Не выбрано ни одного объекта.');
         }
 
-        $ability = $bulk->getAbility();
-        if ($ability !== null) {
+        if ($bulk->hasPolicy() || $bulk->getAbility() !== null) {
             $probe = $resource->query()->whereKey($ids[0])->first();
             if ($probe === null) {
                 Log::warning('tables.bulk.form.probe_missing', [
@@ -294,12 +319,14 @@ trait HandlesResourceListing
                 ]);
                 abort(404, 'Запись не найдена.');
             }
-            if (! Gate::check($ability, $probe)) {
-                Log::warning('tables.bulk.form.forbidden', [
-                    'resource' => $this->resource,
-                    'action' => $action,
-                    'ability' => $ability,
-                ]);
+            if (! $this->authorizeAction($bulk, $probe, 'bulk')) {
+                if (! $bulk->hasPolicy()) {
+                    Log::warning('tables.bulk.form.forbidden', [
+                        'resource' => $this->resource,
+                        'action' => $action,
+                        'ability' => $bulk->getAbility(),
+                    ]);
+                }
                 abort(403);
             }
         }
@@ -725,6 +752,75 @@ trait HandlesResourceListing
         return null;
     }
 
+    /**
+     * Единый authz-резолвер для bulk/row-actions.
+     * Приоритет: policy(class, method) → ability(name) → open (true).
+     * Логирует tables.policy.check (debug) и tables.policy.denied (warning) только для policy-пути.
+     */
+    private function authorizeAction(BulkAction|RowAction $action, mixed $subject, string $kind): bool
+    {
+        $policy = $action->getPolicy();
+        if ($policy !== null) {
+            $actor = $this->currentTableActor();
+            $allowed = (bool) Gate::forUser($actor)->check($policy['method'], $subject);
+
+            $subjectClass = is_object($subject) ? get_class($subject) : null;
+            $subjectKey = is_object($subject) && method_exists($subject, 'getKey')
+                ? $subject->getKey()
+                : null;
+
+            Log::debug('tables.policy.check', [
+                'resource' => $this->resource,
+                'action' => $action->name,
+                'kind' => $kind,
+                'policy_class' => $policy['class'],
+                'policy_method' => $policy['method'],
+                'subject_class' => $subjectClass,
+                'subject_key' => $subjectKey,
+                'allowed' => $allowed,
+                'actor_id' => $actor?->getAuthIdentifier(),
+            ]);
+
+            if (! $allowed) {
+                Log::warning('tables.policy.denied', [
+                    'resource' => $this->resource,
+                    'action' => $action->name,
+                    'kind' => $kind,
+                    'policy_class' => $policy['class'],
+                    'policy_method' => $policy['method'],
+                    'subject_class' => $subjectClass,
+                    'subject_key' => $subjectKey,
+                    'actor_id' => $actor?->getAuthIdentifier(),
+                ]);
+            }
+
+            return $allowed;
+        }
+
+        $ability = $action->getAbility();
+        if ($ability !== null) {
+            return Gate::check($ability, $subject);
+        }
+
+        return true;
+    }
+
+    private function currentTableActor(): ?Authenticatable
+    {
+        $guard = (string) config('tables.guard', 'web');
+
+        return Auth::guard($guard)->user();
+    }
+
+    private function authzMode(BulkAction|RowAction $action): string
+    {
+        return match (true) {
+            $action->hasPolicy() => 'policy',
+            $action->getAbility() !== null => 'ability',
+            default => 'open',
+        };
+    }
+
     public function rowAction(Request $request, $id, string $action): Response
     {
         /** @var ListResource $resource */
@@ -763,23 +859,29 @@ trait HandlesResourceListing
             return $this->rowActionError($request, $isXhr, 'Действие недоступно.', 403);
         }
 
-        $ability = $rowAction->getAbility() ?? 'update';
-        if (! Gate::check($ability, $model)) {
-            Log::warning('tables.rowaction.forbidden', [
-                'resource' => $this->resource,
-                'action' => $action,
-                'id' => $id,
-                'ability' => $ability,
-            ]);
-            abort(403);
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizeAction($rowAction, $model, 'row')) {
+                if (! $rowAction->hasPolicy()) {
+                    Log::warning('tables.rowaction.forbidden', [
+                        'resource' => $this->resource,
+                        'action' => $action,
+                        'id' => $id,
+                        'ability' => $rowAction->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
         }
 
         $resolved = $this->resolveRowActionPayload($request, $rowAction);
         $payload = $resolved['payload'];
         $validationSource = $resolved['source'];
 
+        $callback = $rowAction->getCallback();
         $handlerClass = $rowAction->getHandler();
-        if ($handlerClass === null && $rowAction->getKind() !== 'link') {
+        $mode = $rowAction->hasCallback() ? 'callback' : ($handlerClass !== null ? 'handler' : 'none');
+
+        if ($mode === 'none' && $rowAction->getKind() !== 'link') {
             Log::warning('tables.rowaction.no_handler', [
                 'resource' => $this->resource,
                 'action' => $action,
@@ -788,13 +890,25 @@ trait HandlesResourceListing
             return $this->rowActionError($request, $isXhr, 'Действие не настроено.', 500);
         }
 
+        Log::debug('tables.action.dispatch', [
+            'resource' => $this->resource,
+            'kind' => 'row',
+            'action' => $action,
+            'mode' => $mode,
+        ]);
+
         $result = null;
         try {
-            /** @var Action $handler */
-            $handler = app($handlerClass);
-            $result = $handler->execute($model, $payload);
+            if ($mode === 'callback') {
+                $result = $callback($model, $payload, $this->currentTableActor());
+            } elseif ($mode === 'handler') {
+                /** @var Action $handler */
+                $handler = app($handlerClass);
+                $result = $handler->execute($model, $payload);
+            }
         } catch (Throwable $e) {
-            Log::error('tables.rowaction.handler_threw', [
+            $logKey = $mode === 'callback' ? 'tables.rowaction.callback_threw' : 'tables.rowaction.handler_threw';
+            Log::error($logKey, [
                 'resource' => $this->resource,
                 'action' => $action,
                 'id' => $id,
@@ -810,6 +924,8 @@ trait HandlesResourceListing
             'action' => $action,
             'id' => $id,
             'kind' => $rowAction->getKind(),
+            'mode' => $mode,
+            'authz' => $this->authzMode($rowAction),
             'validation' => $validationSource,
             'affected' => $result?->affected,
             'message' => $result?->message,
@@ -862,9 +978,18 @@ trait HandlesResourceListing
             abort(403);
         }
 
-        $ability = $rowAction->getAbility() ?? 'update';
-        if (! Gate::check($ability, $model)) {
-            abort(403);
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizeAction($rowAction, $model, 'row')) {
+                if (! $rowAction->hasPolicy()) {
+                    Log::warning('tables.rowaction.form.forbidden', [
+                        'resource' => $this->resource,
+                        'action' => $action,
+                        'id' => $id,
+                        'ability' => $rowAction->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
         }
 
         $base = $this->deriveBaseRouteName();
@@ -1087,7 +1212,7 @@ trait HandlesResourceListing
     }
 
     /**
-     * @param array<int, FormField|FieldRow> $schema
+     * @param  array<int, FormField|FieldRow>  $schema
      * @return array<int, FormField>
      */
     private function flattenSchemaFields(array $schema): array
@@ -1107,7 +1232,7 @@ trait HandlesResourceListing
     }
 
     /**
-     * @param array<int, FormField> $fields
+     * @param  array<int, FormField>  $fields
      * @return array<string, mixed>
      */
     private function collectSchemaInput(array $fields, Request $request): array

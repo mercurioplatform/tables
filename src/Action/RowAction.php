@@ -4,7 +4,10 @@ namespace Mercurio\Tables\Action;
 
 use Closure;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Validator;
 use InvalidArgumentException;
+use Mercurio\Tables\Form\Field\FieldRow;
+use Mercurio\Tables\Form\Field\FormField;
 use Throwable;
 
 final class RowAction
@@ -23,7 +26,7 @@ final class RowAction
 
     protected ?string $formViewSlot = null;
 
-    /** @var array<int, \Mercurio\Tables\Form\Field\FormField|\Mercurio\Tables\Form\Field\FieldRow> */
+    /** @var array<int, FormField|FieldRow> */
     protected array $schema = [];
 
     protected string $variant = 'default';
@@ -33,6 +36,9 @@ final class RowAction
     protected ?string $confirmText = null;
 
     protected ?string $ability = null;
+
+    /** @var array{class: string, method: string}|null */
+    protected ?array $policy = null;
 
     protected ?Closure $hideWhenCallback = null;
 
@@ -45,6 +51,11 @@ final class RowAction
     protected ?Closure $withValidatorHook = null;
 
     protected ?Closure $transformValidatedHook = null;
+
+    /**
+     * @var Closure(mixed, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     */
+    protected ?Closure $callback = null;
 
     private const KINDS = ['link', 'instant', 'confirm', 'form'];
 
@@ -112,7 +123,7 @@ final class RowAction
         return $this;
     }
 
-    /** @param array<int, \Mercurio\Tables\Form\Field\FormField|\Mercurio\Tables\Form\Field\FieldRow> $schema */
+    /** @param array<int, FormField|FieldRow> $schema */
     public function schema(array $schema): self
     {
         $this->kind = 'form';
@@ -121,7 +132,7 @@ final class RowAction
         return $this;
     }
 
-    /** @return array<int, \Mercurio\Tables\Form\Field\FormField|\Mercurio\Tables\Form\Field\FieldRow> */
+    /** @return array<int, FormField|FieldRow> */
     public function getSchema(): array
     {
         return $this->schema;
@@ -172,6 +183,33 @@ final class RowAction
         $this->ability = $ability;
 
         return $this;
+    }
+
+    /**
+     * Привязать row-action к Laravel Policy. Engine авто-вызывает
+     * Gate::forUser($actor)->check($method, $row) перед выполнением
+     * и для UI-фильтрации.
+     */
+    public function policy(string $policyClass, string $method): self
+    {
+        if ($policyClass === '' || $method === '') {
+            throw new InvalidArgumentException('RowAction::policy() requires non-empty class and method');
+        }
+
+        $this->policy = ['class' => $policyClass, 'method' => $method];
+
+        return $this;
+    }
+
+    /** @return array{class: string, method: string}|null */
+    public function getPolicy(): ?array
+    {
+        return $this->policy;
+    }
+
+    public function hasPolicy(): bool
+    {
+        return $this->policy !== null;
     }
 
     public function hideWhen(Closure $callback): self
@@ -262,7 +300,7 @@ final class RowAction
         return $this;
     }
 
-    /** @param Closure(\Illuminate\Validation\Validator, array<string, mixed>): void $fn */
+    /** @param Closure(Validator, array<string, mixed>): void $fn */
     public function withValidator(Closure $fn): self
     {
         $this->withValidatorHook = $fn;
@@ -291,6 +329,42 @@ final class RowAction
     public function getTransformValidatedHook(): ?Closure
     {
         return $this->transformValidatedHook;
+    }
+
+    /**
+     * Inline-handler. Замыкание получает (row, payload, ?actor) и должно вернуть ActionResult.
+     * Альтернатива handler(Class) для коротких операций (1-3 строки бизнес-логики).
+     *
+     * Сигнатура: callable(mixed $row, array<string, mixed> $payload, ?\Illuminate\Contracts\Auth\Authenticatable $actor): \Mercurio\Tables\Action\ActionResult
+     *
+     * $row — Eloquent model уже резолвлен engine'ом из $resource->query()->whereKey($id)->first().
+     * Type-hint в declaration (например, function (Product $row, ...)) enforce'ится PHP'ом —
+     * TypeError ловится try/catch в trait и логируется как tables.rowaction.callback_threw.
+     *
+     * Если заданы оба (->using() и ->handler()), приоритет у callback'а — handler игнорируется
+     * (silent precedence; ad-hoc сценарий «временно переписать на closure»).
+     *
+     * Внимание: closure нельзя сериализовать в очередь. Для queue-aware actions используйте handler(Class).
+     * Authz: closure НЕ делает Gate::authorize внутри — engine вызывает policy()/authorizeAction до invocation.
+     * Если action декларирует UI без policy() — он open; защита возложена на policy() декларацию.
+     *
+     * @param Closure(mixed, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult $callback
+     */
+    public function using(Closure $callback): self
+    {
+        $this->callback = $callback;
+
+        return $this;
+    }
+
+    public function getCallback(): ?Closure
+    {
+        return $this->callback;
+    }
+
+    public function hasCallback(): bool
+    {
+        return $this->callback !== null;
     }
 
     public function isHiddenFor(mixed $row): bool

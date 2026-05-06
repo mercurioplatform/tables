@@ -2,8 +2,11 @@
 
 namespace Mercurio\Tables;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
@@ -75,7 +78,9 @@ abstract class ListResource
      */
     public function resolveRowActions(mixed $row): array
     {
+        $actor = $this->currentActor();
         $visible = [];
+        $hiddenByPolicy = [];
 
         foreach ($this->rowActions() as $action) {
             if (! $action instanceof RowAction) {
@@ -86,10 +91,129 @@ abstract class ListResource
                 continue;
             }
 
+            if (! $this->isActionAuthorized($action, $row, $actor)) {
+                $hiddenByPolicy[] = $action->name;
+
+                continue;
+            }
+
             $visible[] = $action;
         }
 
+        if ($hiddenByPolicy !== [] && $visible === []) {
+            Log::debug('tables.policy.filter_row.all_hidden', [
+                'resource' => $this->key(),
+                'row_key' => is_object($row) && method_exists($row, 'getKey') ? $row->getKey() : null,
+                'hidden_actions' => $hiddenByPolicy,
+                'actor_id' => $actor?->getAuthIdentifier(),
+            ]);
+        }
+
         return $visible;
+    }
+
+    /**
+     * Bulk-actions, отфильтрованные для текущего actor'а через type-based probe (новый instance модели).
+     * Open-actions (без policy/ability) проходят без проверки.
+     *
+     * @return array<int, BulkAction>
+     */
+    public function resolveBulkActions(): array
+    {
+        $declared = $this->bulkActions();
+        if ($declared === []) {
+            return [];
+        }
+
+        $actor = $this->currentActor();
+        $probe = null;
+        $probeBuilt = false;
+        $visible = [];
+        $hidden = [];
+
+        foreach ($declared as $action) {
+            if (! $action instanceof BulkAction) {
+                continue;
+            }
+
+            if (! $action->hasPolicy() && $action->getAbility() === null) {
+                $visible[] = $action;
+
+                continue;
+            }
+
+            if (! $probeBuilt) {
+                $probe = $this->buildBulkPolicyProbe();
+                $probeBuilt = true;
+            }
+
+            if ($probe === null) {
+                // Не смогли построить probe — server-side всё равно валидирует, не скрываем.
+                $visible[] = $action;
+
+                continue;
+            }
+
+            if ($this->isActionAuthorized($action, $probe, $actor)) {
+                $visible[] = $action;
+            } else {
+                $hidden[] = $action->name;
+            }
+        }
+
+        if ($hidden !== []) {
+            Log::debug('tables.policy.filter_bulk', [
+                'resource' => $this->key(),
+                'total' => count($declared),
+                'visible' => count($visible),
+                'hidden_actions' => $hidden,
+                'actor_id' => $actor?->getAuthIdentifier(),
+            ]);
+        }
+
+        return $visible;
+    }
+
+    protected function currentActor(): ?Authenticatable
+    {
+        $guard = (string) config('tables.guard', 'web');
+
+        return Auth::guard($guard)->user();
+    }
+
+    private function isActionAuthorized(BulkAction|RowAction $action, mixed $subject, ?Authenticatable $actor): bool
+    {
+        $policy = $action->getPolicy();
+        if ($policy !== null) {
+            return (bool) Gate::forUser($actor)->check($policy['method'], $subject);
+        }
+
+        $ability = $action->getAbility();
+        if ($ability !== null) {
+            return (bool) Gate::forUser($actor)->check($ability, $subject);
+        }
+
+        return true;
+    }
+
+    /**
+     * Type-based probe для bulk-actions: пустой instance модели через query()->getModel()->newInstance().
+     * Возвращает null при ошибке — UI fallback'ится на «показать всё», server-side проверит.
+     */
+    private function buildBulkPolicyProbe(): ?object
+    {
+        try {
+            $model = $this->query()->getModel();
+
+            return $model->newInstance();
+        } catch (\Throwable $e) {
+            Log::warning('tables.policy.probe_build_failed', [
+                'resource' => $this->key(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
@@ -247,7 +371,7 @@ abstract class ListResource
             paginator: $paginator,
             fields: $fields,
             savedViews: $savedViews,
-            bulkActions: $this->bulkActions(),
+            bulkActions: $this->resolveBulkActions(),
             rowActions: $this->rowActions(),
             sort: $sort,
             currentView: $currentView,
@@ -267,7 +391,7 @@ abstract class ListResource
      * Apply search + saved view + chip filters + qb to the given query.
      * Sort/pagination are intentionally out of scope (caller decides).
      *
-     * @param  array<int, Field>      $fields
+     * @param  array<int, Field>  $fields
      * @param  array<int, SavedView>  $savedViews
      * @return array{
      *     search: string|null,
