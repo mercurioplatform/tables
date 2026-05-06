@@ -145,4 +145,26 @@ return [
         'form_suffix' => '/bulk-action/{action}/form',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | User Table Prefs (Tables/2.9)
+    |--------------------------------------------------------------------------
+    |
+    | Per-user persisted preferences for table listing (visible columns,
+    | density, page size). Stored in `user_table_prefs` keyed by
+    | (user_id, resource_key). URL query params override DB; DB overrides
+    | Resource defaults.
+    |   - per_page_options:        whitelist of allowed page sizes shown in popover.
+    |   - density_options:         whitelist of allowed density modes.
+    |   - popover_button_label:    label of the trigger button in filter-bar:right.
+    |   - popover_button_icon:     Bootstrap Icons class for the button.
+    |
+    */
+    'user_prefs' => [
+        'per_page_options' => [15, 25, 50, 100],
+        'density_options' => ['compact', 'comfortable'],
+        'popover_button_label' => 'Настроить таблицу',
+        'popover_button_icon' => 'bi-gear',
+    ],
+
 ];

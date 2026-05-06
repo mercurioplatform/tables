@@ -18,6 +18,7 @@ use Mercurio\Tables\Filter\Qb\AtomGroup;
 use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
 use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
+use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\Services\SavedViewCountsCalculator;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
@@ -181,8 +182,13 @@ abstract class ListResource
             $query->orderBy($sort['column'], $sort['direction']);
         }
 
+        $prefs = app(UserPrefsResolver::class)->resolve($this, $request);
+        $effectivePerPage = $prefs->perPage ?? $this->perPage();
+        $effectiveDensity = $prefs->density ?? $this->density();
+        $effectiveColumns = $prefs->columns;
+
         $paginator = $query
-            ->paginate($this->perPage())
+            ->paginate($effectivePerPage)
             ->withQueryString();
 
         $summary = $this->summary();
@@ -192,15 +198,20 @@ abstract class ListResource
             'q' => $search,
             'view' => $currentView,
             'sort' => $sort,
-            'per_page' => $this->perPage(),
+            'per_page' => $effectivePerPage,
             'total' => $paginator->total(),
-            'density' => $this->density(),
+            'density' => $effectiveDensity,
             'summary' => $summary !== null ? class_basename($summary) : null,
             'filters' => count($conditions),
             'active_filters' => array_map(fn (FilterCondition $c) => $c->field.':'.$c->operator->value, $conditions),
             'qb' => $qbRoot !== null
                 ? ['atoms' => QueryBuilderNormalizer::countAtoms($qbRoot), 'depth' => QueryBuilderNormalizer::maxDepth($qbRoot)]
                 : null,
+            'prefs_source' => [
+                'columns' => $prefs->columns !== null ? 'effective' : 'default',
+                'density' => $prefs->density !== null ? 'effective' : 'default',
+                'per_page' => $prefs->perPage !== null ? 'effective' : 'default',
+            ],
         ]);
 
         $qbVo = $qbRoot !== null
@@ -221,12 +232,14 @@ abstract class ListResource
             sort: $sort,
             currentView: $currentView,
             search: $search,
-            density: $this->normalizeDensity($this->density()),
+            density: $this->normalizeDensity($effectiveDensity),
             summary: $summary,
             resource: $this,
             activeFilters: $activeFilters,
             qb: $qbVo,
             savedViewCounts: $savedViewCounts,
+            effectiveColumns: $effectiveColumns,
+            perPage: $effectivePerPage,
         );
     }
 

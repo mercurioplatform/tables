@@ -22,6 +22,7 @@ final class ResourceTable
      * @param  array<string, FilterCondition>  $activeFilters
      * @param  array{json: string, atoms: int, depth: int}|null  $qb
      * @param  array<string, int>  $savedViewCounts
+     * @param  array<int, string>|null  $effectiveColumns
      */
     public function __construct(
         public readonly string $key,
@@ -39,6 +40,8 @@ final class ResourceTable
         public readonly array $activeFilters = [],
         public readonly ?array $qb = null,
         public readonly array $savedViewCounts = [],
+        public readonly ?array $effectiveColumns = null,
+        public readonly ?int $perPage = null,
     ) {}
 
     public function rows(): Collection
@@ -78,6 +81,28 @@ final class ResourceTable
      */
     public function visibleFields(): array
     {
+        if ($this->effectiveColumns !== null) {
+            $set = array_flip($this->effectiveColumns);
+            $byName = [];
+            foreach ($this->fields as $f) {
+                if ($f->isOnlyFilterable()) {
+                    continue;
+                }
+                if (isset($set[$f->name])) {
+                    $byName[$f->name] = $f;
+                }
+            }
+
+            $ordered = [];
+            foreach ($this->effectiveColumns as $name) {
+                if (isset($byName[$name])) {
+                    $ordered[] = $byName[$name];
+                }
+            }
+
+            return $ordered;
+        }
+
         return array_values(array_filter(
             $this->fields,
             fn (Field $f) => ! $f->isHidden() && ! $f->isOnlyFilterable(),
@@ -93,5 +118,47 @@ final class ResourceTable
             $this->fields,
             fn (Field $f) => $f->isFilterable(),
         ));
+    }
+
+    /**
+     * @return array<int, array{name: string, label: string, hidden_by_default: bool}>
+     */
+    public function availablePrefsColumns(): array
+    {
+        return array_values(array_map(
+            fn (Field $f) => [
+                'name' => $f->name,
+                'label' => $f->label,
+                'hidden_by_default' => $f->isHidden(),
+            ],
+            array_filter($this->fields, fn (Field $f) => ! $f->isOnlyFilterable()),
+        ));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function effectiveColumnNames(): array
+    {
+        if ($this->effectiveColumns !== null) {
+            return array_values($this->effectiveColumns);
+        }
+
+        return array_values(array_map(
+            fn (Field $f) => $f->name,
+            array_filter(
+                $this->fields,
+                fn (Field $f) => ! $f->isHidden() && ! $f->isOnlyFilterable(),
+            ),
+        ));
+    }
+
+    public function effectivePerPage(): int
+    {
+        if ($this->perPage !== null) {
+            return $this->perPage;
+        }
+
+        return (int) $this->paginator->perPage();
     }
 }

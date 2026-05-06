@@ -27,9 +27,12 @@
     <x-tables.filter-bar :table="$table">
         {{ $filterBar ?? '' }}
 
-        @isset($filterBarRight)
-            <x-slot:right>{{ $filterBarRight }}</x-slot:right>
-        @endisset
+        <x-slot:right>
+            @isset($filterBarRight)
+                {{ $filterBarRight }}
+            @endisset
+            <x-tables.prefs-popover :table="$table"/>
+        </x-slot:right>
     </x-tables.filter-bar>
 
     {{ $afterFilterBar ?? '' }}

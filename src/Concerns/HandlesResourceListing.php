@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Mercurio\Tables\Action\Action;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
+use Mercurio\Tables\Models\UserTablePrefs;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -358,6 +360,97 @@ trait HandlesResourceListing
         return back()->with('status', 'Вид сохранён');
     }
 
+    public function savePrefs(Request $request): Response
+    {
+        $guard = (string) config('tables.guard', 'web');
+        $userId = Auth::guard($guard)->id();
+        if ($userId === null) {
+            abort(401);
+        }
+
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+
+        $perPageOptions = (array) config('tables.user_prefs.per_page_options', [15, 25, 50, 100]);
+        $densityOptions = (array) config('tables.user_prefs.density_options', ['compact', 'comfortable']);
+
+        $data = $request->validate([
+            'columns' => ['nullable', 'array', 'min:1'],
+            'columns.*' => ['string', 'max:64', 'regex:/^[a-zA-Z_][a-zA-Z0-9_]*$/'],
+            'density' => ['nullable', 'string', Rule::in($densityOptions)],
+            'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
+        ]);
+
+        $allowed = array_map(fn ($f) => $f->name, $resource->fields());
+        $submittedColumns = $data['columns'] ?? null;
+        $cols = is_array($submittedColumns)
+            ? array_values(array_intersect($submittedColumns, $allowed))
+            : [];
+
+        if ($submittedColumns !== null && $cols === []) {
+            Log::warning('tables.prefs.empty_columns_after_whitelist', [
+                'resource' => $resource->key(),
+                'user_id' => $userId,
+                'submitted' => $submittedColumns,
+            ]);
+
+            return response()->json([
+                'errors' => ['columns' => ['Выберите хотя бы одно поле.']],
+            ], 422);
+        }
+
+        $prefs = [];
+        if ($cols !== []) {
+            $prefs['columns'] = $cols;
+        }
+        if (isset($data['density'])) {
+            $prefs['density'] = $data['density'];
+        }
+        if (isset($data['per_page'])) {
+            $prefs['per_page'] = (int) $data['per_page'];
+        }
+
+        UserTablePrefs::upsertFor((int) $userId, $resource->key(), $prefs);
+
+        Log::info('tables.prefs.saved', [
+            'resource' => $resource->key(),
+            'user_id' => $userId,
+            'keys' => array_keys($prefs),
+        ]);
+
+        return response()->json([
+            'status' => 'ok',
+            'message' => 'Настройки сохранены',
+        ]);
+    }
+
+    public function resetPrefs(Request $request): Response
+    {
+        $guard = (string) config('tables.guard', 'web');
+        $userId = Auth::guard($guard)->id();
+        if ($userId === null) {
+            abort(401);
+        }
+
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+
+        UserTablePrefs::query()
+            ->forUser((int) $userId)
+            ->forResource($resource->key())
+            ->delete();
+
+        Log::info('tables.prefs.reset', [
+            'resource' => $resource->key(),
+            'user_id' => $userId,
+        ]);
+
+        return response()->json([
+            'status' => 'ok',
+            'message' => 'Настройки сброшены',
+        ]);
+    }
+
     public function deleteUserView(Request $request, int $id): Response
     {
         $guard = (string) config('tables.guard', 'web');
@@ -613,7 +706,7 @@ trait HandlesResourceListing
             return '';
         }
 
-        foreach (['.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view'] as $suffix) {
+        foreach (['.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs'] as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }

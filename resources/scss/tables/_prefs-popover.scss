@@ -1,0 +1,33 @@
+/* ============================================================
+ * Tables Engine — Prefs Popover (Tables/2.9)
+ * Per-user table preferences popover (columns / density / per_page).
+ * Triggered via .ap-prefs-popover-trigger; rendered through
+ * Bootstrap Popover with custom HTML content.
+ * ============================================================ */
+
+.popover .ap-prefs-popover-form {
+    min-width: 280px;
+    max-width: 320px;
+}
+
+.popover .ap-prefs-popover-section {
+    padding-bottom: .25rem;
+}
+
+.popover .ap-prefs-popover-section + .ap-prefs-popover-section {
+    border-top: 1px solid var(--bs-border-color);
+    padding-top: .75rem;
+}
+
+.popover .ap-prefs-popover-columns {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.popover .ap-prefs-popover-footer .btn {
+    white-space: nowrap;
+}
+
+.popover .ap-prefs-popover-error {
+    padding: .375rem .5rem;
+}

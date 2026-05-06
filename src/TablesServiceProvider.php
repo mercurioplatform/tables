@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Mercurio\Tables\Console\SyncSavedViewsCommand;
+use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\Routing\PendingTablesResource;
 use Mercurio\Tables\Services\SystemViewSyncer;
 
@@ -26,6 +27,8 @@ class TablesServiceProvider extends ServiceProvider
 
             return $registry;
         });
+
+        $this->app->singleton(UserPrefsResolver::class);
     }
 
     public function boot(): void
