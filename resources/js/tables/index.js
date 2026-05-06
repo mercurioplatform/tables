@@ -1,5 +1,6 @@
 import './core.js';
 import './bulk.js';
+import './bulk-form.js';
 import './chips.js';
 import './autocomplete.js';
 import './qb.js';
