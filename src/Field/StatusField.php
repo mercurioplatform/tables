@@ -135,7 +135,18 @@ class StatusField extends Field
         );
     }
 
-    private function resolveKey(mixed $value): string
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        $key = $this->resolveKey($value);
+
+        $label = $this->labelResolver
+            ? ($this->labelResolver)($value, $row)
+            : ($this->labelMap[$key] ?? $key);
+
+        return (string) $label;
+    }
+
+    protected function resolveKey(mixed $value): string
     {
         if ($value instanceof BackedEnum) {
             return (string) $value->value;

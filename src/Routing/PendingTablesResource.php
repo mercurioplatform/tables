@@ -27,6 +27,8 @@ class PendingTablesResource
 
     private Route $prefsResetRoute;
 
+    private Route $exportRoute;
+
     public function __construct(Router $router, string $path, string $controller)
     {
         $normalized = ltrim($path, '/');
@@ -78,6 +80,11 @@ class PendingTablesResource
             $base.'/prefs',
             [$controller, 'resetPrefs'],
         );
+
+        $this->exportRoute = $router->get(
+            $base.'/export',
+            [$controller, 'export'],
+        );
     }
 
     public function name(string $base): self
@@ -92,6 +99,7 @@ class PendingTablesResource
         $this->bulkActionFormRoute->name($base.'.bulk_action_form');
         $this->prefsRoute->name($base.'.save_prefs');
         $this->prefsResetRoute->name($base.'.reset_prefs');
+        $this->exportRoute->name($base.'.export');
 
         return $this;
     }
@@ -109,6 +117,7 @@ class PendingTablesResource
         $this->bulkActionFormRoute->middleware($middleware);
         $this->prefsRoute->middleware($middleware);
         $this->prefsResetRoute->middleware($middleware);
+        $this->exportRoute->middleware($middleware);
 
         return $this;
     }
@@ -126,6 +135,7 @@ class PendingTablesResource
         $this->bulkActionFormRoute->where($constraints);
         $this->prefsRoute->where($constraints);
         $this->prefsResetRoute->where($constraints);
+        $this->exportRoute->where($constraints);
 
         return $this;
     }

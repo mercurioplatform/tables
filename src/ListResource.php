@@ -136,42 +136,12 @@ abstract class ListResource
             ? []
             : app(SavedViewCountsCalculator::class)->counts($this);
 
-        $search = $this->normalizeSearch($request->query('q'));
-        if ($search !== null) {
-            $this->applySearch($query, $search);
-        }
-
-        $currentView = $this->resolveCurrentView($request->query('view'), $savedViews);
-        if ($currentView !== null) {
-            $this->findView($currentView, $savedViews)?->apply($query);
-        }
-
-        $rawFilters = $request->input('f', []);
-        $conditions = is_array($rawFilters)
-            ? FilterParser::parse($rawFilters, $this)
-            : [];
-
-        $activeFilters = [];
-        foreach ($conditions as $cond) {
-            $field = $this->fieldByName($cond->field, $fields);
-            if ($field !== null) {
-                FilterApplier::apply($query, $field, $cond);
-                $activeFilters[$cond->field] = $cond;
-            }
-        }
-
-        $rawQb = $request->query('qb');
-        $qbRoot = is_string($rawQb) && $rawQb !== ''
-            ? QueryBuilderParser::parse($rawQb, $this)
-            : null;
-        if ($qbRoot !== null) {
-            $qbRoot = QueryBuilderNormalizer::normalize($qbRoot);
-        }
-        if ($qbRoot !== null) {
-            $query->where(function (Builder $sub) use ($qbRoot): void {
-                QueryBuilderApplier::apply($sub, $qbRoot, $this);
-            });
-        }
+        $applied = $this->applyFiltersToQuery($query, $request, $fields, $savedViews);
+        $search = $applied['search'];
+        $currentView = $applied['currentView'];
+        $conditions = $applied['conditions'];
+        $activeFilters = $applied['activeFilters'];
+        $qbRoot = $applied['qbRoot'];
 
         $sort = $this->resolveSort(
             $request->query('sort'),
@@ -241,6 +211,113 @@ abstract class ListResource
             effectiveColumns: $effectiveColumns,
             perPage: $effectivePerPage,
         );
+    }
+
+    /**
+     * Apply search + saved view + chip filters + qb to the given query.
+     * Sort/pagination are intentionally out of scope (caller decides).
+     *
+     * @param  array<int, Field>      $fields
+     * @param  array<int, SavedView>  $savedViews
+     * @return array{
+     *     search: string|null,
+     *     currentView: string|null,
+     *     conditions: array<int, FilterCondition>,
+     *     activeFilters: array<string, FilterCondition>,
+     *     qbRoot: AtomCondition|AtomGroup|null,
+     * }
+     */
+    private function applyFiltersToQuery(Builder $query, Request $request, array $fields, array $savedViews): array
+    {
+        $search = $this->normalizeSearch($request->query('q'));
+        if ($search !== null) {
+            $this->applySearch($query, $search);
+        }
+
+        $currentView = $this->resolveCurrentView($request->query('view'), $savedViews);
+        if ($currentView !== null) {
+            $this->findView($currentView, $savedViews)?->apply($query);
+        }
+
+        $rawFilters = $request->input('f', []);
+        $conditions = is_array($rawFilters)
+            ? FilterParser::parse($rawFilters, $this)
+            : [];
+
+        $activeFilters = [];
+        foreach ($conditions as $cond) {
+            $field = $this->fieldByName($cond->field, $fields);
+            if ($field !== null) {
+                FilterApplier::apply($query, $field, $cond);
+                $activeFilters[$cond->field] = $cond;
+            }
+        }
+
+        $rawQb = $request->query('qb');
+        $qbRoot = is_string($rawQb) && $rawQb !== ''
+            ? QueryBuilderParser::parse($rawQb, $this)
+            : null;
+        if ($qbRoot !== null) {
+            $qbRoot = QueryBuilderNormalizer::normalize($qbRoot);
+        }
+        if ($qbRoot !== null) {
+            $query->where(function (Builder $sub) use ($qbRoot): void {
+                QueryBuilderApplier::apply($sub, $qbRoot, $this);
+            });
+        }
+
+        return [
+            'search' => $search,
+            'currentView' => $currentView,
+            'conditions' => $conditions,
+            'activeFilters' => $activeFilters,
+            'qbRoot' => $qbRoot,
+        ];
+    }
+
+    /**
+     * Resolve full export state (filtered builder, total count, ordered visible columns,
+     * raw query params for async dispatch). Sort and pagination are intentionally not applied —
+     * `chunkById` orders by PK and chunking is decided by the caller.
+     *
+     * @return array{builder: Builder, total: int, columns: array<int, Field>, queryParams: array<string, mixed>}
+     */
+    public function exportState(Request $request): array
+    {
+        $query = $this->query();
+        $fields = $this->fields();
+        $savedViews = $this->savedViews();
+
+        $this->applyFiltersToQuery($query, $request, $fields, $savedViews);
+
+        $prefs = app(UserPrefsResolver::class)->resolve($this, $request);
+        $effectiveColumnNames = $prefs->columns ?? array_values(array_map(
+            fn (Field $f) => $f->name,
+            array_filter($fields, fn (Field $f) => ! $f->isHidden() && ! $f->isOnlyFilterable()),
+        ));
+
+        $byName = [];
+        foreach ($fields as $field) {
+            if ($field->isOnlyFilterable()) {
+                continue;
+            }
+            $byName[$field->name] = $field;
+        }
+        $columns = [];
+        foreach ($effectiveColumnNames as $name) {
+            if (isset($byName[$name])) {
+                $columns[] = $byName[$name];
+            }
+        }
+
+        $total = (int) (clone $query)->toBase()->getCountForPagination();
+
+        return [
+            'builder' => $query,
+            'total' => $total,
+            'columns' => $columns,
+            'queryParams' => (array) $request->query(),
+        ];
     }
 
     /**

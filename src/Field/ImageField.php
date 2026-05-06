@@ -94,4 +94,13 @@ class ImageField extends Field
             .'</span>'
         );
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        $url = $this->urlUsing !== null
+            ? ($this->urlUsing)($value, $row)
+            : (is_string($value) ? $value : null);
+
+        return $url === null || $url === '' ? '' : (string) $url;
+    }
 }

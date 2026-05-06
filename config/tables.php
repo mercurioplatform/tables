@@ -167,4 +167,46 @@ return [
         'popover_button_icon' => 'bi-gear',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Export (Tables/2.10)
+    |--------------------------------------------------------------------------
+    |
+    | Streaming CSV export of the current listing state (search + view +
+    | chip filters + qb + sort + visible columns). Implemented as a GET
+    | endpoint registered automatically by `Route::tablesResource()`.
+    |   - sync_limit:       max rows for synchronous streamed export.
+    |                       Above this the engine refuses with HTTP 413
+    |                       and (when configured) hands off to async dispatcher.
+    |   - chunk_size:       rows per chunkById iteration when streaming.
+    |   - csv_delimiter:    column delimiter (',', ';', '\t').
+    |   - csv_enclosure:    enclosure character ('"').
+    |   - csv_escape:       escape character ('\').
+    |   - csv_bom:          prepend UTF-8 BOM (true → Excel-friendly).
+    |   - filename_prefix:  prefix prepended to <slug>-<timestamp>.csv.
+    |   - ability:          Gate ability checked before export. null = skip.
+    |   - async_dispatcher: optional FQCN implementing
+    |                       Mercurio\Tables\Export\ExportJobDispatcher.
+    |                       Engine calls dispatch() when total > sync_limit.
+    |                       null = no async fallback (engine returns 413).
+    |   - log_chunks:       emit Log::debug per chunk (verbose, off by default).
+    |   - button_label:     label of the Export button in filter-bar:right.
+    |   - button_icon:      Bootstrap Icons class for the button.
+    |
+    */
+    'export' => [
+        'sync_limit' => 10000,
+        'chunk_size' => 500,
+        'csv_delimiter' => ',',
+        'csv_enclosure' => '"',
+        'csv_escape' => '\\',
+        'csv_bom' => true,
+        'filename_prefix' => '',
+        'ability' => null,
+        'async_dispatcher' => null,
+        'log_chunks' => false,
+        'button_label' => 'Экспорт',
+        'button_icon' => 'bi-download',
+    ],
+
 ];

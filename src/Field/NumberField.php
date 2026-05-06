@@ -61,4 +61,13 @@ class NumberField extends Field
             $this->thousandsSeparator
         )));
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return number_format((float) $value, $this->decimals, $this->decimalSeparator, '');
+    }
 }

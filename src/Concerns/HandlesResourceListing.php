@@ -15,10 +15,15 @@ use Illuminate\View\View;
 use Mercurio\Tables\Action\Action;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
+use Mercurio\Tables\Export\CsvStreamWriter;
+use Mercurio\Tables\Export\ExportJobDispatcher;
+use Mercurio\Tables\Export\ExportRequest;
+use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 use Mercurio\Tables\Models\UserTablePrefs;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 trait HandlesResourceListing
@@ -451,6 +456,138 @@ trait HandlesResourceListing
         ]);
     }
 
+    public function export(Request $request): Response
+    {
+        $guard = (string) config('tables.guard', 'web');
+        $userId = Auth::guard($guard)->id();
+        if ($userId === null) {
+            abort(401);
+        }
+
+        $ability = config('tables.export.ability');
+        if ($ability !== null && ! Gate::check($ability)) {
+            Log::warning('tables.export.forbidden', [
+                'resource' => $this->resource,
+                'user_id' => $userId,
+                'ability' => $ability,
+            ]);
+            abort(403);
+        }
+
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        $state = $resource->exportState($request);
+        $total = (int) $state['total'];
+        $columns = $state['columns'];
+        $builder = $state['builder'];
+
+        if ($columns === []) {
+            Log::warning('tables.export.no_columns', ['resource' => $this->resource]);
+            abort(422, 'Нет колонок для экспорта.');
+        }
+
+        $syncLimit = (int) config('tables.export.sync_limit', 10000);
+        if ($total > $syncLimit) {
+            $dispatcherClass = config('tables.export.async_dispatcher');
+            if (is_string($dispatcherClass) && $dispatcherClass !== '' && class_exists($dispatcherClass)) {
+                try {
+                    /** @var ExportJobDispatcher $dispatcher */
+                    $dispatcher = app($dispatcherClass);
+                    $jobId = $dispatcher->dispatch(
+                        $this->resource,
+                        (array) $state['queryParams'],
+                        (int) $userId,
+                        $total,
+                    );
+                    Log::info('tables.export.dispatched', [
+                        'resource' => $this->resource,
+                        'user_id' => $userId,
+                        'rows' => $total,
+                        'job_id' => $jobId,
+                    ]);
+
+                    return response()->json([
+                        'status' => 'queued',
+                        'message' => "Экспорт ({$total} строк) запущен в фоне. Уведомление придёт по готовности.",
+                        'job_id' => $jobId,
+                    ], 202);
+                } catch (Throwable $e) {
+                    Log::error('tables.export.dispatch_failed', [
+                        'resource' => $this->resource,
+                        'error' => $e->getMessage(),
+                    ]);
+                    abort(500, 'Не удалось запустить фоновый экспорт.');
+                }
+            }
+
+            Log::warning('tables.export.too_large', [
+                'resource' => $this->resource,
+                'user_id' => $userId,
+                'rows' => $total,
+                'sync_limit' => $syncLimit,
+            ]);
+
+            return response()->json([
+                'status' => 'too_large',
+                'message' => "Слишком много строк для экспорта ({$total}). Лимит: {$syncLimit}. Уточните фильтр или обратитесь к администратору.",
+            ], 413);
+        }
+
+        $exportRequest = new ExportRequest(
+            filename: $this->buildExportFilename($resource->key()),
+            delimiter: (string) config('tables.export.csv_delimiter', ','),
+            enclosure: (string) config('tables.export.csv_enclosure', '"'),
+            escape: (string) config('tables.export.csv_escape', '\\'),
+            bom: (bool) config('tables.export.csv_bom', true),
+            chunkSize: (int) config('tables.export.chunk_size', 500),
+            logChunks: (bool) config('tables.export.log_chunks', false),
+            columns: $columns,
+        );
+
+        Log::info('tables.export.start', [
+            'resource' => $this->resource,
+            'user_id' => $userId,
+            'rows' => $total,
+            'columns' => array_map(fn (Field $f) => $f->name, $columns),
+            'filename' => $exportRequest->filename,
+        ]);
+
+        $logger = function (string $event, array $ctx) use ($exportRequest): void {
+            Log::info('tables.export.'.$event, ['filename' => $exportRequest->filename] + $ctx);
+        };
+
+        return new StreamedResponse(
+            function () use ($exportRequest, $builder, $logger): void {
+                try {
+                    CsvStreamWriter::stream($exportRequest, $builder, $logger);
+                } catch (Throwable $e) {
+                    Log::error('tables.export.error', [
+                        'filename' => $exportRequest->filename,
+                        'error' => $e->getMessage(),
+                    ]);
+                    throw $e;
+                }
+            },
+            200,
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="'.$exportRequest->filename.'"',
+                'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+                'Pragma' => 'no-cache',
+                'X-Accel-Buffering' => 'no',
+            ],
+        );
+    }
+
+    private function buildExportFilename(string $resourceKey): string
+    {
+        $prefix = (string) config('tables.export.filename_prefix', '');
+        $slug = Str::slug(str_replace('.', '-', $resourceKey));
+        $stamp = now()->format('Ymd-Hi');
+
+        return ltrim($prefix.$slug.'-'.$stamp.'.csv', '-');
+    }
+
     public function deleteUserView(Request $request, int $id): Response
     {
         $guard = (string) config('tables.guard', 'web');
@@ -706,7 +843,7 @@ trait HandlesResourceListing
             return '';
         }
 
-        foreach (['.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs'] as $suffix) {
+        foreach (['.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export'] as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }

@@ -80,4 +80,29 @@ class TwoLineField extends Field
 
         return new HtmlString($html);
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        $mainText = $this->main !== null
+            ? ($this->main)($value, $row)
+            : $value;
+
+        $main = $mainText === null ? '' : (string) $mainText;
+
+        $sub = $this->sub !== null && $row !== null
+            ? (string) ($this->sub)($value, $row)
+            : '';
+
+        if ($main === '' && $sub === '') {
+            return '';
+        }
+        if ($sub === '') {
+            return $main;
+        }
+        if ($main === '') {
+            return $sub;
+        }
+
+        return $main.' / '.$sub;
+    }
 }

@@ -5,6 +5,8 @@ namespace Mercurio\Tables\Field;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 use Mercurio\Tables\Filter\Operator;
 
@@ -167,5 +169,31 @@ class BelongsToManyField extends Field
         }
 
         return new HtmlString(e(implode(', ', $labels)));
+    }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        if ($row === null) {
+            return '';
+        }
+
+        $related = $row->{$this->relation} ?? null;
+        if ($related === null) {
+            Log::warning('tables.export.relation_not_loaded', [
+                'field' => $this->name,
+                'relation' => $this->relation,
+            ]);
+
+            return '';
+        }
+
+        if (! $related instanceof Collection) {
+            return '';
+        }
+
+        return $related
+            ->map(fn ($m) => (string) ($m->{$this->displayKey} ?? ''))
+            ->filter(fn ($s) => $s !== '')
+            ->implode(', ');
     }
 }

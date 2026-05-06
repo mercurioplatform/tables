@@ -123,4 +123,18 @@ class BelongsToField extends Field
 
         return new HtmlString(e((string) $display));
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        if ($row === null) {
+            return '';
+        }
+        $related = $row->{$this->relation} ?? null;
+        if ($related === null) {
+            return '';
+        }
+        $display = $related->{$this->displayKey} ?? null;
+
+        return $display === null ? '' : (string) $display;
+    }
 }

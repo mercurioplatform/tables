@@ -7,6 +7,7 @@ import './qb.js';
 import './saved-views.js';
 import './row-actions.js';
 import './prefs.js';
+import './export.js';
 
 export function initTables() {
     // No-op on E8: delegated handlers attached via module side-effect.

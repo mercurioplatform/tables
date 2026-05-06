@@ -129,4 +129,15 @@ class MoneyField extends NumberField
 
         return new HtmlString(e($output));
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        $amount = (float) $value / max(1, $this->divisor);
+
+        return number_format($amount, $this->decimals, $this->decimalSeparator, '');
+    }
 }

@@ -515,6 +515,20 @@ abstract class Field
 
     abstract protected function renderDefault(mixed $value, ?Model $row): Htmlable;
 
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        if ($this->displayUsing !== null) {
+            $rendered = ($this->displayUsing)($value, $row);
+            if ($rendered instanceof Htmlable) {
+                return strip_tags($rendered->toHtml());
+            }
+
+            return (string) $rendered;
+        }
+
+        return $value === null ? '' : (string) $value;
+    }
+
     private function wrapHtmlable(mixed $rendered): Htmlable
     {
         if ($rendered instanceof Htmlable) {

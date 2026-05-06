@@ -63,4 +63,9 @@ class BooleanField extends Field
             .$dot.e($label).'</span>'
         );
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        return ((bool) $value) ? 'да' : 'нет';
+    }
 }

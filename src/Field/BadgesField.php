@@ -65,4 +65,25 @@ class BadgesField extends Field
 
         return new HtmlString($html);
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        if ($this->using === null) {
+            return '';
+        }
+
+        $badges = (array) ($this->using)($value, $row);
+        $labels = [];
+        foreach ($badges as $badge) {
+            if (! is_array($badge) || ! isset($badge['label'])) {
+                continue;
+            }
+            $label = (string) $badge['label'];
+            if ($label !== '') {
+                $labels[] = $label;
+            }
+        }
+
+        return implode(', ', $labels);
+    }
 }

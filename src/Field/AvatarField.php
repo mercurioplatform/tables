@@ -78,4 +78,29 @@ class AvatarField extends Field
 
         return new HtmlString($html);
     }
+
+    public function exportValue(mixed $value, ?Model $row = null): string
+    {
+        $name = $this->nameUsing !== null
+            ? (string) ($this->nameUsing)($value, $row)
+            : (string) ($value ?? '');
+
+        $email = $this->emailUsing !== null
+            ? ($this->emailUsing)($value, $row)
+            : null;
+
+        $email = $email === null ? '' : (string) $email;
+
+        if ($name === '' && $email === '') {
+            return '';
+        }
+        if ($email === '') {
+            return $name;
+        }
+        if ($name === '') {
+            return $email;
+        }
+
+        return $name.' / '.$email;
+    }
 }

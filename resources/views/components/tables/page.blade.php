@@ -3,7 +3,7 @@
     'bulkAction' => '',
 ])
 
-<div data-tables-page="{{ $table->key }}">
+<div data-tables-page="{{ $table->key }}" data-tables-total="{{ $table->paginator->total() }}">
     {{ $beforePageHead ?? '' }}
 
     {{ $afterPageHead ?? '' }}
@@ -31,6 +31,7 @@
             @isset($filterBarRight)
                 {{ $filterBarRight }}
             @endisset
+            <x-tables.export-button :table="$table"/>
             <x-tables.prefs-popover :table="$table"/>
         </x-slot:right>
     </x-tables.filter-bar>
