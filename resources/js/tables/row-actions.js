@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesConfirm } from './confirm.js';
 
 const $ = jQuery;
 
@@ -48,12 +49,23 @@ function getCsrfToken() {
     return $('meta[name="csrf-token"]').attr('content') || '';
 }
 
-$(document).on('click', '[data-tables-row-action-confirm]', function (e) {
+$(document).on('click', '[data-tables-row-action-confirm]:not([data-tables-row-preview-url])', async function (e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
     const $btn = $(this);
     const text = $btn.attr('data-confirm-text') || 'Подтвердить?';
-    if (!window.confirm(text)) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
+    const ok = await tablesConfirm({
+        title: 'Подтверждение',
+        message: text,
+        confirmText: 'Подтвердить',
+        confirmVariant: 'danger',
+        icon: 'bi-exclamation-circle',
+    });
+    if (ok) {
+        const $form = $btn.closest('form');
+        if ($form.length > 0) {
+            HTMLFormElement.prototype.submit.call($form.get(0));
+        }
     }
 });
 

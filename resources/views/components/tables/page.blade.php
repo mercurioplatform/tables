@@ -61,4 +61,8 @@
     @if ($table->hasBulkActionForms())
         <x-tables.bulk-action-offcanvas :table="$table"/>
     @endif
+
+    @if ($table->hasConfirmPreviews())
+        <x-tables.confirm-preview-offcanvas :table="$table"/>
+    @endif
 </div>

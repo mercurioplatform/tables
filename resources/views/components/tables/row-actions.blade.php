@@ -51,6 +51,9 @@
             @case ('confirm')
                 @php
                     $url = route($baseName.'.row_action', ['id' => $rowKey, 'action' => $action->name]);
+                    $previewUrl = ($kind === 'confirm' && $action->hasPreview() && $baseName !== '')
+                        ? route($baseName.'.row_action_preview', ['id' => $rowKey, 'action' => $action->name])
+                        : null;
                 @endphp
                 <form method="POST"
                       action="{{ $url }}"
@@ -61,7 +64,8 @@
                             class="{{ $btnClass }}"
                             title="{{ $tooltip }}"
                             aria-label="{{ $action->label }}"
-                            @if ($kind === 'confirm') data-tables-row-action-confirm data-confirm-text="{{ $action->getConfirmText() ?? 'Подтвердить?' }}" @endif>
+                            @if ($kind === 'confirm') data-tables-row-action-confirm data-confirm-text="{{ $action->getConfirmText() ?? 'Подтвердить?' }}" @endif
+                            @if ($previewUrl !== null) data-tables-row-preview-url="{{ $previewUrl }}" data-action-label="{{ $action->label }}" @endif>
                         {!! $iconHtml !!}
                     </button>
                 </form>

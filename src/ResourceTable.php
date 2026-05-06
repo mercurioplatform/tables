@@ -76,6 +76,23 @@ final class ResourceTable
         return false;
     }
 
+    public function hasConfirmPreviews(): bool
+    {
+        foreach ($this->bulkActions as $action) {
+            if ($action instanceof BulkAction && $action->getKind() === 'confirm' && $action->hasPreview()) {
+                return true;
+            }
+        }
+
+        foreach ($this->rowActions as $action) {
+            if ($action instanceof RowAction && $action->getKind() === 'confirm' && $action->hasPreview()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * @return array<int, Field>
      */

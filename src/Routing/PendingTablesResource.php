@@ -23,6 +23,10 @@ class PendingTablesResource
 
     private Route $bulkActionFormRoute;
 
+    private Route $bulkActionPreviewRoute;
+
+    private Route $rowActionPreviewRoute;
+
     private Route $prefsRoute;
 
     private Route $prefsResetRoute;
@@ -71,6 +75,16 @@ class PendingTablesResource
             [$controller, 'bulkActionForm'],
         )->where(['action' => '[a-z0-9_-]+']);
 
+        $this->bulkActionPreviewRoute = $router->get(
+            $base.'/bulk-action/{action}/preview',
+            [$controller, 'bulkActionPreview'],
+        )->where(['action' => '[a-z0-9_-]+']);
+
+        $this->rowActionPreviewRoute = $router->get(
+            $base.$rowActionSuffix.'/{id}/{action}/preview',
+            [$controller, 'rowActionPreview'],
+        )->where(['id' => '[0-9]+', 'action' => '[a-z0-9_-]+']);
+
         $this->prefsRoute = $router->post(
             $base.'/prefs',
             [$controller, 'savePrefs'],
@@ -97,6 +111,8 @@ class PendingTablesResource
         $this->rowActionRoute->name($base.'.row_action');
         $this->rowActionFormRoute->name($base.'.row_action_form');
         $this->bulkActionFormRoute->name($base.'.bulk_action_form');
+        $this->bulkActionPreviewRoute->name($base.'.bulk_action_preview');
+        $this->rowActionPreviewRoute->name($base.'.row_action_preview');
         $this->prefsRoute->name($base.'.save_prefs');
         $this->prefsResetRoute->name($base.'.reset_prefs');
         $this->exportRoute->name($base.'.export');
@@ -115,6 +131,8 @@ class PendingTablesResource
         $this->rowActionRoute->middleware($middleware);
         $this->rowActionFormRoute->middleware($middleware);
         $this->bulkActionFormRoute->middleware($middleware);
+        $this->bulkActionPreviewRoute->middleware($middleware);
+        $this->rowActionPreviewRoute->middleware($middleware);
         $this->prefsRoute->middleware($middleware);
         $this->prefsResetRoute->middleware($middleware);
         $this->exportRoute->middleware($middleware);
@@ -133,6 +151,8 @@ class PendingTablesResource
         $this->rowActionRoute->where($constraints);
         $this->rowActionFormRoute->where($constraints);
         $this->bulkActionFormRoute->where($constraints);
+        $this->bulkActionPreviewRoute->where($constraints);
+        $this->rowActionPreviewRoute->where($constraints);
         $this->prefsRoute->where($constraints);
         $this->prefsResetRoute->where($constraints);
         $this->exportRoute->where($constraints);

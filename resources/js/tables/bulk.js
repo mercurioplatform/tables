@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesConfirm } from './confirm.js';
 
 const $ = jQuery;
 
@@ -122,7 +123,7 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-action]', fun
     $form.data('pendingConfirm', $btn.attr('data-tables-bulk-confirm') || '');
 });
 
-$(document).on('submit', '[data-tables-bulk-form]', function (e) {
+$(document).on('submit', '[data-tables-bulk-form]', async function (e) {
     const $form = $(this);
     const resourceKey = $form.attr('data-tables-bulk-form');
     if (!resourceKey) return;
@@ -132,8 +133,21 @@ $(document).on('submit', '[data-tables-bulk-form]', function (e) {
         return;
     }
     const confirmText = $form.data('pendingConfirm') || '';
-    if (confirmText && !window.confirm(confirmText)) {
+    if (confirmText) {
         e.preventDefault();
+        const ok = await tablesConfirm({
+            title: 'Подтверждение',
+            message: confirmText,
+            confirmText: 'Подтвердить',
+            confirmVariant: 'danger',
+            icon: 'bi-exclamation-circle',
+        });
+        if (ok) {
+            $form.data('pendingConfirm', '');
+            $form.find('[data-tables-bulk-action-input]').val($form.data('pendingAction') || '');
+            $form.find('[data-tables-bulk-ids-input]').val([...set].join(','));
+            HTMLFormElement.prototype.submit.call($form.get(0));
+        }
         return;
     }
     $form.find('[data-tables-bulk-action-input]').val($form.data('pendingAction') || '');

@@ -385,6 +385,105 @@ trait HandlesResourceListing
         ]);
     }
 
+    public function bulkActionPreview(Request $request, string $action): Response
+    {
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        $bulk = $this->findBulkAction($resource, $action);
+
+        if ($bulk === null) {
+            Log::warning('tables.confirm.preview.unknown', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        if ($bulk->getKind() !== 'confirm') {
+            Log::warning('tables.confirm.preview.kind_mismatch', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'kind' => $bulk->getKind(),
+            ]);
+            abort(404);
+        }
+
+        if (! $bulk->hasPreview()) {
+            Log::warning('tables.confirm.preview.no_callback', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        $ids = $this->extractBulkIds($request);
+        if ($ids === []) {
+            Log::warning('tables.confirm.preview.empty_ids', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(422, 'Не выбрано ни одного объекта.');
+        }
+
+        if ($bulk->hasPolicy() || $bulk->getAbility() !== null) {
+            $probe = $resource->query()->whereKey($ids[0])->first();
+            if ($probe === null) {
+                Log::warning('tables.confirm.preview.probe_missing', [
+                    'resource' => $this->resource,
+                    'action' => $action,
+                    'probe_id' => $ids[0],
+                ]);
+                abort(404);
+            }
+            if (! $this->authorizeAction($bulk, $probe, 'bulk')) {
+                if (! $bulk->hasPolicy()) {
+                    Log::warning('tables.confirm.preview.forbidden', [
+                        'resource' => $this->resource,
+                        'action' => $action,
+                        'ability' => $bulk->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
+        }
+
+        $payload = $bulk->getPayload();
+        $cb = $bulk->getPreviewCallback();
+
+        try {
+            $result = $cb($ids, $payload);
+        } catch (Throwable $e) {
+            Log::error('tables.confirm.preview.callback_threw', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'kind' => 'bulk',
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'Не удалось построить превью.');
+        }
+
+        $html = $this->renderActionPreview($result);
+        $base = $this->deriveBaseRouteName();
+        $submitUrl = route($base.'.bulk_action');
+
+        Log::debug('tables.confirm.preview.render', [
+            'resource' => $this->resource,
+            'action' => $action,
+            'kind' => 'bulk',
+            'subjects_count' => count($ids),
+            'return_type' => $this->actionPreviewReturnType($result),
+        ]);
+
+        return response()->view('tables::confirm-preview', [
+            'kind' => 'bulk',
+            'action' => $bulk,
+            'ids' => $ids,
+            'idsCount' => count($ids),
+            'submitUrl' => $submitUrl,
+            'html' => $html,
+        ]);
+    }
+
     private function bulkActionError(bool $isXhr, string $message, int $status): Response
     {
         if ($isXhr) {
@@ -1044,6 +1143,125 @@ trait HandlesResourceListing
         ]);
     }
 
+    public function rowActionPreview(Request $request, $id, string $action): Response
+    {
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        $rowAction = $this->findRowAction($resource, $action);
+
+        if ($rowAction === null) {
+            Log::warning('tables.confirm.preview.unknown', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        if ($rowAction->getKind() !== 'confirm') {
+            Log::warning('tables.confirm.preview.kind_mismatch', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'kind' => $rowAction->getKind(),
+            ]);
+            abort(404);
+        }
+
+        if (! $rowAction->hasPreview()) {
+            Log::warning('tables.confirm.preview.no_callback', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        $model = $resource->query()->whereKey($id)->first();
+        if ($model === null) {
+            abort(404);
+        }
+
+        if ($rowAction->isHiddenFor($model)) {
+            Log::warning('tables.confirm.preview.hidden', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'id' => $id,
+            ]);
+            abort(403);
+        }
+
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizeAction($rowAction, $model, 'row')) {
+                if (! $rowAction->hasPolicy()) {
+                    Log::warning('tables.confirm.preview.forbidden', [
+                        'resource' => $this->resource,
+                        'action' => $action,
+                        'id' => $id,
+                        'ability' => $rowAction->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
+        }
+
+        $payload = $this->resolveRowActionPayload($request, $rowAction);
+        $cb = $rowAction->getPreviewCallback();
+
+        try {
+            $result = $cb($model, $payload);
+        } catch (Throwable $e) {
+            Log::error('tables.confirm.preview.callback_threw', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'kind' => 'row',
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'Не удалось построить превью.');
+        }
+
+        $html = $this->renderActionPreview($result);
+        $base = $this->deriveBaseRouteName();
+        $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
+
+        Log::debug('tables.confirm.preview.render', [
+            'resource' => $this->resource,
+            'action' => $action,
+            'kind' => 'row',
+            'id' => $id,
+            'return_type' => $this->actionPreviewReturnType($result),
+        ]);
+
+        return response()->view('tables::confirm-preview', [
+            'kind' => 'row',
+            'action' => $rowAction,
+            'model' => $model,
+            'submitUrl' => $submitUrl,
+            'html' => $html,
+        ]);
+    }
+
+    private function renderActionPreview(\Illuminate\Contracts\View\View|string|array $result): string
+    {
+        if ($result instanceof \Illuminate\Contracts\View\View) {
+            return $result->render();
+        }
+
+        if (is_string($result)) {
+            return $result;
+        }
+
+        return view('tables::confirm-preview-default', ['data' => $result])->render();
+    }
+
+    private function actionPreviewReturnType(mixed $result): string
+    {
+        return match (true) {
+            $result instanceof \Illuminate\Contracts\View\View => 'view',
+            is_string($result) => 'string',
+            is_array($result) => 'array',
+            default => 'unknown',
+        };
+    }
+
     private function findRowAction(ListResource $resource, string $name): ?RowAction
     {
         foreach ($resource->rowActions() as $action) {
@@ -1086,7 +1304,7 @@ trait HandlesResourceListing
             return '';
         }
 
-        foreach (['.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export'] as $suffix) {
+        foreach (['.row_action_preview', '.bulk_action_preview', '.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export'] as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }

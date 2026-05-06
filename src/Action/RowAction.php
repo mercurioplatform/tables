@@ -57,6 +57,11 @@ final class RowAction
      */
     protected ?Closure $callback = null;
 
+    /**
+     * @var Closure(mixed, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>)|null
+     */
+    protected ?Closure $previewCallback = null;
+
     private const KINDS = ['link', 'instant', 'confirm', 'form'];
 
     private function __construct(string $name, string $label)
@@ -365,6 +370,33 @@ final class RowAction
     public function hasCallback(): bool
     {
         return $this->callback !== null;
+    }
+
+    /**
+     * Декларативный preview для confirm-action. Замыкание принимает (row, payload)
+     * и возвращает View|string|array — рендерится в offcanvas вместо нативного
+     * window.confirm(). Применяется ТОЛЬКО при kind === 'confirm'.
+     *
+     * Callback должен быть быстрым (< 200 ms): не тянуть тяжёлые отношения, явно select(...)
+     * нужные колонки. Для долгих расчётов вынести в выделенный сервис и cache().
+     *
+     * @param Closure(mixed, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>) $callback
+     */
+    public function preview(Closure $callback): self
+    {
+        $this->previewCallback = $callback;
+
+        return $this;
+    }
+
+    public function getPreviewCallback(): ?Closure
+    {
+        return $this->previewCallback;
+    }
+
+    public function hasPreview(): bool
+    {
+        return $this->previewCallback !== null;
     }
 
     public function isHiddenFor(mixed $row): bool

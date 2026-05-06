@@ -6,6 +6,7 @@ import './autocomplete.js';
 import './qb.js';
 import './saved-views.js';
 import './row-actions.js';
+import './confirm-preview.js';
 import './prefs.js';
 import './export.js';
 

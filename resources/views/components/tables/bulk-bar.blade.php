@@ -39,6 +39,9 @@
                     };
                     $kind = $bulk->getKind();
                     $confirm = $kind === 'confirm' ? ($bulk->getConfirmText() ?? 'Подтвердить?') : null;
+                    $previewUrl = ($kind === 'confirm' && $bulk->hasPreview() && $baseName !== '')
+                        ? route($baseName.'.bulk_action_preview', ['action' => $bulk->name])
+                        : null;
                 @endphp
                 @if ($kind === 'form')
                     @php
@@ -64,6 +67,7 @@
                         class="{{ $btnClass }}"
                         data-tables-bulk-action="{{ $bulk->name }}"
                         @if ($confirm !== null) data-tables-bulk-confirm="{{ $confirm }}" @endif
+                        @if ($previewUrl !== null) data-tables-bulk-preview-url="{{ $previewUrl }}" data-action-label="{{ $bulk->label }}" @endif
                     >
                         @if ($bulk->getIcon()) <i class="bi {{ $bulk->getIcon() }}"></i> @endif
                         {{ $bulk->label }}

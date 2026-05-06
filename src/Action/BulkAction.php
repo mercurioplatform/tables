@@ -54,6 +54,11 @@ final class BulkAction
      */
     protected ?Closure $callback = null;
 
+    /**
+     * @var Closure(array<int, int|string>, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>)|null
+     */
+    protected ?Closure $previewCallback = null;
+
     private const KINDS = ['instant', 'confirm', 'form'];
 
     protected function __construct(string $name, string $label)
@@ -354,5 +359,33 @@ final class BulkAction
     public function hasCallback(): bool
     {
         return $this->callback !== null;
+    }
+
+    /**
+     * Декларативный preview для confirm-action. Замыкание принимает (ids, payload)
+     * и возвращает View|string|array — рендерится в offcanvas вместо нативного
+     * window.confirm(). Применяется ТОЛЬКО при kind === 'confirm' (для kind=form
+     * preview-flow требует отдельного двухшагового submit — см. Tables/3.6.1).
+     *
+     * Callback должен быть быстрым (< 200 ms): для больших selections используйте
+     * summary вместо полного списка; явно select(...) нужные колонки, без лишних eager-load.
+     *
+     * @param Closure(array<int, int|string>, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>) $callback
+     */
+    public function preview(Closure $callback): self
+    {
+        $this->previewCallback = $callback;
+
+        return $this;
+    }
+
+    public function getPreviewCallback(): ?Closure
+    {
+        return $this->previewCallback;
+    }
+
+    public function hasPreview(): bool
+    {
+        return $this->previewCallback !== null;
     }
 }
