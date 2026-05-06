@@ -18,23 +18,24 @@
     $icon = (string) config('tables.user_prefs.popover_button_icon', 'bi-gear');
 @endphp
 
-<button
-    type="button"
-    class="btn btn-sm btn-outline-secondary ap-prefs-popover-trigger"
-    data-tables-prefs-trigger="{{ $table->key }}"
-    data-save-url="{{ $saveUrl }}"
-    data-reset-url="{{ $resetUrl }}"
-    title="{{ $label }}"
-    aria-label="{{ $label }}"
->
-    <i class="bi {{ $icon }}" aria-hidden="true"></i>
-</button>
+<div class="dropdown ap-prefs-popover" data-tables-prefs="{{ $table->key }}">
+    <button
+        type="button"
+        class="btn btn-sm btn-outline-secondary ap-prefs-popover__trigger"
+        data-bs-toggle="dropdown"
+        data-bs-auto-close="outside"
+        data-tables-prefs-trigger="{{ $table->key }}"
+        data-save-url="{{ $saveUrl }}"
+        data-reset-url="{{ $resetUrl }}"
+        title="{{ $label }}"
+        aria-label="{{ $label }}"
+        aria-expanded="false"
+    >
+        <i class="bi {{ $icon }}" aria-hidden="true"></i>
+    </button>
 
-<template data-tables-prefs-template="{{ $table->key }}">
-    <div data-tables-prefs-popover-marker>
-        <form class="ap-prefs-popover-form" data-tables-prefs-form>
-            <input type="hidden" name="_token" value="{{ csrf_token() }}">
-
+    <div class="dropdown-menu dropdown-menu-end ap-prefs-popover__menu">
+        <div class="ap-prefs-popover-form" data-tables-prefs-form>
             <div class="ap-prefs-popover-error alert alert-danger small mb-2 d-none" data-tables-prefs-error></div>
 
             <div class="ap-prefs-popover-section mb-3">
@@ -111,11 +112,11 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-tables-prefs-cancel>
                         Отмена
                     </button>
-                    <button type="submit" class="btn btn-primary btn-sm" data-tables-prefs-submit>
+                    <button type="button" class="btn btn-primary btn-sm" data-tables-prefs-submit>
                         Применить
                     </button>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
-</template>
+</div>

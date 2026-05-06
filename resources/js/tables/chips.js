@@ -8,6 +8,19 @@ function buildSearchParams() {
     return new URLSearchParams(window.location.search);
 }
 
+function syncSearchInputToParams($el, params) {
+    const $form = $el.closest('[data-tables-page]').find('form[data-tables-search-form]').first();
+    if ($form.length === 0) return;
+    const $input = $form.find('input[name="q"]');
+    if ($input.length === 0) return;
+    const q = ($input.val() ?? '').toString();
+    if (q !== '') {
+        params.set('q', q);
+    } else {
+        params.delete('q');
+    }
+}
+
 function clearFieldKeys(params, field) {
     const prefix = 'f[' + field + ']';
     Array.from(params.keys())
@@ -44,6 +57,7 @@ $(document).on('click', '[data-tables-filter-apply]', function (e) {
     if (!field || !op) return;
 
     const params = buildSearchParams();
+    syncSearchInputToParams($(this), params);
     clearFieldKeys(params, field);
 
     const $value = $form.find('[data-tables-filter-popover-value]');
@@ -153,6 +167,7 @@ $(document).on('click', '[data-tables-chip-remove], [data-tables-filter-clear]',
     const field = $(this).data('field');
     if (!field) return;
     const params = buildSearchParams();
+    syncSearchInputToParams($(this), params);
     clearFieldKeys(params, field);
     params.delete('page');
     dispatchNavigate(window.location.pathname + '?' + params.toString());

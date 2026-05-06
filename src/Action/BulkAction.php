@@ -2,6 +2,7 @@
 
 namespace Mercurio\Tables\Action;
 
+use Closure;
 use InvalidArgumentException;
 
 final class BulkAction
@@ -29,9 +30,18 @@ final class BulkAction
 
     protected ?string $formViewSlot = null;
 
+    /** @var array<int, \Mercurio\Tables\Form\Field\FormField|\Mercurio\Tables\Form\Field\FieldRow> */
+    protected array $schema = [];
+
     protected bool $reloadAfterSubmit = true;
 
     protected ?string $tooltip = null;
+
+    protected ?Closure $prepareInputHook = null;
+
+    protected ?Closure $withValidatorHook = null;
+
+    protected ?Closure $transformValidatedHook = null;
 
     private const KINDS = ['instant', 'confirm', 'form'];
 
@@ -88,6 +98,26 @@ final class BulkAction
         }
 
         return $this;
+    }
+
+    /** @param array<int, \Mercurio\Tables\Form\Field\FormField|\Mercurio\Tables\Form\Field\FieldRow> $schema */
+    public function schema(array $schema): self
+    {
+        $this->kind = 'form';
+        $this->schema = $schema;
+
+        return $this;
+    }
+
+    /** @return array<int, \Mercurio\Tables\Form\Field\FormField|\Mercurio\Tables\Form\Field\FieldRow> */
+    public function getSchema(): array
+    {
+        return $this->schema;
+    }
+
+    public function hasSchema(): bool
+    {
+        return $this->schema !== [];
     }
 
     public function handler(string $class): self
@@ -215,5 +245,44 @@ final class BulkAction
     public function getTooltip(): ?string
     {
         return $this->tooltip ?? $this->label;
+    }
+
+    /** @param Closure(array<string, mixed>): array<string, mixed> $fn */
+    public function prepareInput(Closure $fn): self
+    {
+        $this->prepareInputHook = $fn;
+
+        return $this;
+    }
+
+    /** @param Closure(\Illuminate\Validation\Validator, array<string, mixed>): void $fn */
+    public function withValidator(Closure $fn): self
+    {
+        $this->withValidatorHook = $fn;
+
+        return $this;
+    }
+
+    /** @param Closure(array<string, mixed>): array<string, mixed> $fn */
+    public function transformValidated(Closure $fn): self
+    {
+        $this->transformValidatedHook = $fn;
+
+        return $this;
+    }
+
+    public function getPrepareInputHook(): ?Closure
+    {
+        return $this->prepareInputHook;
+    }
+
+    public function getWithValidatorHook(): ?Closure
+    {
+        return $this->withValidatorHook;
+    }
+
+    public function getTransformValidatedHook(): ?Closure
+    {
+        return $this->transformValidatedHook;
     }
 }

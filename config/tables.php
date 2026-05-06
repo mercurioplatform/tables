@@ -209,4 +209,39 @@ return [
         'button_icon' => 'bi-download',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Shell (Tables/3.1)
+    |--------------------------------------------------------------------------
+    |
+    | Page-shell rendering settings. The engine wraps every list page in a
+    | reusable shell view (`tables::shell`) which @extends a Blade layout,
+    | pushes breadcrumbs, sets <title>, renders the page-head and flashes,
+    | and hosts <x-tables.page>. Resource declares page-level data via
+    | `ListResource::pageTitle()` / `browserTitle()` / `subtitle($total)` /
+    | `headerActions()` / `breadcrumbs()` / `flashKeys()`.
+    |   - layout:               Blade layout the shell @extends.
+    |   - page_head_component:  Blade x-component used to render the page-head
+    |                           (title + actions). Use a project component to
+    |                           keep visual parity, or fall back to engine's
+    |                           own `tables::page-head` (zero-CSS dependency).
+    |   - flash_keys:           Map session-key => bootstrap alert variant.
+    |                           Engine renders alerts iff `session()->has(key)`.
+    |                           ListResource::flashKeys() may override.
+    |   - title_suffix:         Optional sprintf-style suffix appended to
+    |                           <title> ("· %s · Admin"). null = no suffix
+    |                           (host layout is expected to add its own).
+    |
+    */
+    'shell' => [
+        'layout' => 'admin.layouts.app',
+        'page_head_component' => 'admin.page-head',
+        'flash_keys' => [
+            'status' => 'success',
+            'warning' => 'warning',
+            'error' => 'danger',
+        ],
+        'title_suffix' => null,
+    ],
+
 ];

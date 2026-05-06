@@ -18,6 +18,8 @@ use Mercurio\Tables\Filter\Qb\AtomGroup;
 use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
 use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
+use Mercurio\Tables\Page\Breadcrumb;
+use Mercurio\Tables\Page\HeaderAction;
 use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\Services\SavedViewCountsCalculator;
 use Mercurio\Tables\Summary\Summary;
@@ -120,6 +122,54 @@ abstract class ListResource
     public function summary(): ?Summary
     {
         return null;
+    }
+
+    public function pageTitle(): ?string
+    {
+        return null;
+    }
+
+    public function browserTitle(): ?string
+    {
+        return $this->pageTitle();
+    }
+
+    public function subtitle(int $total): ?string
+    {
+        return null;
+    }
+
+    /**
+     * @return array<int, HeaderAction>
+     */
+    public function headerActions(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<int, Breadcrumb>
+     */
+    public function breadcrumbs(): array
+    {
+        return [];
+    }
+
+    public function layout(): string
+    {
+        return (string) config('tables.shell.layout', 'admin.layouts.app');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function flashKeys(): array
+    {
+        return (array) config('tables.shell.flash_keys', [
+            'status' => 'success',
+            'warning' => 'warning',
+            'error' => 'danger',
+        ]);
     }
 
     private function normalizeDensity(string $raw): string

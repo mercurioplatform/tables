@@ -1,33 +1,45 @@
 /* ============================================================
  * Tables Engine — Prefs Popover (Tables/2.9)
  * Per-user table preferences popover (columns / density / per_page).
- * Triggered via .ap-prefs-popover-trigger; rendered through
- * Bootstrap Popover with custom HTML content.
+ * Triggered via .ap-prefs-popover-trigger; rendered as a Bootstrap
+ * Dropdown so the menu is positioned inline next to its trigger
+ * without escaping into <body> (matches filter-chip behaviour).
  * ============================================================ */
 
-.popover .ap-prefs-popover-form {
+.ap-prefs-popover {
+    position: relative;
+    display: inline-block;
+
+    .dropdown-menu.ap-prefs-popover__menu {
+        padding: .75rem;
+        min-width: 280px;
+        max-width: 320px;
+    }
+}
+
+.ap-prefs-popover-form {
     min-width: 280px;
     max-width: 320px;
 }
 
-.popover .ap-prefs-popover-section {
+.ap-prefs-popover-section {
     padding-bottom: .25rem;
 }
 
-.popover .ap-prefs-popover-section + .ap-prefs-popover-section {
+.ap-prefs-popover-section + .ap-prefs-popover-section {
     border-top: 1px solid var(--bs-border-color);
     padding-top: .75rem;
 }
 
-.popover .ap-prefs-popover-columns {
+.ap-prefs-popover-columns {
     max-height: 240px;
     overflow-y: auto;
 }
 
-.popover .ap-prefs-popover-footer .btn {
+.ap-prefs-popover-footer .btn {
     white-space: nowrap;
 }
 
-.popover .ap-prefs-popover-error {
+.ap-prefs-popover-error {
     padding: .375rem .5rem;
 }

@@ -8,6 +8,10 @@
         ->loadFor($table->key);
     $hasUser = $userViews->isNotEmpty();
     $modalSlug = preg_replace('/[^a-z0-9]+/i', '-', $table->key);
+
+    $hasResettableState = request()->filled('qb')
+        || str_starts_with((string) request()->query('view', ''), 'user-');
+    $resetUrl = request()->url();
 @endphp
 
 <div {{ $attributes->merge(['class' => 'ap-saved-views']) }} data-tables-saved-views="{{ $table->key }}">
@@ -37,6 +41,17 @@
             </a>
         @endforeach
     </div>
+
+    @if ($hasResettableState)
+        <a href="{{ $resetUrl }}"
+           class="ap-saved-views__reset"
+           data-tables-saved-view
+           data-tables-saved-view-key=""
+           title="Сбросить вид и фильтры">
+            <i class="bi bi-x-circle"></i>
+            <span>Сбросить</span>
+        </a>
+    @endif
 
     <div class="ap-saved-views__more dropdown" data-tables-user-views>
         <button type="button" class="ap-saved-views__item dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">

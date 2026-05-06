@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Mercurio\Tables\Action\Action;
 use Mercurio\Tables\Action\BulkAction;
@@ -19,6 +21,8 @@ use Mercurio\Tables\Export\CsvStreamWriter;
 use Mercurio\Tables\Export\ExportJobDispatcher;
 use Mercurio\Tables\Export\ExportRequest;
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\Form\Field\FieldRow;
+use Mercurio\Tables\Form\Field\FormField;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 use Mercurio\Tables\Models\UserTablePrefs;
@@ -39,7 +43,41 @@ trait HandlesResourceListing
             return view('tables::partial', ['table' => $table]);
         }
 
-        return view($this->tableView, ['table' => $table]);
+        $tableView = property_exists($this, 'tableView') && is_string($this->tableView) && $this->tableView !== ''
+            ? $this->tableView
+            : null;
+
+        $bulkActionUrl = $this->resolveBulkActionUrl($resource);
+
+        if ($tableView !== null && view()->exists($tableView)) {
+            return view($tableView, ['table' => $table, 'bulkActionUrl' => $bulkActionUrl]);
+        }
+
+        Log::debug('tables.shell.render', [
+            'resource' => $this->resource,
+            'has_title' => $resource->pageTitle() !== null,
+            'has_subtitle' => $resource->subtitle($table->paginator->total()) !== null,
+            'crumbs' => count($resource->breadcrumbs()),
+            'actions' => count($resource->headerActions()),
+            'layout' => $resource->layout(),
+        ]);
+
+        return view('tables::shell', ['table' => $table, 'bulkActionUrl' => $bulkActionUrl]);
+    }
+
+    private function resolveBulkActionUrl(ListResource $resource): string
+    {
+        $base = $resource->routeBaseName() ?? $this->deriveBaseRouteName();
+        if ($base === '') {
+            return '';
+        }
+
+        $routeName = $base.'.bulk_action';
+        if (! Route::has($routeName)) {
+            return '';
+        }
+
+        return route($routeName);
     }
 
     public function options(Request $request): JsonResponse
@@ -130,7 +168,32 @@ trait HandlesResourceListing
             return $this->bulkActionError($isXhr, 'Не выбрано ни одного объекта.', 422);
         }
 
+        $ability = $action->getAbility();
+        if ($ability !== null) {
+            $probe = $resource->query()->whereKey($ids[0])->first();
+            if ($probe === null) {
+                Log::warning('tables.bulk.probe_missing', [
+                    'resource' => $this->resource,
+                    'action' => $name,
+                    'kind' => $kind,
+                    'probe_id' => $ids[0],
+                ]);
+
+                return $this->bulkActionError($isXhr, 'Запись не найдена.', 404);
+            }
+            if (! Gate::check($ability, $probe)) {
+                Log::warning('tables.bulk.forbidden', [
+                    'resource' => $this->resource,
+                    'action' => $name,
+                    'kind' => $kind,
+                    'ability' => $ability,
+                ]);
+                abort(403);
+            }
+        }
+
         $payload = [];
+        $validationSource = 'none';
         $formRequestClass = $isForm ? $action->getFormRequest() : null;
 
         if ($isForm) {
@@ -138,6 +201,11 @@ trait HandlesResourceListing
                 /** @var FormRequest $formRequest */
                 $formRequest = app($formRequestClass);
                 $payload = $formRequest->validated();
+                $validationSource = 'form_request';
+            } else {
+                $resolved = $this->resolveSchemaPayload($action, $request);
+                $payload = $resolved['payload'];
+                $validationSource = $resolved['source'];
             }
         } else {
             $payload = $action->getPayload();
@@ -169,6 +237,7 @@ trait HandlesResourceListing
             'action' => $name,
             'kind' => $kind,
             'has_form_request' => $formRequestClass !== null,
+            'validation' => $validationSource,
             'ids_count' => count($ids),
             'affected' => $result?->affected,
             'missing' => $result?->missing,
@@ -205,16 +274,6 @@ trait HandlesResourceListing
             abort(404);
         }
 
-        $ability = $bulk->getAbility();
-        if ($ability !== null && ! Gate::check($ability)) {
-            Log::warning('tables.bulk.form.forbidden', [
-                'resource' => $this->resource,
-                'action' => $action,
-                'ability' => $ability,
-            ]);
-            abort(403);
-        }
-
         $ids = $this->extractBulkIds($request);
         if ($ids === []) {
             Log::warning('tables.bulk.form.empty_ids', [
@@ -222,6 +281,48 @@ trait HandlesResourceListing
                 'action' => $action,
             ]);
             abort(422, 'Не выбрано ни одного объекта.');
+        }
+
+        $ability = $bulk->getAbility();
+        if ($ability !== null) {
+            $probe = $resource->query()->whereKey($ids[0])->first();
+            if ($probe === null) {
+                Log::warning('tables.bulk.form.probe_missing', [
+                    'resource' => $this->resource,
+                    'action' => $action,
+                    'probe_id' => $ids[0],
+                ]);
+                abort(404, 'Запись не найдена.');
+            }
+            if (! Gate::check($ability, $probe)) {
+                Log::warning('tables.bulk.form.forbidden', [
+                    'resource' => $this->resource,
+                    'action' => $action,
+                    'ability' => $ability,
+                ]);
+                abort(403);
+            }
+        }
+
+        $base = $this->deriveBaseRouteName();
+        $submitUrl = route($base.'.bulk_action');
+
+        if ($bulk->hasSchema()) {
+            Log::debug('tables.form.render', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'kind' => 'bulk',
+                'ids_count' => count($ids),
+                'schema_count' => count($bulk->getSchema()),
+            ]);
+
+            return response()->view('tables::auto-bulk-form', [
+                'action' => $bulk,
+                'ids' => $ids,
+                'idsCount' => count($ids),
+                'submitUrl' => $submitUrl,
+                'schema' => $bulk->getSchema(),
+            ]);
         }
 
         $forms = property_exists($this, 'bulkActionForms') && is_array($this->bulkActionForms)
@@ -241,9 +342,6 @@ trait HandlesResourceListing
             ]);
             abort(404);
         }
-
-        $base = $this->deriveBaseRouteName();
-        $submitUrl = route($base.'.bulk_action');
 
         Log::debug('tables.bulk.form_open', [
             'resource' => $this->resource,
@@ -676,7 +774,9 @@ trait HandlesResourceListing
             abort(403);
         }
 
-        $payload = $this->resolveRowActionPayload($request, $rowAction);
+        $resolved = $this->resolveRowActionPayload($request, $rowAction);
+        $payload = $resolved['payload'];
+        $validationSource = $resolved['source'];
 
         $handlerClass = $rowAction->getHandler();
         if ($handlerClass === null && $rowAction->getKind() !== 'link') {
@@ -710,6 +810,7 @@ trait HandlesResourceListing
             'action' => $action,
             'id' => $id,
             'kind' => $rowAction->getKind(),
+            'validation' => $validationSource,
             'affected' => $result?->affected,
             'message' => $result?->message,
         ]);
@@ -766,6 +867,26 @@ trait HandlesResourceListing
             abort(403);
         }
 
+        $base = $this->deriveBaseRouteName();
+        $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
+
+        if ($rowAction->hasSchema()) {
+            Log::debug('tables.form.render', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'kind' => 'row',
+                'id' => $id,
+                'schema_count' => count($rowAction->getSchema()),
+            ]);
+
+            return response()->view('tables::auto-row-form', [
+                'action' => $rowAction,
+                'model' => $model,
+                'submitUrl' => $submitUrl,
+                'schema' => $rowAction->getSchema(),
+            ]);
+        }
+
         $forms = property_exists($this, 'rowActionForms') && is_array($this->rowActionForms)
             ? $this->rowActionForms
             : [];
@@ -783,9 +904,6 @@ trait HandlesResourceListing
             ]);
             abort(404);
         }
-
-        $base = $this->deriveBaseRouteName();
-        $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
 
         Log::debug('tables.rowaction.form_open', [
             'resource' => $this->resource,
@@ -813,23 +931,23 @@ trait HandlesResourceListing
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{payload: array<string, mixed>, source: string}
      */
     private function resolveRowActionPayload(Request $request, RowAction $action): array
     {
         if ($action->getKind() !== 'form') {
-            return [];
+            return ['payload' => [], 'source' => 'none'];
         }
 
         $formRequestClass = $action->getFormRequest();
-        if ($formRequestClass === null) {
-            return [];
+        if ($formRequestClass !== null) {
+            /** @var FormRequest $formRequest */
+            $formRequest = app($formRequestClass);
+
+            return ['payload' => $formRequest->validated(), 'source' => 'form_request'];
         }
 
-        /** @var FormRequest $formRequest */
-        $formRequest = app($formRequestClass);
-
-        return $formRequest->validated();
+        return $this->resolveSchemaPayload($action, $request);
     }
 
     private function deriveBaseRouteName(): string
@@ -882,5 +1000,125 @@ trait HandlesResourceListing
         }
 
         return array_values(array_unique($raw));
+    }
+
+    /**
+     * @return array{payload: array<string, mixed>, source: string}
+     */
+    private function resolveSchemaPayload(BulkAction|RowAction $action, Request $request): array
+    {
+        if (! $action->hasSchema()) {
+            return ['payload' => [], 'source' => 'none'];
+        }
+
+        $fields = $this->flattenSchemaFields($action->getSchema());
+        if ($fields === []) {
+            return ['payload' => [], 'source' => 'none'];
+        }
+
+        $rules = [];
+        $messages = [];
+        $attributes = [];
+        $hasAnyRules = false;
+
+        foreach ($fields as $field) {
+            $compiled = $field->compileRules();
+            if ($compiled === []) {
+                continue;
+            }
+            $hasAnyRules = true;
+            $rules[$field->name] = $compiled;
+            foreach ($field->getMessages() as $key => $msg) {
+                $messages[$field->name.'.'.$key] = $msg;
+            }
+            $attributes[$field->name] = $field->getAttribute() ?? $field->label;
+        }
+
+        $prepareHook = $action->getPrepareInputHook();
+        $withValidatorHook = $action->getWithValidatorHook();
+        $transformHook = $action->getTransformValidatedHook();
+
+        if (! $hasAnyRules && $prepareHook === null && $withValidatorHook === null && $transformHook === null) {
+            return [
+                'payload' => $this->collectSchemaInput($fields, $request),
+                'source' => 'none',
+            ];
+        }
+
+        $input = $request->all();
+        if ($prepareHook !== null) {
+            $input = $prepareHook($input);
+        }
+
+        $validator = Validator::make($input, $rules, $messages, $attributes);
+        if ($withValidatorHook !== null) {
+            $withValidatorHook($validator, $input);
+        }
+
+        Log::debug('tables.form.validate', [
+            'resource' => $this->resource,
+            'action' => $action->name,
+            'has_rules' => $hasAnyRules,
+            'has_prepare_hook' => $prepareHook !== null,
+            'has_after_hook' => $withValidatorHook !== null,
+            'has_transform_hook' => $transformHook !== null,
+            'fields_count' => count($fields),
+        ]);
+
+        try {
+            $validated = $validator->validate();
+        } catch (ValidationException $e) {
+            Log::warning('tables.form.validation_failed', [
+                'resource' => $this->resource,
+                'action' => $action->name,
+                'errors' => array_keys($e->errors()),
+            ]);
+            throw $e;
+        }
+
+        $schemaKeys = array_map(fn (FormField $f) => $f->name, $fields);
+        $validated = array_intersect_key($validated, array_flip($schemaKeys));
+
+        if ($transformHook !== null) {
+            $validated = $transformHook($validated);
+        }
+
+        return ['payload' => $validated, 'source' => 'schema'];
+    }
+
+    /**
+     * @param array<int, FormField|FieldRow> $schema
+     * @return array<int, FormField>
+     */
+    private function flattenSchemaFields(array $schema): array
+    {
+        $out = [];
+        foreach ($schema as $entry) {
+            if ($entry instanceof FieldRow) {
+                foreach ($entry->fields as $f) {
+                    $out[] = $f;
+                }
+            } elseif ($entry instanceof FormField) {
+                $out[] = $entry;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<int, FormField> $fields
+     * @return array<string, mixed>
+     */
+    private function collectSchemaInput(array $fields, Request $request): array
+    {
+        $out = [];
+        foreach ($fields as $f) {
+            if ($request->has($f->name)) {
+                $out[$f->name] = $request->input($f->name);
+            }
+        }
+
+        return $out;
     }
 }

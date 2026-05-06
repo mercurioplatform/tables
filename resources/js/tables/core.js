@@ -83,6 +83,36 @@ function requestPartial(url, $page, options) {
             }
         }
 
+        // Subtitle update (Tables/3.1) — subtitle живёт в shell снаружи [data-tables-page],
+        // поэтому ищем его глобально в документе.
+        const newSubtitle = doc.querySelector('[data-tables-subtitle]');
+        const oldSubtitleEl = document.querySelector('[data-tables-subtitle]');
+        if (newSubtitle && oldSubtitleEl) {
+            const text = newSubtitle.textContent || '';
+            oldSubtitleEl.textContent = text;
+            if (text.trim() === '') {
+                oldSubtitleEl.classList.add('d-none');
+            } else {
+                oldSubtitleEl.classList.remove('d-none');
+            }
+        }
+
+        // Public total-changed event (Tables/3.1)
+        const newTotalAttr = newRoot.getAttribute('data-tables-total');
+        if (newTotalAttr !== null && newTotalAttr !== undefined) {
+            const total = parseInt(newTotalAttr, 10);
+            if (!Number.isNaN(total)) {
+                $page.attr('data-tables-total', String(total));
+                document.dispatchEvent(new CustomEvent('tables:total-changed', {
+                    detail: {
+                        resource: $page.attr('data-tables-page'),
+                        total,
+                        subtitle: newSubtitle?.textContent ?? null,
+                    },
+                }));
+            }
+        }
+
         syncSavedViews($page, url);
         $(newRoot).trigger('tables:rendered');
         document.dispatchEvent(new CustomEvent('tables:rendered', { detail: { url } }));
@@ -117,6 +147,12 @@ $(document).on('submit', 'form[data-tables-search-form]', function (e) {
     const action = $form.attr('action') || window.location.pathname;
     const url = action + (query ? '?' + query : '');
     requestPartial(url, $page);
+});
+
+$(document).on('keydown', 'form[data-tables-search-form] input[name="q"]', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    $(this).closest('form[data-tables-search-form]').trigger('submit');
 });
 
 $(document).on('click', 'a[data-tables-saved-view]', function (e) {

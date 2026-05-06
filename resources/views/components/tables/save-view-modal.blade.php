@@ -62,13 +62,23 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label small text-muted" for="{{ $modalId }}-icon">Иконка</label>
-                    <select class="form-select" id="{{ $modalId }}-icon" name="icon">
-                        <option value="">Без иконки</option>
+                    <label class="form-label small text-muted d-block">Иконка</label>
+                    <div class="d-flex flex-wrap gap-2 ap-saved-views__icons">
+                        <label class="ap-saved-views__icon">
+                            <input type="radio" name="icon" value="" class="visually-hidden" checked>
+                            <span class="ap-saved-views__icon-tile" title="Без иконки">
+                                <i class="bi bi-slash-circle text-muted"></i>
+                            </span>
+                        </label>
                         @foreach ($icons as $icon)
-                            <option value="{{ $icon }}">{{ $icon }}</option>
+                            <label class="ap-saved-views__icon">
+                                <input type="radio" name="icon" value="{{ $icon }}" class="visually-hidden">
+                                <span class="ap-saved-views__icon-tile" title="{{ $icon }}">
+                                    <i class="bi {{ $icon }}"></i>
+                                </span>
+                            </label>
                         @endforeach
-                    </select>
+                    </div>
                 </div>
             </div>
 
