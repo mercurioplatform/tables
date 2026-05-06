@@ -130,4 +130,19 @@ return [
         'form_suffix' => '/form',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Bulk Actions (Tables/2.8)
+    |--------------------------------------------------------------------------
+    |
+    | Path used by `Route::tablesResource()` for the bulk-action form GET
+    | endpoint declared via `BulkAction::form(...)`. Currently fixed to
+    | `/bulk-action/{action}/form` — entry kept for documentation and
+    | future extensibility (engine itself uses the hardcoded path).
+    |
+    */
+    'bulk_actions' => [
+        'form_suffix' => '/bulk-action/{action}/form',
+    ],
+
 ];

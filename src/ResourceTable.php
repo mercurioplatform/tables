@@ -62,6 +62,17 @@ final class ResourceTable
         return false;
     }
 
+    public function hasBulkActionForms(): bool
+    {
+        foreach ($this->bulkActions as $action) {
+            if ($action instanceof BulkAction && $action->getKind() === 'form') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * @return array<int, Field>
      */

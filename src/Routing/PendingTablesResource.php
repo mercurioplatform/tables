@@ -21,6 +21,8 @@ class PendingTablesResource
 
     private Route $rowActionFormRoute;
 
+    private Route $bulkActionFormRoute;
+
     public function __construct(Router $router, string $path, string $controller)
     {
         $normalized = ltrim($path, '/');
@@ -57,6 +59,11 @@ class PendingTablesResource
             $base.$rowActionSuffix.'/{id}/{action}'.$rowActionFormSuffix,
             [$controller, 'rowActionForm'],
         )->where(['id' => '[0-9]+', 'action' => '[a-z0-9_-]+']);
+
+        $this->bulkActionFormRoute = $router->get(
+            $base.'/bulk-action/{action}/form',
+            [$controller, 'bulkActionForm'],
+        )->where(['action' => '[a-z0-9_-]+']);
     }
 
     public function name(string $base): self
@@ -68,6 +75,7 @@ class PendingTablesResource
         $this->deleteUserViewRoute->name($base.'.delete_user_view');
         $this->rowActionRoute->name($base.'.row_action');
         $this->rowActionFormRoute->name($base.'.row_action_form');
+        $this->bulkActionFormRoute->name($base.'.bulk_action_form');
 
         return $this;
     }
@@ -82,6 +90,7 @@ class PendingTablesResource
         $this->deleteUserViewRoute->middleware($middleware);
         $this->rowActionRoute->middleware($middleware);
         $this->rowActionFormRoute->middleware($middleware);
+        $this->bulkActionFormRoute->middleware($middleware);
 
         return $this;
     }
@@ -96,6 +105,7 @@ class PendingTablesResource
         $this->deleteUserViewRoute->where($constraints);
         $this->rowActionRoute->where($constraints);
         $this->rowActionFormRoute->where($constraints);
+        $this->bulkActionFormRoute->where($constraints);
 
         return $this;
     }
