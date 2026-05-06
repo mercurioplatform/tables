@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Concerns;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -86,16 +85,15 @@ trait HandlesResourceListing
         return response()->json(['items' => $payload]);
     }
 
-    public function bulkAction(Request $request): RedirectResponse
+    public function bulkAction(Request $request): Response
     {
-        if (property_exists($this, 'bulkRequest') && $this->bulkRequest !== null) {
-            $request = app($this->bulkRequest);
-        }
-
         /** @var ListResource $resource */
         $resource = app($this->resource);
         $name = (string) $request->input('action', '');
         $action = $this->findBulkAction($resource, $name);
+
+        $partialHeader = (string) config('tables.partial_header', 'X-Tables-Partial');
+        $isXhr = $partialHeader !== '' && $request->hasHeader($partialHeader);
 
         if ($action === null) {
             Log::warning('tables.bulk.unknown_action', [
@@ -103,24 +101,67 @@ trait HandlesResourceListing
                 'action' => $name,
             ]);
 
-            return back()->withErrors(['action' => "Неизвестное действие: {$name}"]);
+            return $this->bulkActionError($isXhr, "Неизвестное действие: {$name}", 404);
+        }
+
+        $kind = $action->getKind();
+        $isForm = $kind === 'form';
+
+        if (! $isForm && property_exists($this, 'bulkRequest') && $this->bulkRequest !== null) {
+            $request = app($this->bulkRequest);
         }
 
         $ids = $this->extractBulkIds($request);
-        $payload = $action->getPayload();
+
+        if ($ids === []) {
+            Log::warning('tables.bulk.empty_ids', [
+                'resource' => $this->resource,
+                'action' => $name,
+                'kind' => $kind,
+            ]);
+
+            return $this->bulkActionError($isXhr, 'Не выбрано ни одного объекта.', 422);
+        }
+
+        $payload = [];
+        $formRequestClass = $isForm ? $action->getFormRequest() : null;
+
+        if ($isForm) {
+            if ($formRequestClass !== null) {
+                /** @var FormRequest $formRequest */
+                $formRequest = app($formRequestClass);
+                $payload = $formRequest->validated();
+            }
+        } else {
+            $payload = $action->getPayload();
+        }
 
         $handlerClass = $action->getHandler();
         $result = null;
 
         if ($handlerClass !== null) {
-            /** @var Action $handler */
-            $handler = app($handlerClass);
-            $result = $handler->execute($ids, $payload);
+            try {
+                /** @var Action $handler */
+                $handler = app($handlerClass);
+                $result = $handler->execute($ids, $payload);
+            } catch (Throwable $e) {
+                Log::error('tables.bulk.handler_threw', [
+                    'resource' => $this->resource,
+                    'action' => $name,
+                    'kind' => $kind,
+                    'handler' => $handlerClass,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return $this->bulkActionError($isXhr, 'Внутренняя ошибка. См. логи.', 500);
+            }
         }
 
         Log::info('tables.bulk', [
             'resource' => $this->resource,
             'action' => $name,
+            'kind' => $kind,
+            'has_form_request' => $formRequestClass !== null,
             'ids_count' => count($ids),
             'affected' => $result?->affected,
             'missing' => $result?->missing,
@@ -128,7 +169,100 @@ trait HandlesResourceListing
 
         $message = $result?->message ?? 'Обработано: '.($result?->affected ?? 0);
 
+        if ($isXhr) {
+            return response()->json([
+                'status' => 'ok',
+                'message' => $message,
+                'reload' => $isForm ? $action->shouldReloadAfterSubmit() : true,
+            ]);
+        }
+
         return back()->with('status', $message);
+    }
+
+    public function bulkActionForm(Request $request, string $action): Response
+    {
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        $bulk = $this->findBulkAction($resource, $action);
+
+        if ($bulk === null) {
+            Log::warning('tables.bulk.form.unknown', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        if ($bulk->getKind() !== 'form') {
+            abort(404);
+        }
+
+        $ability = $bulk->getAbility();
+        if ($ability !== null && ! Gate::check($ability)) {
+            Log::warning('tables.bulk.form.forbidden', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'ability' => $ability,
+            ]);
+            abort(403);
+        }
+
+        $ids = $this->extractBulkIds($request);
+        if ($ids === []) {
+            Log::warning('tables.bulk.form.empty_ids', [
+                'resource' => $this->resource,
+                'action' => $action,
+            ]);
+            abort(422, 'Не выбрано ни одного объекта.');
+        }
+
+        $forms = property_exists($this, 'bulkActionForms') && is_array($this->bulkActionForms)
+            ? $this->bulkActionForms
+            : [];
+
+        $view = $forms[$action] ?? null;
+        if ($view === null && property_exists($this, 'tableView') && is_string($this->tableView)) {
+            $view = $this->tableView.'-bulk-'.$action;
+        }
+
+        if ($view === null || ! view()->exists($view)) {
+            Log::warning('tables.bulk.form.view_missing', [
+                'resource' => $this->resource,
+                'action' => $action,
+                'view' => $view,
+            ]);
+            abort(404);
+        }
+
+        $base = $this->deriveBaseRouteName();
+        $submitUrl = route($base.'.bulk_action');
+
+        Log::debug('tables.bulk.form_open', [
+            'resource' => $this->resource,
+            'action' => $action,
+            'ids_count' => count($ids),
+            'view' => $view,
+        ]);
+
+        return response()->view($view, [
+            'action' => $bulk,
+            'ids' => $ids,
+            'idsCount' => count($ids),
+            'submitUrl' => $submitUrl,
+        ]);
+    }
+
+    private function bulkActionError(bool $isXhr, string $message, int $status): Response
+    {
+        if ($isXhr) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $message,
+            ], $status);
+        }
+
+        return back()->withErrors(['action' => $message]);
     }
 
     public function saveView(Request $request): Response
@@ -479,7 +613,7 @@ trait HandlesResourceListing
             return '';
         }
 
-        foreach (['.row_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view'] as $suffix) {
+        foreach (['.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view'] as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }
