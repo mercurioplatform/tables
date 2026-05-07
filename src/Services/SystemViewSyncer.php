@@ -17,7 +17,7 @@ final class SystemViewSyncer
     public function sync(ResourceRegistry $registry): void
     {
         try {
-            if (! Schema::hasTable('saved_views')) {
+            if (! Schema::hasTable((new SavedViewModel)->getTable())) {
                 return;
             }
         } catch (\Throwable $e) {

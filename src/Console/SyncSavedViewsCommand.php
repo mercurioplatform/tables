@@ -12,7 +12,7 @@ class SyncSavedViewsCommand extends Command
 {
     protected $signature = 'tables:sync-views {--force : Forget cache markers and re-sync}';
 
-    protected $description = 'Sync system saved views into saved_views table';
+    protected $description = 'Sync system saved views into the saved-views table';
 
     public function handle(SystemViewSyncer $syncer, ResourceRegistry $registry): int
     {

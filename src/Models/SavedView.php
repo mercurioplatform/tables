@@ -14,7 +14,11 @@ use Mercurio\Tables\ListResource;
 
 class SavedView extends Model
 {
-    protected $table = 'saved_views';
+    public function __construct(array $attributes = [])
+    {
+        $this->setTable(config('tables.tables.saved_views', 'tables_saved_views'));
+        parent::__construct($attributes);
+    }
 
     protected $fillable = [
         'user_id',

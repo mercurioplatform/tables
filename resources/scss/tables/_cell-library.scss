@@ -1,0 +1,53 @@
+.tables-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+
+    &--bar .progress {
+        --bs-progress-height: 6px;
+        min-width: 60px;
+    }
+
+    .bi-star,
+    .bi-star-fill,
+    .bi-star-half {
+        font-size: 0.875rem;
+        line-height: 1;
+    }
+}
+
+.tables-tags {
+    .badge {
+        font-weight: 500;
+    }
+}
+
+.tables-json {
+    summary {
+        cursor: pointer;
+        list-style: none;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+
+        &::before {
+            content: '▸';
+            display: inline-block;
+            margin-right: 0.25rem;
+            color: var(--bs-secondary-color);
+            transition: transform 120ms ease;
+        }
+    }
+
+    &[open] summary::before {
+        content: '▾';
+    }
+
+    pre {
+        max-height: 240px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+}

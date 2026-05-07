@@ -37,9 +37,16 @@ class TablesServiceProvider extends ServiceProvider
 
         Blade::anonymousComponentPath(__DIR__.'/../resources/views/components');
 
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
         Router::macro('tablesResource', function (string $path, string $controller): PendingTablesResource {
             /** @var Router $this */
             return new PendingTablesResource($this, $path, $controller);
+        });
+
+        Router::macro('tablesPage', function (string $path, string $resourceClass): PendingTablesResource {
+            /** @var Router $this */
+            return PendingTablesResource::page($this, $path, $resourceClass);
         });
 
         if ($this->app->runningInConsole()) {
@@ -57,6 +64,10 @@ class TablesServiceProvider extends ServiceProvider
                 __DIR__.'/../resources/js' => resource_path('js/vendor/tables'),
                 __DIR__.'/../resources/scss' => resource_path('scss/vendor/tables'),
             ], 'tables-assets');
+
+            $this->publishes([
+                __DIR__.'/../database/migrations' => database_path('migrations'),
+            ], 'tables-migrations');
         }
 
         if (config('tables.sync_system_views', true) && ! $this->app->runningInConsole()) {

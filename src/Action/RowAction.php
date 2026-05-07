@@ -399,6 +399,45 @@ final class RowAction
         return $this->previewCallback !== null;
     }
 
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>|null
+     */
+    protected ?Closure $captureCallback = null;
+
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     */
+    protected ?Closure $reverseCallback = null;
+
+    /**
+     * Декларативный undo для row-action. Capture получает [$model->getKey()] и payload.
+     *
+     * @param  Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>  $capture
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult  $reverse
+     */
+    public function undoable(Closure $capture, Closure $reverse): self
+    {
+        $this->captureCallback = $capture;
+        $this->reverseCallback = $reverse;
+
+        return $this;
+    }
+
+    public function getCaptureCallback(): ?Closure
+    {
+        return $this->captureCallback;
+    }
+
+    public function getReverseCallback(): ?Closure
+    {
+        return $this->reverseCallback;
+    }
+
+    public function isUndoable(): bool
+    {
+        return $this->captureCallback !== null && $this->reverseCallback !== null;
+    }
+
     /** @var Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>)|null */
     protected ?Closure $onSuccessCallback = null;
 

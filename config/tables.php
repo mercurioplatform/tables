@@ -171,7 +171,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Per-user persisted preferences for table listing (visible columns,
-    | density, page size). Stored in `user_table_prefs` keyed by
+    | density, page size). Stored in `tables_user_table_prefs` keyed by
     | (user_id, resource_key). URL query params override DB; DB overrides
     | Resource defaults.
     |   - per_page_options:        whitelist of allowed page sizes shown in popover.
@@ -262,6 +262,93 @@ return [
             'error' => 'danger',
         ],
         'title_suffix' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Action Log (Tables/3.12)
+    |--------------------------------------------------------------------------
+    |
+    | Append-only audit log of successful bulk/row-actions. Written by the
+    | engine controller trait after a non-throwing ActionResult. Read via
+    | the `tables.action_log` route — rendered into the per-resource
+    | offcanvas «История» when ListResource::actionHistoryEnabled() = true.
+    |   - enabled:                 master kill-switch for the writer.
+    |   - subjects_id_limit:       max ids stored in subjects_json before falling
+    |                              back to count-only.
+    |   - recent_limit:            window of newest rows visible in the offcanvas.
+    |   - per_page:                rows per page inside the offcanvas paginator.
+    |   - header_action_label:     label of the auto-injected HeaderAction.
+    |   - header_action_icon:      Bootstrap Icons class for the header action.
+    |   - payload_max_bytes:       soft cap on serialized payload_json size; over the
+    |                              cap engine stores `{_truncated: true, size: N}`
+    |                              and emits a Log::warning.
+    |
+    */
+    'action_log' => [
+        'enabled' => true,
+        'subjects_id_limit' => 100,
+        'recent_limit' => 200,
+        'per_page' => 25,
+        'header_action_label' => 'История',
+        'header_action_icon' => 'bi-clock-history',
+        'payload_max_bytes' => 16384,
+        'undo_window_minutes' => 60,
+        'undo_snapshot_max_bytes' => 65536,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bulk Progress (Tables/3.13)
+    |--------------------------------------------------------------------------
+    |
+    | Async execution of opt-in BulkAction's via Laravel Queue.
+    | Action declares `->queue()` → engine returns 202 + progress_id; JS polls
+    | `{base}.action_progress` and renders progress card + completion toast.
+    |   - enabled:                    master kill-switch (false → all `->queue()` ignored, sync path).
+    |   - default_chunk_size:         fallback when BulkAction::queueChunkSize() not set.
+    |                                 0 = no chunking (handler invoked once with full ids).
+    |   - default_threshold:          fallback for BulkAction::queueWhen(); null = always queue.
+    |   - poll_interval_ms:           JS poller cadence.
+    |   - poll_max_duration_ms:       hard cap before JS gives up («action stalled»).
+    |   - progress_ttl_minutes:       informational TTL (no auto-pruning by engine; host responsibility).
+    |   - max_affected_ids_for_cta:   cap on affected_ids_json size; CTA hidden if exceeded.
+    |   - job_class:                  FQCN of ShouldQueue-job. Override for custom backoff/retries.
+    |   - job_tries:                  max attempts (1 = no retry; failure → status=failed).
+    |   - job_timeout_seconds:        per-attempt timeout in seconds.
+    |   - tray_position:              CSS class hook for the tray container.
+    |
+    */
+    'bulk_progress' => [
+        'enabled' => true,
+        'default_chunk_size' => 0,
+        'default_threshold' => null,
+        'poll_interval_ms' => 1500,
+        'poll_max_duration_ms' => 600000,
+        'progress_ttl_minutes' => 1440,
+        'max_affected_ids_for_cta' => 200,
+        'job_class' => \Mercurio\Tables\Jobs\BulkActionJob::class,
+        'job_tries' => 1,
+        'job_timeout_seconds' => 600,
+        'tray_position' => 'bottom-right',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Table Names (Tables/3.14)
+    |--------------------------------------------------------------------------
+    |
+    | Имена БД-таблиц внутреннего состояния движка. Параметризованы для
+    | escape hatch — если хост-проект уже занял имя или хочет иную схему,
+    | публикуется тег `tables-migrations` и/или переопределяется этот блок.
+    | Дефолты — единый префикс `tables_`.
+    |
+    */
+    'tables' => [
+        'saved_views'      => 'tables_saved_views',
+        'user_table_prefs' => 'tables_user_table_prefs',
+        'action_log'       => 'tables_action_log',
+        'action_progress'  => 'tables_action_progress',
     ],
 
 ];

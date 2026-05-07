@@ -4,16 +4,27 @@ namespace Mercurio\Tables;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Page\EmptyState;
+use Mercurio\Tables\Page\HeaderAction;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
 final class ResourceTable
 {
+    private const BUILTIN_FILTER_GROUP_LABELS = [
+        '' => 'Прочее',
+        'business' => 'Бизнес',
+        'meta' => 'Мета',
+        'system' => 'Система',
+    ];
+
     /**
      * @param  array<int, Field>  $fields
      * @param  array<int, SavedView>  $savedViews
@@ -158,6 +169,69 @@ final class ResourceTable
     }
 
     /**
+     * Group filterable fields for accordion rendering.
+     *
+     * Returns null when the count is at or below the resource threshold
+     * (signal to render the inline single-row layout).
+     *
+     * Boundary is inclusive: count <= threshold → null.
+     *
+     * @return array<int, array{
+     *     key: string,
+     *     label: string,
+     *     fields: array<int, Field>,
+     *     activeCount: int,
+     * }>|null
+     */
+    public function groupedFilterableFields(): ?array
+    {
+        $fields = $this->filterableFields();
+        $threshold = $this->resource?->filterGroupThreshold() ?? 10;
+
+        if (count($fields) <= $threshold) {
+            return null;
+        }
+
+        $groups = [];
+        foreach ($fields as $field) {
+            $key = $field->getFilterGroup() ?? '';
+            if (! isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'label' => $this->resolveFilterGroupLabel($key),
+                    'fields' => [],
+                    'activeCount' => 0,
+                ];
+            }
+            $groups[$key]['fields'][] = $field;
+            if (isset($this->activeFilters[$field->name])) {
+                $groups[$key]['activeCount']++;
+            }
+        }
+
+        return array_values($groups);
+    }
+
+    private function resolveFilterGroupLabel(string $key): string
+    {
+        $custom = $this->resource?->filterGroupLabels() ?? [];
+        if (isset($custom[$key])) {
+            return $custom[$key];
+        }
+
+        if (isset(self::BUILTIN_FILTER_GROUP_LABELS[$key])) {
+            return self::BUILTIN_FILTER_GROUP_LABELS[$key];
+        }
+
+        Log::debug('tables.filter_groups.label_fallback', [
+            'resource' => $this->key,
+            'key' => $key,
+        ]);
+
+        return Str::headline($key);
+    }
+
+    /**
      * @return array<int, array{name: string, label: string, hidden_by_default: bool}>
      */
     public function availablePrefsColumns(): array
@@ -197,5 +271,47 @@ final class ResourceTable
         }
 
         return (int) $this->paginator->perPage();
+    }
+
+    /**
+     * @return array<int, HeaderAction>
+     */
+    public function shellHeaderActions(): array
+    {
+        $actions = $this->resource?->headerActions() ?? [];
+
+        if ($this->resource === null || ! $this->resource->actionHistoryEnabled()) {
+            return $actions;
+        }
+
+        $base = $this->resource->routeBaseName();
+        if ($base === null || $base === '' || ! Route::has($base.'.action_log')) {
+            return $actions;
+        }
+
+        $url = route($base.'.action_log');
+        $offcanvasId = $this->actionLogOffcanvasId();
+        $label = (string) config('tables.action_log.header_action_label', 'История');
+        $icon = (string) config('tables.action_log.header_action_icon', 'bi-clock-history');
+
+        $history = HeaderAction::make($label, '#'.$offcanvasId)
+            ->icon($icon)
+            ->variant('outline-secondary')
+            ->attrs([
+                'data-bs-toggle' => 'offcanvas',
+                'data-bs-target' => '#'.$offcanvasId,
+                'data-tables-action-log-trigger' => $offcanvasId,
+                'data-tables-action-log-url' => $url,
+                'role' => 'button',
+            ]);
+
+        return [$history, ...$actions];
+    }
+
+    public function actionLogOffcanvasId(): string
+    {
+        $key = $this->resource?->key() ?? $this->key;
+
+        return 'tables-action-log-'.Str::slug(str_replace('.', '-', $key));
     }
 }

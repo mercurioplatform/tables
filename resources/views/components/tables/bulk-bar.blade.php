@@ -42,6 +42,7 @@
                     $previewUrl = ($kind === 'confirm' && $bulk->hasPreview() && $baseName !== '')
                         ? route($baseName.'.bulk_action_preview', ['action' => $bulk->name])
                         : null;
+                    $isQueued = method_exists($bulk, 'isQueued') && $bulk->isQueued();
                 @endphp
                 @if ($kind === 'form')
                     @php
@@ -68,6 +69,7 @@
                         data-tables-bulk-action="{{ $bulk->name }}"
                         @if ($confirm !== null) data-tables-bulk-confirm="{{ $confirm }}" @endif
                         @if ($previewUrl !== null) data-tables-bulk-preview-url="{{ $previewUrl }}" data-action-label="{{ $bulk->label }}" @endif
+                        @if ($isQueued) data-tables-bulk-queued="1" data-action-label="{{ $bulk->label }}" @endif
                     >
                         @if ($bulk->getIcon()) <i class="bi {{ $bulk->getIcon() }}"></i> @endif
                         {{ $bulk->label }}

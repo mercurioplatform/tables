@@ -43,6 +43,8 @@ abstract class Field
 
     protected ?string $filterScope = null;
 
+    protected ?string $filterGroup = null;
+
     protected ?Closure $filterOptionsCallback = null;
 
     /** @var array<int|string, string>|null */
@@ -158,6 +160,13 @@ abstract class Field
     public function filterScope(string $modelScopeName): static
     {
         $this->filterScope = $modelScopeName;
+
+        return $this;
+    }
+
+    public function filterGroup(string $key): static
+    {
+        $this->filterGroup = $key;
 
         return $this;
     }
@@ -284,6 +293,11 @@ abstract class Field
     public function getFilterScope(): ?string
     {
         return $this->filterScope;
+    }
+
+    public function getFilterGroup(): ?string
+    {
+        return $this->filterGroup;
     }
 
     public function isOnlyFilterable(): bool

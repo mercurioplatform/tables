@@ -10,6 +10,9 @@ import './cell-edit.js';
 import './confirm-preview.js';
 import './prefs.js';
 import './export.js';
+import './filter-groups.js';
+import './action-log.js';
+import './progress.js';
 
 export function initTables() {
     // No-op on E8: delegated handlers attached via module side-effect.

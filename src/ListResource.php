@@ -254,6 +254,19 @@ abstract class ListResource
         return null;
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function filterGroupLabels(): array
+    {
+        return [];
+    }
+
+    public function filterGroupThreshold(): int
+    {
+        return 10;
+    }
+
     public function pageTitle(): ?string
     {
         return null;
@@ -275,6 +288,16 @@ abstract class ListResource
     public function headerActions(): array
     {
         return [];
+    }
+
+    public function actionHistoryEnabled(): bool
+    {
+        return false;
+    }
+
+    public function resolveAuditActor(?int $actorId): ?string
+    {
+        return null;
     }
 
     /**

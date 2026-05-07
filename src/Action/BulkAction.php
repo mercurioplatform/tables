@@ -346,9 +346,93 @@ final class BulkAction
      */
     public function using(Closure $callback): self
     {
+        if ($this->shouldQueue) {
+            throw new InvalidArgumentException(
+                'BulkAction::using() incompatible with ::queue() — closures are not queueable. Use ::handler(Class) instead.'
+            );
+        }
+
         $this->callback = $callback;
 
         return $this;
+    }
+
+    /**
+     * Помечает action для асинхронного исполнения через Laravel Queue.
+     * Engine оборачивает execute в BulkActionJob, возвращает 202 + progress_id.
+     *
+     * Несовместим с ::using(closure) — closure не сериализуется в очередь.
+     * Требует ::handler(Class) — иначе при dispatch'е engine вернёт 500.
+     */
+    public function queue(?string $queueName = null): self
+    {
+        if ($this->callback !== null) {
+            throw new InvalidArgumentException(
+                'BulkAction::queue() incompatible with ::using() — closures are not queueable. Use ::handler(Class) instead.'
+            );
+        }
+
+        $this->shouldQueue = true;
+        $this->queueName = $queueName;
+
+        return $this;
+    }
+
+    public function queueChunkSize(int $size): self
+    {
+        if ($size <= 0) {
+            throw new InvalidArgumentException('BulkAction::queueChunkSize() requires positive int');
+        }
+
+        $this->queueChunkSize = $size;
+
+        return $this;
+    }
+
+    public function queueWhen(int $threshold): self
+    {
+        if ($threshold < 1) {
+            throw new InvalidArgumentException('BulkAction::queueWhen() requires threshold >= 1');
+        }
+
+        $this->queueThreshold = $threshold;
+
+        return $this;
+    }
+
+    public function isQueued(): bool
+    {
+        return $this->shouldQueue;
+    }
+
+    public function getQueueName(): ?string
+    {
+        return $this->queueName;
+    }
+
+    public function getQueueChunkSize(): ?int
+    {
+        return $this->queueChunkSize;
+    }
+
+    public function getQueueThreshold(): ?int
+    {
+        return $this->queueThreshold;
+    }
+
+    public function shouldQueueFor(int $idsCount): bool
+    {
+        if (! $this->shouldQueue) {
+            return false;
+        }
+
+        $threshold = $this->queueThreshold ?? config('tables.bulk_progress.default_threshold');
+
+        if ($threshold === null) {
+            return true;
+        }
+
+        return $idsCount >= (int) $threshold;
     }
 
     public function getCallback(): ?Closure
@@ -388,6 +472,57 @@ final class BulkAction
     {
         return $this->previewCallback !== null;
     }
+
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>|null
+     */
+    protected ?Closure $captureCallback = null;
+
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     */
+    protected ?Closure $reverseCallback = null;
+
+    /**
+     * Декларативный undo. Capture снимает per-id snapshot ДО основной операции;
+     * reverse применяет snapshot в обратную сторону при клике «Откатить».
+     *
+     * Engine принципиально требует ОБА callback'а — capture без reverse бесполезен,
+     * reverse без capture не имеет данных.
+     *
+     * @param  Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>  $capture
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult  $reverse
+     */
+    public function undoable(Closure $capture, Closure $reverse): self
+    {
+        $this->captureCallback = $capture;
+        $this->reverseCallback = $reverse;
+
+        return $this;
+    }
+
+    public function getCaptureCallback(): ?Closure
+    {
+        return $this->captureCallback;
+    }
+
+    public function getReverseCallback(): ?Closure
+    {
+        return $this->reverseCallback;
+    }
+
+    public function isUndoable(): bool
+    {
+        return $this->captureCallback !== null && $this->reverseCallback !== null;
+    }
+
+    protected bool $shouldQueue = false;
+
+    protected ?string $queueName = null;
+
+    protected ?int $queueChunkSize = null;
+
+    protected ?int $queueThreshold = null;
 
     /** @var Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>)|null */
     protected ?Closure $onSuccessCallback = null;

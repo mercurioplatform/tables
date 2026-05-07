@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+        - database/migrations
+    treatPhpDocTypesAsCertain: false
+    checkMissingIterableValueType: false
+    ignoreErrors:
+        # Generic-неполнота на Eloquent QueryBuilder в FilterApplier/QueryBuilderApplier — закроется в 3.18 при @internal-разметке.
+        -
+            identifier: missingType.generics
+            paths:
+                - src/Filter/*
+                - src/Filter/Qb/*

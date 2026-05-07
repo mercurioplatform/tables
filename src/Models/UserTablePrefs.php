@@ -7,7 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class UserTablePrefs extends Model
 {
-    protected $table = 'user_table_prefs';
+    public function __construct(array $attributes = [])
+    {
+        $this->setTable(config('tables.tables.user_table_prefs', 'tables_user_table_prefs'));
+        parent::__construct($attributes);
+    }
 
     protected $fillable = [
         'user_id',

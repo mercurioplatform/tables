@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { submitBulkAjax } from './bulk.js';
 
 const $ = jQuery;
 const OFFCANVAS_ID = 'tables-confirm-preview-offcanvas';
@@ -94,6 +95,8 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-preview-url]'
     const url = $btn.attr('data-tables-bulk-preview-url');
     const label = $btn.attr('data-action-label') || $btn.text().trim();
     const action = $btn.attr('data-tables-bulk-action') || '';
+    const isQueued = $btn.attr('data-tables-bulk-queued') === '1';
+    const resourceKey = $form.attr('data-tables-bulk-form') || '';
 
     const $page = $form.closest('[data-tables-page]');
     const $scope = $page.find('[data-tables-bulk-scope]').first();
@@ -117,6 +120,16 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-preview-url]'
         onConfirm: () => {
             $form.find('[data-tables-bulk-action-input]').val(action);
             $form.find('[data-tables-bulk-ids-input]').val(ids.join(','));
+
+            if (isQueued && resourceKey) {
+                $form.data('pendingAction', action);
+                $form.data('pendingLabel', label);
+                $form.data('pendingQueued', '1');
+                $form.data('pendingConfirm', '');
+                submitBulkAjax($form, resourceKey);
+                return;
+            }
+
             // Прямой submit, минуя bulk.js submit-handler с window.confirm fallback.
             HTMLFormElement.prototype.submit.call($form.get(0));
         },

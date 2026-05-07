@@ -4,6 +4,7 @@ namespace Mercurio\Tables\Routing;
 
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
+use Mercurio\Tables\Http\GenericTablesController;
 
 class PendingTablesResource
 {
@@ -34,6 +35,12 @@ class PendingTablesResource
     private Route $exportRoute;
 
     private Route $cellUpdateRoute;
+
+    private Route $actionLogRoute;
+
+    private Route $actionLogUndoRoute;
+
+    private Route $actionProgressRoute;
 
     public function __construct(Router $router, string $path, string $controller)
     {
@@ -107,6 +114,32 @@ class PendingTablesResource
             $base.$cellEditSuffix.'/{id}/{field}',
             [$controller, 'cellUpdate'],
         )->where(['id' => '[0-9]+', 'field' => '[a-z_][a-zA-Z0-9_]*']);
+
+        $this->actionLogRoute = $router->get(
+            $base.'/action-log',
+            [$controller, 'actionLog'],
+        );
+
+        $this->actionLogUndoRoute = $router->post(
+            $base.'/action-log/{logId}/undo',
+            [$controller, 'actionLogUndo'],
+        )->where('logId', '[0-9]+');
+
+        $this->actionProgressRoute = $router->get(
+            $base.'/action-progress/{progress}',
+            [$controller, 'actionProgress'],
+        )->where('progress', '[0-9a-fA-F-]{36}');
+    }
+
+    public static function page(Router $router, string $path, string $resourceClass): self
+    {
+        $instance = new self($router, $path, GenericTablesController::class);
+
+        foreach ($instance->routes() as $route) {
+            $route->defaults('resource', $resourceClass);
+        }
+
+        return $instance;
     }
 
     public function name(string $base): self
@@ -125,6 +158,9 @@ class PendingTablesResource
         $this->prefsResetRoute->name($base.'.reset_prefs');
         $this->exportRoute->name($base.'.export');
         $this->cellUpdateRoute->name($base.'.cell_update');
+        $this->actionLogRoute->name($base.'.action_log');
+        $this->actionLogUndoRoute->name($base.'.action_log_undo');
+        $this->actionProgressRoute->name($base.'.action_progress');
 
         return $this;
     }
@@ -132,20 +168,9 @@ class PendingTablesResource
     /** @param array<int, string>|string $middleware */
     public function middleware(array|string $middleware): self
     {
-        $this->indexRoute->middleware($middleware);
-        $this->bulkActionRoute->middleware($middleware);
-        $this->optionsRoute->middleware($middleware);
-        $this->saveViewRoute->middleware($middleware);
-        $this->deleteUserViewRoute->middleware($middleware);
-        $this->rowActionRoute->middleware($middleware);
-        $this->rowActionFormRoute->middleware($middleware);
-        $this->bulkActionFormRoute->middleware($middleware);
-        $this->bulkActionPreviewRoute->middleware($middleware);
-        $this->rowActionPreviewRoute->middleware($middleware);
-        $this->prefsRoute->middleware($middleware);
-        $this->prefsResetRoute->middleware($middleware);
-        $this->exportRoute->middleware($middleware);
-        $this->cellUpdateRoute->middleware($middleware);
+        foreach ($this->routes() as $route) {
+            $route->middleware($middleware);
+        }
 
         return $this;
     }
@@ -153,21 +178,34 @@ class PendingTablesResource
     /** @param array<string, string> $constraints */
     public function where(array $constraints): self
     {
-        $this->indexRoute->where($constraints);
-        $this->bulkActionRoute->where($constraints);
-        $this->optionsRoute->where($constraints);
-        $this->saveViewRoute->where($constraints);
-        $this->deleteUserViewRoute->where($constraints);
-        $this->rowActionRoute->where($constraints);
-        $this->rowActionFormRoute->where($constraints);
-        $this->bulkActionFormRoute->where($constraints);
-        $this->bulkActionPreviewRoute->where($constraints);
-        $this->rowActionPreviewRoute->where($constraints);
-        $this->prefsRoute->where($constraints);
-        $this->prefsResetRoute->where($constraints);
-        $this->exportRoute->where($constraints);
-        $this->cellUpdateRoute->where($constraints);
+        foreach ($this->routes() as $route) {
+            $route->where($constraints);
+        }
 
         return $this;
+    }
+
+    /** @return array<int, Route> */
+    private function routes(): array
+    {
+        return [
+            $this->indexRoute,
+            $this->bulkActionRoute,
+            $this->optionsRoute,
+            $this->saveViewRoute,
+            $this->deleteUserViewRoute,
+            $this->rowActionRoute,
+            $this->rowActionFormRoute,
+            $this->bulkActionFormRoute,
+            $this->bulkActionPreviewRoute,
+            $this->rowActionPreviewRoute,
+            $this->prefsRoute,
+            $this->prefsResetRoute,
+            $this->exportRoute,
+            $this->cellUpdateRoute,
+            $this->actionLogRoute,
+            $this->actionLogUndoRoute,
+            $this->actionProgressRoute,
+        ];
     }
 }

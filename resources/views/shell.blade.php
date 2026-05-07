@@ -5,7 +5,8 @@
     $browserTitle = $resource?->browserTitle();
     $pageTitle = $resource?->pageTitle();
     $subtitle = $resource ? $resource->subtitle($table->paginator->total()) : null;
-    $actions = $resource?->headerActions() ?? [];
+    $actions = $table->shellHeaderActions();
+    $actionLogId = ($resource && $resource->actionHistoryEnabled()) ? $table->actionLogOffcanvasId() : null;
     $crumbs = $resource?->breadcrumbs() ?? [];
     $flashKeys = $resource?->flashKeys() ?? (array) config('tables.shell.flash_keys', []);
     $pageHeadComponent = (string) config('tables.shell.page_head_component', 'tables.page-head');
@@ -76,4 +77,12 @@
     @endif
 
     <x-tables.page :table="$table" :bulk-action="$bulkActionUrl"/>
+
+    @if ($actionLogId !== null)
+        <x-tables.action-log-offcanvas :id="$actionLogId"/>
+    @endif
+
+    @once
+        <x-tables.progress-tray/>
+    @endonce
 @endsection

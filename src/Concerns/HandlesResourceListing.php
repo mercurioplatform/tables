@@ -26,9 +26,14 @@ use Mercurio\Tables\Export\ExportRequest;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Form\Field\FieldRow;
 use Mercurio\Tables\Form\Field\FormField;
+use Mercurio\Tables\Jobs\BulkActionJob;
 use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Models\ActionLog;
+use Mercurio\Tables\Models\ActionProgress;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 use Mercurio\Tables\Models\UserTablePrefs;
+use Mercurio\Tables\Services\ActionLogWriter;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -215,10 +220,41 @@ trait HandlesResourceListing
             $payload = $action->getPayload();
         }
 
+        if (
+            (bool) config('tables.bulk_progress.enabled', true)
+            && $action->isQueued()
+            && $action->shouldQueueFor(count($ids))
+        ) {
+            return $this->dispatchQueuedBulkAction(
+                resource: $resource,
+                action: $action,
+                name: $name,
+                ids: $ids,
+                payload: $payload,
+                isXhr: $isXhr,
+            );
+        }
+
         $callback = $action->getCallback();
         $handlerClass = $action->getHandler();
         $mode = $action->hasCallback() ? 'callback' : ($handlerClass !== null ? 'handler' : 'none');
         $result = null;
+
+        $undoSnapshot = null;
+        if ($action->isUndoable()) {
+            $captureCallback = $action->getCaptureCallback();
+            try {
+                $undoSnapshot = $captureCallback($ids, $payload, $resource);
+            } catch (Throwable $e) {
+                Log::warning('tables.action.undo.capture_threw', [
+                    'resource' => $this->resource,
+                    'action' => $name,
+                    'kind' => 'bulk',
+                    'error' => $e->getMessage(),
+                ]);
+                $undoSnapshot = null;
+            }
+        }
 
         Log::debug('tables.action.dispatch', [
             'resource' => $this->resource,
@@ -270,6 +306,19 @@ trait HandlesResourceListing
             'affected' => $result?->affected,
             'missing' => $result?->missing,
         ]);
+
+        if ($result instanceof ActionResult) {
+            ActionLogWriter::write(
+                resourceKey: $resource->key(),
+                actionName: $name,
+                kind: 'bulk',
+                actorId: $this->resolveAuditActorId(),
+                ids: $ids,
+                payload: $payload,
+                result: $result,
+                undoSnapshot: $undoSnapshot,
+            );
+        }
 
         $reload = $isForm ? $action->shouldReloadAfterSubmit() : true;
 
@@ -493,6 +542,171 @@ trait HandlesResourceListing
         }
 
         return back()->withErrors(['action' => $message]);
+    }
+
+    /**
+     * @param  array<int, mixed>  $ids
+     * @param  array<string, mixed>  $payload
+     */
+    private function dispatchQueuedBulkAction(
+        ListResource $resource,
+        BulkAction $action,
+        string $name,
+        array $ids,
+        array $payload,
+        bool $isXhr,
+    ): Response {
+        $handlerClass = $action->getHandler();
+        if ($handlerClass === null) {
+            Log::error('tables.bulk_progress.no_handler', [
+                'resource' => $this->resource,
+                'action' => $name,
+            ]);
+
+            return $this->bulkActionError(
+                $isXhr,
+                'Действие декларировало ::queue(), но не имеет handler-класса.',
+                500,
+            );
+        }
+
+        if (! $isXhr) {
+            Log::warning('tables.bulk_progress.non_xhr_submit', [
+                'resource' => $this->resource,
+                'action' => $name,
+            ]);
+
+            return $this->bulkActionError(
+                $isXhr,
+                'Async-действие требует XHR submit. Перезагрузите страницу и попробуйте снова.',
+                422,
+            );
+        }
+
+        $progressId = (string) Str::uuid();
+        $actorId = $this->resolveAuditActorId();
+
+        ActionProgress::create([
+            'id' => $progressId,
+            'resource_key' => $resource->key(),
+            'action_name' => $name,
+            'kind' => 'bulk',
+            'actor_id' => $actorId,
+            'status' => 'pending',
+            'total' => count($ids),
+            'processed' => 0,
+            'affected' => 0,
+            'missing' => 0,
+            'denied' => 0,
+            'skipped' => 0,
+            'affected_ids_json' => [],
+            'payload_json' => $payload,
+        ]);
+
+        $jobClass = (string) config('tables.bulk_progress.job_class', BulkActionJob::class);
+        if (! is_string($jobClass) || $jobClass === '' || ! class_exists($jobClass)) {
+            $jobClass = BulkActionJob::class;
+        }
+
+        $queueName = $action->getQueueName();
+
+        /** @var BulkActionJob $job */
+        $job = new $jobClass(
+            resourceClass: $this->resource,
+            actionName: $name,
+            ids: $ids,
+            payload: $payload,
+            actorId: $actorId,
+            progressId: $progressId,
+        );
+
+        if ($queueName !== null && $queueName !== '') {
+            $job->onQueue($queueName);
+        }
+
+        dispatch($job);
+
+        Log::info('tables.bulk_progress.dispatched', [
+            'resource' => $this->resource,
+            'action' => $name,
+            'progress_id' => $progressId,
+            'total' => count($ids),
+            'queue' => $queueName,
+            'connection' => config('queue.default'),
+            'chunk_size' => $action->getQueueChunkSize() ?? (int) config('tables.bulk_progress.default_chunk_size', 0),
+            'actor_id' => $actorId,
+        ]);
+
+        $base = $resource->routeBaseName() ?? $this->deriveBaseRouteName();
+        $progressUrl = $base !== '' && Route::has($base.'.action_progress')
+            ? route($base.'.action_progress', ['progress' => $progressId])
+            : null;
+        $indexUrl = $base !== '' && Route::has($base.'.index')
+            ? route($base.'.index')
+            : null;
+
+        return response()->json([
+            'status' => 'queued',
+            'progress_id' => $progressId,
+            'progress_url' => $progressUrl,
+            'index_url' => $indexUrl,
+            'total' => count($ids),
+            'action_label' => $action->label,
+            'message' => "Действие «{$action->label}» запущено в фоне (".count($ids).' объектов).',
+        ], 202);
+    }
+
+    public function actionProgress(Request $request, string $progress): Response
+    {
+        /** @var ActionProgress|null $row */
+        $row = ActionProgress::query()->find($progress);
+
+        if ($row === null) {
+            Log::warning('tables.bulk_progress.read.not_found', [
+                'resource' => $this->resource,
+                'progress_id' => $progress,
+            ]);
+            abort(404);
+        }
+
+        $actorId = $this->resolveAuditActorId();
+        if ($row->actor_id !== $actorId) {
+            Log::warning('tables.bulk_progress.read.foreign', [
+                'resource' => $this->resource,
+                'progress_id' => $progress,
+                'row_actor' => $row->actor_id,
+                'request_actor' => $actorId,
+            ]);
+            abort(403);
+        }
+
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        if ($row->resource_key !== $resource->key()) {
+            Log::warning('tables.bulk_progress.read.wrong_resource', [
+                'resource' => $this->resource,
+                'progress_id' => $progress,
+                'row_resource' => $row->resource_key,
+            ]);
+            abort(404);
+        }
+
+        $cap = (int) config('tables.bulk_progress.max_affected_ids_for_cta', 200);
+
+        return response()->json([
+            'progress_id' => $row->id,
+            'status' => $row->status,
+            'total' => $row->total,
+            'processed' => $row->processed,
+            'affected' => $row->affected,
+            'missing' => $row->missing,
+            'denied' => $row->denied,
+            'skipped' => $row->skipped,
+            'error_message' => $row->error_message,
+            'started_at' => $row->started_at?->toIso8601String(),
+            'finished_at' => $row->finished_at?->toIso8601String(),
+            'affected_ids_preview' => array_slice($row->affected_ids_json ?? [], 0, max(0, $cap)),
+        ]);
     }
 
     /**
@@ -1172,6 +1386,17 @@ trait HandlesResourceListing
         return Auth::guard($guard)->user();
     }
 
+    private function resolveAuditActorId(): ?int
+    {
+        $id = $this->currentTableActor()?->getAuthIdentifier();
+
+        if ($id === null) {
+            return null;
+        }
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
     private function authzMode(BulkAction|RowAction $action): string
     {
         return match (true) {
@@ -1257,6 +1482,21 @@ trait HandlesResourceListing
             'mode' => $mode,
         ]);
 
+        $undoSnapshot = null;
+        if ($rowAction->isUndoable()) {
+            try {
+                $undoSnapshot = ($rowAction->getCaptureCallback())([$model->getKey()], $payload, $resource);
+            } catch (Throwable $e) {
+                Log::warning('tables.action.undo.capture_threw', [
+                    'resource' => $this->resource,
+                    'action' => $action,
+                    'kind' => 'row',
+                    'error' => $e->getMessage(),
+                ]);
+                $undoSnapshot = null;
+            }
+        }
+
         $result = null;
         try {
             if ($mode === 'callback') {
@@ -1290,6 +1530,19 @@ trait HandlesResourceListing
             'affected' => $result?->affected,
             'message' => $result?->message,
         ]);
+
+        if ($result instanceof ActionResult && $rowAction->getKind() !== 'link') {
+            ActionLogWriter::write(
+                resourceKey: $resource->key(),
+                actionName: $action,
+                kind: 'row',
+                actorId: $this->resolveAuditActorId(),
+                ids: [$model->getKey()],
+                payload: $payload,
+                result: $result,
+                undoSnapshot: $undoSnapshot,
+            );
+        }
 
         return $this->flashFromActionResult(
             result: $result ?? new ActionResult(affected: 0),
@@ -1495,6 +1748,274 @@ trait HandlesResourceListing
         ]);
     }
 
+    public function actionLog(Request $request): Response
+    {
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+
+        if (! $resource->actionHistoryEnabled()) {
+            Log::warning('tables.action_log.disabled', [
+                'resource' => $this->resource,
+            ]);
+            abort(404);
+        }
+
+        $perPage = (int) config('tables.action_log.per_page', 25);
+        $window = (int) config('tables.action_log.recent_limit', 200);
+        $page = max(1, (int) $request->input('page', 1));
+
+        $rows = ActionLog::query()
+            ->forResource($resource->key())
+            ->orderByDesc('id')
+            ->limit($window)
+            ->get();
+
+        $undoneIds = $this->loadUndoneOriginIds($rows->pluck('id')->all());
+        $rows->each(function (ActionLog $row) use ($undoneIds) {
+            $row->setAttribute('already_undone', isset($undoneIds[$row->id]));
+        });
+
+        $items = $rows->forPage($page, $perPage)->values();
+
+        $paginator = new LengthAwarePaginator(
+            items: $items,
+            total: $rows->count(),
+            perPage: $perPage,
+            currentPage: $page,
+            options: [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ],
+        );
+
+        Log::debug('tables.action_log.read', [
+            'resource' => $this->resource,
+            'rows' => $rows->count(),
+            'page' => $page,
+            'per_page' => $perPage,
+        ]);
+
+        return response()->view('tables::action-log', [
+            'resource' => $resource,
+            'paginator' => $paginator,
+            'window' => $window,
+        ]);
+    }
+
+    public function actionLogUndo(Request $request, int $logId): Response
+    {
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+
+        if (! $resource->actionHistoryEnabled()) {
+            Log::warning('tables.action_log.disabled', [
+                'resource' => $this->resource,
+            ]);
+            abort(404);
+        }
+
+        /** @var ?ActionLog $row */
+        $row = ActionLog::query()->whereKey($logId)->first();
+        if ($row === null) {
+            abort(404);
+        }
+
+        if ($row->resource_key !== $resource->key()) {
+            Log::warning('tables.action_log.undo.scope_mismatch', [
+                'resource' => $this->resource,
+                'log_id' => $logId,
+                'log_resource' => $row->resource_key,
+            ]);
+            abort(404);
+        }
+
+        if (isset($row->payload_json['undo_of'])) {
+            Log::warning('tables.action_log.undo.chain_attempt', [
+                'resource' => $this->resource,
+                'log_id' => $logId,
+            ]);
+
+            return $this->undoError($request, 'Запись является откатом — повторный откат не поддерживается.', 422);
+        }
+
+        $undo = $row->result_json['undo'] ?? null;
+        $snapshot = is_array($undo) ? ($undo['snapshot'] ?? null) : null;
+        if (! is_array($snapshot) || $snapshot === []) {
+            return $this->undoError($request, 'Снимок отката отсутствует или повреждён.', 422);
+        }
+
+        $windowMinutes = (int) config('tables.action_log.undo_window_minutes', 60);
+        if ($row->created_at !== null && $row->created_at->lt(now()->subMinutes($windowMinutes))) {
+            Log::warning('tables.action_log.undo.window_expired', [
+                'resource' => $this->resource,
+                'log_id' => $logId,
+                'window' => $windowMinutes,
+            ]);
+
+            return $this->undoError($request, "Окно отката истекло ({$windowMinutes} мин).", 422);
+        }
+
+        if ($this->hasExistingUndo($logId)) {
+            return $this->undoError($request, 'Откат уже выполнен ранее.', 422);
+        }
+
+        $kind = $row->kind === 'row' ? 'row' : 'bulk';
+        $actionDecl = $kind === 'bulk'
+            ? $this->findBulkAction($resource, $row->action_name)
+            : $this->findRowAction($resource, $row->action_name);
+
+        if ($actionDecl === null || ! $actionDecl->isUndoable()) {
+            Log::warning('tables.action_log.undo.action_lost', [
+                'resource' => $this->resource,
+                'log_id' => $logId,
+                'action_name' => $row->action_name,
+                'kind' => $kind,
+            ]);
+
+            return $this->undoError($request, 'Действие больше не поддерживает откат.', 422);
+        }
+
+        $ids = array_keys($snapshot);
+
+        if ($actionDecl->hasPolicy() || $actionDecl->getAbility() !== null) {
+            $probeId = $ids[0] ?? null;
+            $probe = $probeId !== null ? $resource->query()->whereKey($probeId)->first() : null;
+            if ($probe === null || ! $this->authorizeAction($actionDecl, $probe, $kind)) {
+                abort(403);
+            }
+        }
+
+        $reverseCallback = $actionDecl->getReverseCallback();
+        $partialHeader = (string) config('tables.partial_header', 'X-Tables-Partial');
+        $isXhr = $partialHeader !== '' && $request->hasHeader($partialHeader);
+
+        try {
+            $reverseResult = $reverseCallback($ids, $snapshot, $this->currentTableActor());
+        } catch (Throwable $e) {
+            Log::error('tables.action_log.undo.reverse_threw', [
+                'resource' => $this->resource,
+                'log_id' => $logId,
+                'action_name' => $row->action_name,
+                'kind' => $kind,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->undoError($request, 'Откат не выполнен. См. логи.', 500);
+        }
+
+        if (! $reverseResult instanceof ActionResult) {
+            Log::error('tables.action_log.undo.reverse_returned_invalid', [
+                'resource' => $this->resource,
+                'log_id' => $logId,
+                'kind' => $kind,
+                'returned' => is_object($reverseResult) ? $reverseResult::class : gettype($reverseResult),
+            ]);
+
+            return $this->undoError($request, 'Откат вернул неверный результат.', 500);
+        }
+
+        Log::info('tables.action_log.undo.executed', [
+            'resource' => $this->resource,
+            'log_id' => $logId,
+            'action_name' => $row->action_name,
+            'kind' => $kind,
+            'ids_count' => count($ids),
+            'affected' => $reverseResult->affected,
+        ]);
+
+        ActionLogWriter::write(
+            resourceKey: $resource->key(),
+            actionName: $row->action_name,
+            kind: $kind,
+            actorId: $this->resolveAuditActorId(),
+            ids: $ids,
+            payload: [],
+            result: $reverseResult,
+            undoSnapshot: null,
+            undoOfLogId: $logId,
+        );
+
+        $flashResult = new ActionResult(
+            affected: $reverseResult->affected,
+            missing: $reverseResult->missing,
+            message: $reverseResult->message ?? 'Откат выполнен.',
+        );
+
+        return $this->flashFromActionResult(
+            result: $flashResult,
+            action: $actionDecl,
+            isXhr: $isXhr,
+            reload: true,
+        );
+    }
+
+    private function hasExistingUndo(int $logId): bool
+    {
+        $driver = ActionLog::query()->getQuery()->getConnection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            return ActionLog::query()
+                ->whereRaw("json_extract(payload_json, '$.undo_of') = ?", [$logId])
+                ->exists();
+        }
+
+        return ActionLog::query()
+            ->where('payload_json->undo_of', $logId)
+            ->exists();
+    }
+
+    /**
+     * @param  array<int, int>  $logIds
+     * @return array<int, true>
+     */
+    private function loadUndoneOriginIds(array $logIds): array
+    {
+        if ($logIds === []) {
+            return [];
+        }
+
+        $driver = ActionLog::query()->getQuery()->getConnection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            $placeholders = implode(',', array_fill(0, count($logIds), '?'));
+            $rows = ActionLog::query()
+                ->whereRaw("json_extract(payload_json, '$.undo_of') IN ({$placeholders})", $logIds)
+                ->selectRaw("json_extract(payload_json, '$.undo_of') as origin_id")
+                ->pluck('origin_id')
+                ->all();
+        } else {
+            $rows = ActionLog::query()
+                ->whereIn('payload_json->undo_of', $logIds)
+                ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.undo_of')) as origin_id")
+                ->pluck('origin_id')
+                ->all();
+        }
+
+        $out = [];
+        foreach ($rows as $oid) {
+            if ($oid !== null) {
+                $out[(int) $oid] = true;
+            }
+        }
+
+        return $out;
+    }
+
+    private function undoError(Request $request, string $message, int $status): Response
+    {
+        $partialHeader = (string) config('tables.partial_header', 'X-Tables-Partial');
+        $isXhr = $partialHeader !== '' && $request->hasHeader($partialHeader);
+
+        if ($isXhr) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $message,
+            ], $status);
+        }
+
+        return back()->withErrors(['undo' => $message]);
+    }
+
     private function renderActionPreview(\Illuminate\Contracts\View\View|string|array $result): string
     {
         if ($result instanceof \Illuminate\Contracts\View\View) {
@@ -1560,7 +2081,7 @@ trait HandlesResourceListing
             return '';
         }
 
-        foreach (['.row_action_preview', '.bulk_action_preview', '.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export', '.cell_update'] as $suffix) {
+        foreach (['.row_action_preview', '.bulk_action_preview', '.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export', '.cell_update', '.action_log_undo', '.action_log', '.action_progress'] as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }
