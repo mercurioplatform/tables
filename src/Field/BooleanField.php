@@ -41,6 +41,26 @@ class BooleanField extends Field
         return $this;
     }
 
+    public function getTrueLabel(): string
+    {
+        return $this->trueLabel;
+    }
+
+    public function getFalseLabel(): string
+    {
+        return $this->falseLabel;
+    }
+
+    public function getEditInputType(): ?string
+    {
+        return $this->editable ? 'boolean' : null;
+    }
+
+    protected function defaultEditRules(?Model $row = null): array
+    {
+        return ['boolean'];
+    }
+
     protected function defaultFilterPopoverType(): string
     {
         return 'select';

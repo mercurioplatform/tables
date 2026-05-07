@@ -56,6 +56,22 @@ abstract class Field
 
     protected bool $onlyFilterable = false;
 
+    protected bool $editable = false;
+
+    protected ?string $editColumn = null;
+
+    /** @var array{class: string, method: string}|null */
+    protected ?array $editPolicy = null;
+
+    /** @var array<int, mixed>|Closure|null */
+    protected array|Closure|null $editRules = null;
+
+    /** @var array<int|string, string>|Closure|null */
+    protected array|Closure|null $editOptions = null;
+
+    /** @var array<int|string, string>|null */
+    private ?array $editOptionsCache = null;
+
     public function __construct(public readonly string $name, ?string $label = null)
     {
         $this->label = $label ?? Str::headline($name);
@@ -180,6 +196,48 @@ abstract class Field
         return $this;
     }
 
+    public function editable(bool $value = true): static
+    {
+        $this->editable = $value;
+
+        return $this;
+    }
+
+    public function editColumn(string $column): static
+    {
+        $this->editColumn = $column;
+
+        return $this;
+    }
+
+    public function editPolicy(string $policyClass, string $method): static
+    {
+        $this->editPolicy = ['class' => $policyClass, 'method' => $method];
+
+        return $this;
+    }
+
+    /**
+     * @param  array<int, mixed>|Closure  $rules
+     */
+    public function editRules(array|Closure $rules): static
+    {
+        $this->editRules = $rules;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<int|string, string>|Closure  $options
+     */
+    public function editOptions(array|Closure $options): static
+    {
+        $this->editOptions = $options;
+        $this->editOptionsCache = null;
+
+        return $this;
+    }
+
     // ---- Getters ----
 
     public function isSortable(): bool
@@ -231,6 +289,90 @@ abstract class Field
     public function isOnlyFilterable(): bool
     {
         return $this->onlyFilterable;
+    }
+
+    public function isEditable(): bool
+    {
+        return $this->editable && $this->getEditInputType() !== null;
+    }
+
+    public function getEditableColumn(): string
+    {
+        return $this->editColumn ?? $this->name;
+    }
+
+    /**
+     * @return array{class: string, method: string}|null
+     */
+    public function getEditPolicy(): ?array
+    {
+        return $this->editPolicy;
+    }
+
+    public function getEditInputType(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    public function compileEditRules(?Model $row = null): array
+    {
+        if ($this->editRules instanceof Closure) {
+            $resolved = ($this->editRules)($row);
+
+            return is_array($resolved) ? $resolved : [];
+        }
+
+        if (is_array($this->editRules)) {
+            return $this->editRules;
+        }
+
+        return $this->defaultEditRules($row);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    protected function defaultEditRules(?Model $row = null): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    public function resolveEditOptions(): array
+    {
+        if ($this->editOptionsCache !== null) {
+            return $this->editOptionsCache;
+        }
+
+        if ($this->editOptions instanceof Closure) {
+            $resolved = ($this->editOptions)();
+            $this->editOptionsCache = is_array($resolved) ? $resolved : [];
+
+            return $this->editOptionsCache;
+        }
+
+        if (is_array($this->editOptions)) {
+            $this->editOptionsCache = $this->editOptions;
+
+            return $this->editOptionsCache;
+        }
+
+        $this->editOptionsCache = $this->defaultEditOptions();
+
+        return $this->editOptionsCache;
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    protected function defaultEditOptions(): array
+    {
+        return [];
     }
 
     /**
@@ -511,6 +653,37 @@ abstract class Field
         }
 
         return $main;
+    }
+
+    /**
+     * Render the cell value WITHOUT the linkTo wrapper. Used by inline-edit
+     * triggers so that the editable cell does not wrap an <a> inside the
+     * trigger button.
+     */
+    public function renderWithoutLink(mixed $value, ?Model $row = null): Htmlable
+    {
+        $main = $this->displayUsing !== null
+            ? $this->wrapHtmlable(($this->displayUsing)($value, $row))
+            : $this->renderDefault($value, $row);
+
+        if ($this->subline !== null && $row !== null) {
+            $sub = ($this->subline)($value, $row);
+            if ($sub !== null && (string) $sub !== '') {
+                $main = new HtmlString(
+                    '<div class="d-flex flex-column">'
+                    .'<div>'.$main->toHtml().'</div>'
+                    .'<div class="text-muted small">'.e((string) $sub).'</div>'
+                    .'</div>'
+                );
+            }
+        }
+
+        return $main;
+    }
+
+    public function hasLinkTo(): bool
+    {
+        return $this->linkTo !== null;
     }
 
     abstract protected function renderDefault(mixed $value, ?Model $row): Htmlable;

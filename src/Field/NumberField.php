@@ -16,6 +16,12 @@ class NumberField extends Field
 
     protected string $emptyText = '—';
 
+    protected ?string $editStep = null;
+
+    protected null|int|float $editMin = null;
+
+    protected null|int|float $editMax = null;
+
     public function decimals(int $n): static
     {
         $this->decimals = $n;
@@ -36,6 +42,60 @@ class NumberField extends Field
         $this->emptyText = $text;
 
         return $this;
+    }
+
+    public function editStep(string $step): static
+    {
+        $this->editStep = $step;
+
+        return $this;
+    }
+
+    public function editMin(int|float $min): static
+    {
+        $this->editMin = $min;
+
+        return $this;
+    }
+
+    public function editMax(int|float $max): static
+    {
+        $this->editMax = $max;
+
+        return $this;
+    }
+
+    public function getEditStep(): ?string
+    {
+        return $this->editStep;
+    }
+
+    public function getEditMin(): null|int|float
+    {
+        return $this->editMin;
+    }
+
+    public function getEditMax(): null|int|float
+    {
+        return $this->editMax;
+    }
+
+    public function getEditInputType(): ?string
+    {
+        return $this->editable ? 'number' : null;
+    }
+
+    protected function defaultEditRules(?Model $row = null): array
+    {
+        $rules = ['numeric'];
+        if ($this->editMin !== null) {
+            $rules[] = 'min:'.$this->editMin;
+        }
+        if ($this->editMax !== null) {
+            $rules[] = 'max:'.$this->editMax;
+        }
+
+        return $rules;
     }
 
     protected function defaultFilterPopoverType(): string

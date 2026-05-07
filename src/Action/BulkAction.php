@@ -388,4 +388,67 @@ final class BulkAction
     {
         return $this->previewCallback !== null;
     }
+
+    /** @var Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>)|null */
+    protected ?Closure $onSuccessCallback = null;
+
+    /** @var Closure(\Throwable): (string|array<string, mixed>)|null */
+    protected ?Closure $onErrorCallback = null;
+
+    /**
+     * Декларативный flash-callback для success-path. Вызывается ПОСЛЕ выполнения
+     * handler/callback (если не было throw) и ПОЛНОСТЬЮ заменяет $result->message
+     * для построения flash-сообщения.
+     *
+     * Возврат:
+     *   - string → ['status' => $string] (зелёный alert);
+     *   - array → нормализуется по ключам status/warning/error/counts.
+     *
+     * Если callback бросил — engine логирует и flash'ит дефолт.
+     *
+     * @param Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>) $cb
+     */
+    public function onSuccess(Closure $cb): self
+    {
+        $this->onSuccessCallback = $cb;
+
+        return $this;
+    }
+
+    /**
+     * Декларативный flash-callback для error-path (handler/inline-callback бросил).
+     * Возврат — string (трактуется как ['error' => $string]) или array.
+     * HTTP status response остаётся 500 (для XHR), redirect — back()->with(...).
+     *
+     * Если callback бросил — engine логирует tables.action.flash.error_callback_threw
+     * и применяет дефолт «Внутренняя ошибка. См. логи.».
+     *
+     * @param Closure(\Throwable): (string|array<string, mixed>) $cb
+     */
+    public function onError(Closure $cb): self
+    {
+        $this->onErrorCallback = $cb;
+
+        return $this;
+    }
+
+    public function getOnSuccessCallback(): ?Closure
+    {
+        return $this->onSuccessCallback;
+    }
+
+    public function getOnErrorCallback(): ?Closure
+    {
+        return $this->onErrorCallback;
+    }
+
+    public function hasOnSuccess(): bool
+    {
+        return $this->onSuccessCallback !== null;
+    }
+
+    public function hasOnError(): bool
+    {
+        return $this->onErrorCallback !== null;
+    }
 }

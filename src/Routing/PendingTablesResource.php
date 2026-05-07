@@ -33,12 +33,15 @@ class PendingTablesResource
 
     private Route $exportRoute;
 
+    private Route $cellUpdateRoute;
+
     public function __construct(Router $router, string $path, string $controller)
     {
         $normalized = ltrim($path, '/');
         $optionsSuffix = (string) config('tables.route_options_suffix', '/options');
         $rowActionSuffix = (string) config('tables.row_actions.suffix', '/row-action');
         $rowActionFormSuffix = (string) config('tables.row_actions.form_suffix', '/form');
+        $cellEditSuffix = (string) config('tables.cell_edit.suffix', '/cells');
 
         $base = rtrim($normalized, '/');
 
@@ -99,6 +102,11 @@ class PendingTablesResource
             $base.'/export',
             [$controller, 'export'],
         );
+
+        $this->cellUpdateRoute = $router->patch(
+            $base.$cellEditSuffix.'/{id}/{field}',
+            [$controller, 'cellUpdate'],
+        )->where(['id' => '[0-9]+', 'field' => '[a-z_][a-zA-Z0-9_]*']);
     }
 
     public function name(string $base): self
@@ -116,6 +124,7 @@ class PendingTablesResource
         $this->prefsRoute->name($base.'.save_prefs');
         $this->prefsResetRoute->name($base.'.reset_prefs');
         $this->exportRoute->name($base.'.export');
+        $this->cellUpdateRoute->name($base.'.cell_update');
 
         return $this;
     }
@@ -136,6 +145,7 @@ class PendingTablesResource
         $this->prefsRoute->middleware($middleware);
         $this->prefsResetRoute->middleware($middleware);
         $this->exportRoute->middleware($middleware);
+        $this->cellUpdateRoute->middleware($middleware);
 
         return $this;
     }
@@ -156,6 +166,7 @@ class PendingTablesResource
         $this->prefsRoute->where($constraints);
         $this->prefsResetRoute->where($constraints);
         $this->exportRoute->where($constraints);
+        $this->cellUpdateRoute->where($constraints);
 
         return $this;
     }

@@ -3,7 +3,21 @@
     'bulkAction' => '',
 ])
 
-<div data-tables-page="{{ $table->key }}" data-tables-total="{{ $table->paginator->total() }}">
+@php
+    $cellUpdateUrlTemplate = null;
+    if ($table->hasAnyEditableFields()) {
+        $base = $table->resource?->routeBaseName();
+        if ($base !== null && $base !== '' && \Illuminate\Support\Facades\Route::has($base.'.cell_update')) {
+            $cellUpdateUrlTemplate = route($base.'.cell_update', ['id' => '__id__', 'field' => '__field__']);
+        }
+    }
+@endphp
+
+<div
+    data-tables-page="{{ $table->key }}"
+    data-tables-total="{{ $table->paginator->total() }}"
+    @if ($cellUpdateUrlTemplate) data-cell-update-url-template="{{ $cellUpdateUrlTemplate }}" @endif
+>
     {{ $beforePageHead ?? '' }}
 
     {{ $afterPageHead ?? '' }}

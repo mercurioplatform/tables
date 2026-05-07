@@ -7,6 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Mercurio\Tables\Action\Action;
+use Mercurio\Tables\Action\ActionResult;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\Export\CsvStreamWriter;
@@ -236,7 +238,7 @@ trait HandlesResourceListing
                     'error' => $e->getMessage(),
                 ]);
 
-                return $this->bulkActionError($isXhr, 'Внутренняя ошибка. См. логи.', 500);
+                return $this->flashFromException($e, $action, $isXhr);
             }
         } elseif ($mode === 'handler') {
             try {
@@ -252,7 +254,7 @@ trait HandlesResourceListing
                     'error' => $e->getMessage(),
                 ]);
 
-                return $this->bulkActionError($isXhr, 'Внутренняя ошибка. См. логи.', 500);
+                return $this->flashFromException($e, $action, $isXhr);
             }
         }
 
@@ -269,17 +271,14 @@ trait HandlesResourceListing
             'missing' => $result?->missing,
         ]);
 
-        $message = $result?->message ?? 'Обработано: '.($result?->affected ?? 0);
+        $reload = $isForm ? $action->shouldReloadAfterSubmit() : true;
 
-        if ($isXhr) {
-            return response()->json([
-                'status' => 'ok',
-                'message' => $message,
-                'reload' => $isForm ? $action->shouldReloadAfterSubmit() : true,
-            ]);
-        }
-
-        return back()->with('status', $message);
+        return $this->flashFromActionResult(
+            result: $result ?? new ActionResult(affected: 0),
+            action: $action,
+            isXhr: $isXhr,
+            reload: $reload,
+        );
     }
 
     public function bulkActionForm(Request $request, string $action): Response
@@ -494,6 +493,175 @@ trait HandlesResourceListing
         }
 
         return back()->withErrors(['action' => $message]);
+    }
+
+    /**
+     * Построить Response из ActionResult с учётом onSuccess()-callback action'а.
+     *
+     * @param  BulkAction|RowAction  $action
+     */
+    private function flashFromActionResult(
+        ActionResult $result,
+        $action,
+        bool $isXhr,
+        bool $reload,
+    ): Response {
+        $payload = null;
+        $via = 'default';
+
+        if ($action->hasOnSuccess()) {
+            try {
+                $payload = ($action->getOnSuccessCallback())($result);
+                $via = 'callback';
+            } catch (Throwable $e) {
+                Log::error('tables.action.flash.success_callback_threw', [
+                    'resource' => $this->resource,
+                    'action' => $action->name,
+                    'error' => $e->getMessage(),
+                ]);
+                $payload = null;
+            }
+        }
+
+        if ($payload === null) {
+            $defaultMsg = $action instanceof BulkAction
+                ? 'Обработано: '.$result->affected
+                : 'Готово';
+            if ($action->hasOnSuccess()) {
+                $payload = $defaultMsg;
+                $via = 'default';
+            } elseif ($result->message !== null) {
+                $payload = $result->message;
+                $via = 'legacy_message';
+            } else {
+                $payload = $defaultMsg;
+                $via = 'default';
+            }
+        }
+
+        return $this->buildFlashResponse(
+            payload: $payload,
+            isXhr: $isXhr,
+            httpStatus: 200,
+            reload: $reload,
+            primaryKind: 'success',
+            via: $via,
+        );
+    }
+
+    /**
+     * Построить Response из Throwable с учётом onError()-callback action'а.
+     *
+     * @param  BulkAction|RowAction  $action
+     */
+    private function flashFromException(
+        Throwable $e,
+        $action,
+        bool $isXhr,
+    ): Response {
+        $payload = null;
+        $via = 'default';
+
+        if ($action->hasOnError()) {
+            try {
+                $payload = ($action->getOnErrorCallback())($e);
+                $via = 'callback';
+            } catch (Throwable $cbErr) {
+                Log::error('tables.action.flash.error_callback_threw', [
+                    'resource' => $this->resource,
+                    'action' => $action->name,
+                    'original_error' => $e->getMessage(),
+                    'callback_error' => $cbErr->getMessage(),
+                ]);
+                $payload = null;
+            }
+        }
+
+        if ($payload === null) {
+            $payload = ['error' => 'Внутренняя ошибка. См. логи.'];
+        }
+
+        return $this->buildFlashResponse(
+            payload: $payload,
+            isXhr: $isXhr,
+            httpStatus: 500,
+            reload: false,
+            primaryKind: 'error',
+            via: $via,
+        );
+    }
+
+    /**
+     * Низкоуровневый builder. Нормализует payload (string|array) → массив ключей
+     * status/warning/error/counts и строит либо JSON (XHR) либо back()->with(...) (redirect).
+     *
+     * @param  string|array<string, mixed>  $payload
+     * @param  'success'|'error'  $primaryKind  «куда положить string» — success → status, error → error
+     */
+    private function buildFlashResponse(
+        string|array $payload,
+        bool $isXhr,
+        int $httpStatus,
+        bool $reload,
+        string $primaryKind,
+        string $via,
+    ): Response {
+        $normalized = ['status' => null, 'warning' => null, 'error' => null, 'counts' => null];
+
+        if (is_string($payload)) {
+            $key = $primaryKind === 'success' ? 'status' : 'error';
+            $normalized[$key] = $payload;
+        } else {
+            $allowed = ['status', 'warning', 'error', 'counts'];
+            foreach ($payload as $k => $v) {
+                if (in_array($k, $allowed, true)) {
+                    $normalized[$k] = $v;
+                } else {
+                    Log::warning('tables.action.flash.unknown_key', [
+                        'resource' => $this->resource,
+                        'key' => $k,
+                    ]);
+                }
+            }
+        }
+
+        $usedTypes = array_values(array_filter(
+            ['status', 'warning', 'error'],
+            fn ($k) => $normalized[$k] !== null && $normalized[$k] !== ''
+        ));
+
+        Log::debug('tables.action.flash.built', [
+            'resource' => $this->resource,
+            'via' => $via,
+            'types' => $usedTypes,
+            'has_counts' => $normalized['counts'] !== null,
+            'is_xhr' => $isXhr,
+        ]);
+
+        if ($isXhr) {
+            $primary = $normalized[$primaryKind === 'success' ? 'status' : 'error']
+                ?? $normalized['warning']
+                ?? '';
+
+            return response()->json([
+                'status' => $primaryKind === 'success' ? 'ok' : 'error',
+                'message' => $primary,
+                'flash' => array_filter($normalized, fn ($v) => $v !== null && $v !== ''),
+                'reload' => $reload,
+            ], $httpStatus);
+        }
+
+        $redirect = back();
+        foreach (['status', 'warning'] as $key) {
+            if ($normalized[$key] !== null && $normalized[$key] !== '') {
+                $redirect->with($key, $normalized[$key]);
+            }
+        }
+        if ($normalized['error'] !== null && $normalized['error'] !== '') {
+            $redirect->withErrors(['action' => $normalized['error']]);
+        }
+
+        return $redirect;
     }
 
     public function saveView(Request $request): Response
@@ -840,6 +1008,99 @@ trait HandlesResourceListing
         return back()->with('status', 'Вид удалён');
     }
 
+    public function cellUpdate(Request $request, $id, string $field): Response
+    {
+        /** @var ListResource $resource */
+        $resource = app($this->resource);
+        $partialHeader = (string) config('tables.partial_header', 'X-Tables-Partial');
+        $isXhr = $partialHeader !== '' && $request->hasHeader($partialHeader);
+
+        $f = $resource->findField($field);
+        if ($f === null || ! $f->isEditable()) {
+            Log::warning('tables.cell.not_editable', [
+                'resource' => $this->resource,
+                'field' => $field,
+            ]);
+
+            return response()->json([
+                'message' => 'Поле недоступно для inline-редактирования.',
+            ], 422);
+        }
+
+        $model = $resource->query()->whereKey($id)->first();
+        if ($model === null) {
+            Log::warning('tables.cell.update.missing', [
+                'resource' => $this->resource,
+                'field' => $field,
+                'id' => $id,
+            ]);
+            abort(404);
+        }
+
+        $policy = $f->getEditPolicy();
+        if ($policy !== null) {
+            $actor = $this->currentTableActor();
+            $allowed = (bool) Gate::forUser($actor)->check($policy['method'], $model);
+            if (! $allowed) {
+                Log::warning('tables.cell.update.forbidden', [
+                    'resource' => $this->resource,
+                    'field' => $field,
+                    'id' => $id,
+                    'policy_class' => $policy['class'],
+                    'policy_method' => $policy['method'],
+                    'actor_id' => $actor?->getAuthIdentifier(),
+                ]);
+                abort(403);
+            }
+        }
+
+        $rules = $f->compileEditRules($model);
+        $validator = Validator::make(
+            ['value' => $request->input('value')],
+            ['value' => $rules],
+        );
+
+        if ($validator->fails()) {
+            Log::warning('tables.cell.update.validation_failed', [
+                'resource' => $this->resource,
+                'field' => $field,
+                'id' => $id,
+                'errors' => array_keys($validator->errors()->toArray()),
+            ]);
+
+            return response()->json([
+                'errors' => $validator->errors()->toArray(),
+            ], 422);
+        }
+
+        $value = $validator->validated()['value'] ?? null;
+        $column = $f->getEditableColumn();
+        $oldValue = $model->{$column} ?? null;
+
+        DB::transaction(fn () => $model->update([$column => $value]));
+
+        Log::info('tables.cell.update', [
+            'resource' => $this->resource,
+            'field' => $field,
+            'column' => $column,
+            'id' => $id,
+            'old' => $oldValue,
+            'new' => $value,
+            'actor_id' => $this->currentTableActor()?->getAuthIdentifier(),
+            'is_xhr' => $isXhr,
+        ]);
+
+        $fresh = $resource->query()->whereKey($id)->first();
+        $table = $resource->table($request);
+
+        return response()
+            ->view('tables::row-fragment', [
+                'table' => $table,
+                'row' => $fresh,
+            ])
+            ->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
     private function findBulkAction(ListResource $resource, string $name): ?BulkAction
     {
         foreach ($resource->bulkActions() as $action) {
@@ -1015,7 +1276,7 @@ trait HandlesResourceListing
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->rowActionError($request, $isXhr, 'Внутренняя ошибка. См. логи.', 500);
+            return $this->flashFromException($e, $rowAction, $isXhr);
         }
 
         Log::info('tables.rowaction.executed', [
@@ -1030,17 +1291,12 @@ trait HandlesResourceListing
             'message' => $result?->message,
         ]);
 
-        $message = $result?->message ?? 'Готово';
-
-        if ($isXhr) {
-            return response()->json([
-                'status' => 'ok',
-                'message' => $message,
-                'reload' => $rowAction->shouldReloadAfterSubmit(),
-            ]);
-        }
-
-        return back()->with('status', $message);
+        return $this->flashFromActionResult(
+            result: $result ?? new ActionResult(affected: 0),
+            action: $rowAction,
+            isXhr: $isXhr,
+            reload: $rowAction->shouldReloadAfterSubmit(),
+        );
     }
 
     public function rowActionForm(Request $request, $id, string $action): Response
@@ -1304,7 +1560,7 @@ trait HandlesResourceListing
             return '';
         }
 
-        foreach (['.row_action_preview', '.bulk_action_preview', '.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export'] as $suffix) {
+        foreach (['.row_action_preview', '.bulk_action_preview', '.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export', '.cell_update'] as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }

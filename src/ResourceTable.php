@@ -8,6 +8,7 @@ use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterCondition;
+use Mercurio\Tables\Page\EmptyState;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
@@ -42,6 +43,7 @@ final class ResourceTable
         public readonly array $savedViewCounts = [],
         public readonly ?array $effectiveColumns = null,
         public readonly ?int $perPage = null,
+        public readonly ?EmptyState $emptyState = null,
     ) {}
 
     public function rows(): Collection
@@ -52,6 +54,24 @@ final class ResourceTable
     public function hasRowActions(): bool
     {
         return $this->rowActions !== [];
+    }
+
+    public function hasAnyEditableFields(): bool
+    {
+        foreach ($this->fields as $field) {
+            if ($field->isEditable()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasActiveFilters(): bool
+    {
+        return $this->search !== null
+            || $this->activeFilters !== []
+            || $this->qb !== null;
     }
 
     public function hasRowActionForms(): bool

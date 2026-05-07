@@ -71,6 +71,25 @@ class BelongsToField extends Field
         return $this->foreignKey ?? ($this->name.'_id');
     }
 
+    public function getEditableColumn(): string
+    {
+        if ($this->editColumn !== null) {
+            return $this->editColumn;
+        }
+
+        return $this->foreignKey ?? ($this->name.'_id');
+    }
+
+    public function getEditInputType(): ?string
+    {
+        return $this->editable ? 'select' : null;
+    }
+
+    protected function defaultEditRules(?Model $row = null): array
+    {
+        return ['nullable', 'integer'];
+    }
+
     protected function defaultFilterAutocomplete(): bool
     {
         return true;

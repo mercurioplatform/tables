@@ -139,7 +139,7 @@ $(document).on('submit', 'form[data-tables-row-action-submit]', function (e) {
             'Accept': 'application/json',
         },
         dataType: 'json',
-    }).done(function () {
+    }).done(function (data) {
         const oc = getOffcanvasEl();
         if (oc) {
             const bootstrap = getBootstrap();
@@ -148,6 +148,12 @@ $(document).on('submit', 'form[data-tables-row-action-submit]', function (e) {
         }
         if (reloadAfter) {
             navigateReload($form);
+            return;
+        }
+        if (data?.flash?.error) {
+            window.alert(data.flash.error);
+        } else if (data?.flash?.warning) {
+            window.alert(data.flash.warning);
         }
     }).fail(function (jqXHR) {
         if (jqXHR.status === 422 && jqXHR.responseJSON?.errors) {

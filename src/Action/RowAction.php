@@ -399,6 +399,64 @@ final class RowAction
         return $this->previewCallback !== null;
     }
 
+    /** @var Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>)|null */
+    protected ?Closure $onSuccessCallback = null;
+
+    /** @var Closure(\Throwable): (string|array<string, mixed>)|null */
+    protected ?Closure $onErrorCallback = null;
+
+    /**
+     * Декларативный flash-callback для success-path. Применимо к kind=instant/confirm/form
+     * (для kind=link не вызывается — link не выполняет handler). Если задан — полностью
+     * заменяет $result->message при построении flash-сообщения.
+     *
+     * Возврат:
+     *   - string → ['status' => $string] (зелёный alert);
+     *   - array → нормализуется по ключам status/warning/error/counts.
+     *
+     * @param Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>) $cb
+     */
+    public function onSuccess(Closure $cb): self
+    {
+        $this->onSuccessCallback = $cb;
+
+        return $this;
+    }
+
+    /**
+     * Декларативный flash-callback для error-path. Возврат — string (трактуется как
+     * ['error' => $string]) или array. HTTP status response остаётся 500 (для XHR),
+     * redirect — back()->withErrors([...]).
+     *
+     * @param Closure(\Throwable): (string|array<string, mixed>) $cb
+     */
+    public function onError(Closure $cb): self
+    {
+        $this->onErrorCallback = $cb;
+
+        return $this;
+    }
+
+    public function getOnSuccessCallback(): ?Closure
+    {
+        return $this->onSuccessCallback;
+    }
+
+    public function getOnErrorCallback(): ?Closure
+    {
+        return $this->onErrorCallback;
+    }
+
+    public function hasOnSuccess(): bool
+    {
+        return $this->onSuccessCallback !== null;
+    }
+
+    public function hasOnError(): bool
+    {
+        return $this->onErrorCallback !== null;
+    }
+
     public function isHiddenFor(mixed $row): bool
     {
         if ($this->hideWhenCallback === null) {

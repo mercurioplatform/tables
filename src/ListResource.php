@@ -22,6 +22,7 @@ use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
 use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
 use Mercurio\Tables\Page\Breadcrumb;
+use Mercurio\Tables\Page\EmptyState;
 use Mercurio\Tables\Page\HeaderAction;
 use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\Services\SavedViewCountsCalculator;
@@ -248,6 +249,11 @@ abstract class ListResource
         return null;
     }
 
+    public function emptyState(): ?EmptyState
+    {
+        return null;
+    }
+
     public function pageTitle(): ?string
     {
         return null;
@@ -336,6 +342,7 @@ abstract class ListResource
             ->withQueryString();
 
         $summary = $this->summary();
+        $emptyState = $this->emptyState();
 
         Log::debug('tables.list', [
             'key' => $this->key(),
@@ -384,6 +391,7 @@ abstract class ListResource
             savedViewCounts: $savedViewCounts,
             effectiveColumns: $effectiveColumns,
             perPage: $effectivePerPage,
+            emptyState: $emptyState,
         );
     }
 

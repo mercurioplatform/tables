@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\Rule;
 
 class StatusField extends Field
 {
@@ -144,6 +145,35 @@ class StatusField extends Field
             : ($this->labelMap[$key] ?? $key);
 
         return (string) $label;
+    }
+
+    public function getEditInputType(): ?string
+    {
+        return $this->editable ? 'select' : null;
+    }
+
+    protected function defaultEditRules(?Model $row = null): array
+    {
+        $keys = $this->labelMap !== [] ? array_keys($this->labelMap) : array_keys($this->kindMap);
+
+        return [Rule::in($keys)];
+    }
+
+    /**
+     * @return array<int|string, string>
+     */
+    protected function defaultEditOptions(): array
+    {
+        if ($this->labelMap !== []) {
+            return $this->labelMap;
+        }
+
+        $opts = [];
+        foreach (array_keys($this->kindMap) as $key) {
+            $opts[$key] = (string) $key;
+        }
+
+        return $opts;
     }
 
     protected function resolveKey(mixed $value): string
