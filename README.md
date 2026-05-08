@@ -85,6 +85,15 @@ Route::middleware(['auth'])->group(function () {
 });
 ```
 
+> **Namespace hint.** Cell-fields (`Mercurio\Tables\Field\*`) и form-fields для bulk/row schemas (`Mercurio\Tables\Form\Field\*`) делят имена `TextField` и `NumberField`. В Resource'е, использующем оба слоя, удобнее импортировать form-fields под алиасом:
+>
+> ```php
+> use Mercurio\Tables\Field\TextField;
+> use Mercurio\Tables\Field\NumberField;
+> use Mercurio\Tables\Form\Field\TextField as TextInput;
+> use Mercurio\Tables\Form\Field\NumberField as NumberInput;
+> ```
+
 Откройте `/admin/products` — рабочая страница со списком, поиском, сортировкой и пагинацией. Bulk/row actions, saved views, фильтры, экспорт включаются добавлением соответствующих методов в `ProductResource` (см. [Features](#features)).
 
 ## Features
@@ -158,7 +167,12 @@ RowAction::make('quick-edit', 'Быстрое редактирование')
 
 ### Action log
 
-Append-only лог успешных bulk/row-действий пишется автоматически (см. `config('tables.action_log')`). Включается на странице через `actionHistoryEnabled(): true` — в header появляется HeaderAction «История», открывающий offcanvas с журналом + undo для `undoable()`-actions в окне `undo_window_minutes`.
+Append-only лог успешных bulk/row-действий пишется автоматически в `tables_action_log`. Двух-уровневое управление:
+
+- **Глобальный kill-switch** — `config('tables.action_log.enabled', true)`. `false` → writer не пишет ни одной записи; UI на странице тоже ничего не показывает.
+- **Per-resource UI toggle** — `actionHistoryEnabled(): true` на конкретном Resource. По умолчанию `false`: записи в БД пишутся (если глобальный flag `true`), но HeaderAction «История» в page-head не появляется и offcanvas с журналом не доступен. `true` → в header добавляется кнопка «История», offcanvas + undo (для `undoable()`-actions в окне `undo_window_minutes`) активны.
+
+Сознательный design: писать заранее, чтобы при включении UI на ресурсе позже история была сохранена с момента deploy'а, а не с момента переключения flag'а.
 
 ### Prefs
 
