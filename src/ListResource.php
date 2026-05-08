@@ -81,7 +81,6 @@ abstract class ListResource
     {
         $actor = $this->currentActor();
         $visible = [];
-        $hiddenByPolicy = [];
 
         foreach ($this->rowActions() as $action) {
             if (! $action instanceof RowAction) {
@@ -93,21 +92,10 @@ abstract class ListResource
             }
 
             if (! $this->isActionAuthorized($action, $row, $actor)) {
-                $hiddenByPolicy[] = $action->name;
-
                 continue;
             }
 
             $visible[] = $action;
-        }
-
-        if ($hiddenByPolicy !== [] && $visible === []) {
-            Log::debug('tables.policy.filter_row.all_hidden', [
-                'resource' => $this->key(),
-                'row_key' => is_object($row) && method_exists($row, 'getKey') ? $row->getKey() : null,
-                'hidden_actions' => $hiddenByPolicy,
-                'actor_id' => $actor?->getAuthIdentifier(),
-            ]);
         }
 
         return $visible;
@@ -130,7 +118,6 @@ abstract class ListResource
         $probe = null;
         $probeBuilt = false;
         $visible = [];
-        $hidden = [];
 
         foreach ($declared as $action) {
             if (! $action instanceof BulkAction) {
@@ -157,19 +144,7 @@ abstract class ListResource
 
             if ($this->isActionAuthorized($action, $probe, $actor)) {
                 $visible[] = $action;
-            } else {
-                $hidden[] = $action->name;
             }
-        }
-
-        if ($hidden !== []) {
-            Log::debug('tables.policy.filter_bulk', [
-                'resource' => $this->key(),
-                'total' => count($declared),
-                'visible' => count($visible),
-                'hidden_actions' => $hidden,
-                'actor_id' => $actor?->getAuthIdentifier(),
-            ]);
         }
 
         return $visible;
@@ -367,27 +342,6 @@ abstract class ListResource
         $summary = $this->summary();
         $emptyState = $this->emptyState();
 
-        Log::debug('tables.list', [
-            'key' => $this->key(),
-            'q' => $search,
-            'view' => $currentView,
-            'sort' => $sort,
-            'per_page' => $effectivePerPage,
-            'total' => $paginator->total(),
-            'density' => $effectiveDensity,
-            'summary' => $summary !== null ? class_basename($summary) : null,
-            'filters' => count($conditions),
-            'active_filters' => array_map(fn (FilterCondition $c) => $c->field.':'.$c->operator->value, $conditions),
-            'qb' => $qbRoot !== null
-                ? ['atoms' => QueryBuilderNormalizer::countAtoms($qbRoot), 'depth' => QueryBuilderNormalizer::maxDepth($qbRoot)]
-                : null,
-            'prefs_source' => [
-                'columns' => $prefs->columns !== null ? 'effective' : 'default',
-                'density' => $prefs->density !== null ? 'effective' : 'default',
-                'per_page' => $prefs->perPage !== null ? 'effective' : 'default',
-            ],
-        ]);
-
         $qbVo = $qbRoot !== null
             ? [
                 'json' => json_encode(self::astToArray($qbRoot), JSON_UNESCAPED_UNICODE),
@@ -584,10 +538,6 @@ abstract class ListResource
             }
             $fields[] = $entry;
         }
-
-        Log::debug('tables.qb.schema', [
-            'fields' => array_column($fields, 'name'),
-        ]);
 
         return ['fields' => $fields];
     }

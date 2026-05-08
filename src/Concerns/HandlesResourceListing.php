@@ -61,15 +61,6 @@ trait HandlesResourceListing
             return view($tableView, ['table' => $table, 'bulkActionUrl' => $bulkActionUrl]);
         }
 
-        Log::debug('tables.shell.render', [
-            'resource' => $this->resource,
-            'has_title' => $resource->pageTitle() !== null,
-            'has_subtitle' => $resource->subtitle($table->paginator->total()) !== null,
-            'crumbs' => count($resource->breadcrumbs()),
-            'actions' => count($resource->headerActions()),
-            'layout' => $resource->layout(),
-        ]);
-
         return view('tables::shell', ['table' => $table, 'bulkActionUrl' => $bulkActionUrl]);
     }
 
@@ -121,14 +112,6 @@ trait HandlesResourceListing
         }
 
         $items = $resource->filterOptions($fieldName, $q, $request, $selected);
-
-        Log::debug('tables.options', [
-            'resource' => $this->resource,
-            'field' => $fieldName,
-            'q_len' => mb_strlen($q ?? ''),
-            'selected' => count($selected),
-            'count' => count($items),
-        ]);
 
         $payload = [];
         foreach ($items as $value => $label) {
@@ -256,13 +239,6 @@ trait HandlesResourceListing
             }
         }
 
-        Log::debug('tables.action.dispatch', [
-            'resource' => $this->resource,
-            'kind' => 'bulk',
-            'action' => $name,
-            'mode' => $mode,
-        ]);
-
         if ($mode === 'callback') {
             try {
                 $result = $callback($ids, $payload, $this->currentTableActor());
@@ -383,14 +359,6 @@ trait HandlesResourceListing
         $submitUrl = route($base.'.bulk_action');
 
         if ($bulk->hasSchema()) {
-            Log::debug('tables.form.render', [
-                'resource' => $this->resource,
-                'action' => $action,
-                'kind' => 'bulk',
-                'ids_count' => count($ids),
-                'schema_count' => count($bulk->getSchema()),
-            ]);
-
             return response()->view('tables::auto-bulk-form', [
                 'action' => $bulk,
                 'ids' => $ids,
@@ -417,13 +385,6 @@ trait HandlesResourceListing
             ]);
             abort(404);
         }
-
-        Log::debug('tables.bulk.form_open', [
-            'resource' => $this->resource,
-            'action' => $action,
-            'ids_count' => count($ids),
-            'view' => $view,
-        ]);
 
         return response()->view($view, [
             'action' => $bulk,
@@ -513,14 +474,6 @@ trait HandlesResourceListing
         $html = $this->renderActionPreview($result);
         $base = $this->deriveBaseRouteName();
         $submitUrl = route($base.'.bulk_action');
-
-        Log::debug('tables.confirm.preview.render', [
-            'resource' => $this->resource,
-            'action' => $action,
-            'kind' => 'bulk',
-            'subjects_count' => count($ids),
-            'return_type' => $this->actionPreviewReturnType($result),
-        ]);
 
         return response()->view('tables::confirm-preview', [
             'kind' => 'bulk',
@@ -839,18 +792,6 @@ trait HandlesResourceListing
             }
         }
 
-        $usedTypes = array_values(array_filter(
-            ['status', 'warning', 'error'],
-            fn ($k) => $normalized[$k] !== null && $normalized[$k] !== ''
-        ));
-
-        Log::debug('tables.action.flash.built', [
-            'resource' => $this->resource,
-            'via' => $via,
-            'types' => $usedTypes,
-            'has_counts' => $normalized['counts'] !== null,
-            'is_xhr' => $isXhr,
-        ]);
 
         if ($isXhr) {
             $primary = $normalized[$primaryKind === 'success' ? 'status' : 'error']
@@ -1338,23 +1279,6 @@ trait HandlesResourceListing
             $actor = $this->currentTableActor();
             $allowed = (bool) Gate::forUser($actor)->check($policy['method'], $subject);
 
-            $subjectClass = is_object($subject) ? get_class($subject) : null;
-            $subjectKey = is_object($subject) && method_exists($subject, 'getKey')
-                ? $subject->getKey()
-                : null;
-
-            Log::debug('tables.policy.check', [
-                'resource' => $this->resource,
-                'action' => $action->name,
-                'kind' => $kind,
-                'policy_class' => $policy['class'],
-                'policy_method' => $policy['method'],
-                'subject_class' => $subjectClass,
-                'subject_key' => $subjectKey,
-                'allowed' => $allowed,
-                'actor_id' => $actor?->getAuthIdentifier(),
-            ]);
-
             if (! $allowed) {
                 Log::warning('tables.policy.denied', [
                     'resource' => $this->resource,
@@ -1474,13 +1398,6 @@ trait HandlesResourceListing
 
             return $this->rowActionError($request, $isXhr, 'Действие не настроено.', 500);
         }
-
-        Log::debug('tables.action.dispatch', [
-            'resource' => $this->resource,
-            'kind' => 'row',
-            'action' => $action,
-            'mode' => $mode,
-        ]);
 
         $undoSnapshot = null;
         if ($rowAction->isUndoable()) {
@@ -1604,14 +1521,6 @@ trait HandlesResourceListing
         $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
 
         if ($rowAction->hasSchema()) {
-            Log::debug('tables.form.render', [
-                'resource' => $this->resource,
-                'action' => $action,
-                'kind' => 'row',
-                'id' => $id,
-                'schema_count' => count($rowAction->getSchema()),
-            ]);
-
             return response()->view('tables::auto-row-form', [
                 'action' => $rowAction,
                 'model' => $model,
@@ -1637,13 +1546,6 @@ trait HandlesResourceListing
             ]);
             abort(404);
         }
-
-        Log::debug('tables.rowaction.form_open', [
-            'resource' => $this->resource,
-            'action' => $action,
-            'id' => $id,
-            'view' => $view,
-        ]);
 
         return response()->view($view, [
             'model' => $model,
@@ -1731,14 +1633,6 @@ trait HandlesResourceListing
         $base = $this->deriveBaseRouteName();
         $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
 
-        Log::debug('tables.confirm.preview.render', [
-            'resource' => $this->resource,
-            'action' => $action,
-            'kind' => 'row',
-            'id' => $id,
-            'return_type' => $this->actionPreviewReturnType($result),
-        ]);
-
         return response()->view('tables::confirm-preview', [
             'kind' => 'row',
             'action' => $rowAction,
@@ -1787,13 +1681,6 @@ trait HandlesResourceListing
                 'pageName' => 'page',
             ],
         );
-
-        Log::debug('tables.action_log.read', [
-            'resource' => $this->resource,
-            'rows' => $rows->count(),
-            'page' => $page,
-            'per_page' => $perPage,
-        ]);
 
         return response()->view('tables::action-log', [
             'resource' => $resource,
@@ -2174,16 +2061,6 @@ trait HandlesResourceListing
         if ($withValidatorHook !== null) {
             $withValidatorHook($validator, $input);
         }
-
-        Log::debug('tables.form.validate', [
-            'resource' => $this->resource,
-            'action' => $action->name,
-            'has_rules' => $hasAnyRules,
-            'has_prepare_hook' => $prepareHook !== null,
-            'has_after_hook' => $withValidatorHook !== null,
-            'has_transform_hook' => $transformHook !== null,
-            'fields_count' => count($fields),
-        ]);
 
         try {
             $validated = $validator->validate();
