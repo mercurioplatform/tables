@@ -2,7 +2,6 @@
 
 namespace Mercurio\Tables\Filter;
 
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\ListResource;
 
 final class FilterParser
@@ -89,16 +88,8 @@ final class FilterParser
         }
 
         usort($conditions, fn ($a, $b) => $a['order'] <=> $b['order']);
-        $orderedConditions = array_map(fn ($entry) => $entry['cond'], $conditions);
 
-        Log::debug('tables.parse_filters', [
-            'raw' => $raw,
-            'parsed' => count($orderedConditions),
-            'fields' => array_map(fn (FilterCondition $c) => $c->field.':'.$c->operator->value, $orderedConditions),
-            'rejected' => $rejected,
-        ]);
-
-        return $orderedConditions;
+        return array_map(fn ($entry) => $entry['cond'], $conditions);
     }
 
     private static function normalizeRawValue(Operator $operator, mixed $raw): mixed

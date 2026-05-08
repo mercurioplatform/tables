@@ -2,16 +2,10 @@
 
 namespace Mercurio\Tables\Filter\Qb;
 
-use Illuminate\Support\Facades\Log;
-
 final class QueryBuilderNormalizer
 {
     public static function normalize(AtomGroup $root): ?AtomGroup
     {
-        $atomsBefore = self::countAtoms($root);
-        $depthBefore = self::maxDepth($root);
-        $rulesApplied = [];
-
         $iter = 0;
         $current = $root;
         do {
@@ -20,34 +14,15 @@ final class QueryBuilderNormalizer
             $next = self::applyAll($current, $applied);
 
             if ($next === null) {
-                Log::debug('tables.qb.normalize', [
-                    'atoms_before' => $atomsBefore,
-                    'atoms_after' => 0,
-                    'depth_before' => $depthBefore,
-                    'depth_after' => 0,
-                    'rules_applied' => array_values(array_unique([...$rulesApplied, ...$applied])),
-                    'iterations' => $iter + 1,
-                ]);
-
                 return null;
             }
 
             if (! self::nodesEqual($current, $next)) {
                 $changed = true;
-                $rulesApplied = array_merge($rulesApplied, $applied);
             }
             $current = $next;
             $iter++;
         } while ($changed && $iter < 8);
-
-        Log::debug('tables.qb.normalize', [
-            'atoms_before' => $atomsBefore,
-            'atoms_after' => self::countAtoms($current),
-            'depth_before' => $depthBefore,
-            'depth_after' => self::maxDepth($current),
-            'rules_applied' => array_values(array_unique($rulesApplied)),
-            'iterations' => $iter,
-        ]);
 
         return $current;
     }

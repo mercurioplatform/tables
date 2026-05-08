@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Filter\Qb;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterApplier;
 use Mercurio\Tables\Filter\FilterCondition;
@@ -17,13 +16,6 @@ final class QueryBuilderApplier
         foreach ($resource->fields() as $field) {
             $fields[$field->name] = $field;
         }
-
-        Log::debug('tables.qb.apply', [
-            'atoms' => QueryBuilderNormalizer::countAtoms($root),
-            'depth' => QueryBuilderNormalizer::maxDepth($root),
-            'op' => $root->op,
-            'not' => $root->not,
-        ]);
 
         self::applyGroup($query, $root, $fields, 'and');
     }

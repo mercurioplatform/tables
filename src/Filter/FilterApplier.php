@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Filter;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Field\Field;
 
 final class FilterApplier
@@ -11,32 +10,16 @@ final class FilterApplier
     public static function apply(Builder $query, Field $field, FilterCondition $cond): void
     {
         if ($field->applyFilter($query, $cond->operator, $cond->value)) {
-            Log::debug('tables.apply_filter', [
-                'field' => $cond->field,
-                'op' => $cond->operator->value,
-                'mode' => 'field',
-            ]);
-
             return;
         }
 
-        $mode = 'builtin';
-
         if (($using = $field->getFilterUsing()) !== null) {
-            $mode = 'using';
             $using($query, $cond->operator, $cond->value);
         } elseif (($scope = $field->getFilterScope()) !== null) {
-            $mode = 'scope';
             $query->{$scope}($cond->operator, $cond->value);
         } else {
             self::applyBuiltin($query, $field->getFilterColumn(), $cond->operator, $cond->value);
         }
-
-        Log::debug('tables.apply_filter', [
-            'field' => $cond->field,
-            'op' => $cond->operator->value,
-            'mode' => $mode,
-        ]);
     }
 
     private static function applyBuiltin(Builder $q, string $column, Operator $op, mixed $value): void

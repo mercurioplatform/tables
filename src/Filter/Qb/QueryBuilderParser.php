@@ -2,7 +2,6 @@
 
 namespace Mercurio\Tables\Filter\Qb;
 
-use Illuminate\Support\Facades\Log;
 use JsonException;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\Operator;
@@ -18,40 +17,21 @@ final class QueryBuilderParser
 
         $maxPayload = (int) config('tables.qb_max_payload_size', 4096);
         if (strlen($rawBase64) > $maxPayload) {
-            Log::debug('tables.qb.parse_failed', [
-                'reason' => 'payload_too_large',
-                'len' => strlen($rawBase64),
-                'max' => $maxPayload,
-            ]);
-
             return null;
         }
 
         $json = base64_decode($rawBase64, strict: true);
         if ($json === false) {
-            Log::debug('tables.qb.parse_failed', [
-                'reason' => 'base64_decode',
-                'raw_prefix' => substr($rawBase64, 0, 32),
-            ]);
-
             return null;
         }
 
         try {
             $decoded = json_decode($json, associative: true, depth: 16, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            Log::debug('tables.qb.parse_failed', [
-                'reason' => 'json_decode',
-                'message' => $e->getMessage(),
-                'raw_prefix' => substr($json, 0, 64),
-            ]);
-
+        } catch (JsonException) {
             return null;
         }
 
         if (! is_array($decoded)) {
-            Log::debug('tables.qb.parse_failed', ['reason' => 'not_array']);
-
             return null;
         }
 
@@ -81,13 +61,6 @@ final class QueryBuilderParser
         if ($root !== null && $root->children === []) {
             $root = null;
         }
-
-        Log::debug('tables.qb.parse', [
-            'raw_len' => strlen($rawBase64),
-            'parsed_atoms' => $state['atoms'],
-            'depth' => $state['depth'],
-            'rejected' => $state['rejected'],
-        ]);
 
         return $root;
     }
