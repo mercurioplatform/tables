@@ -1,0 +1,347 @@
+<?php
+
+namespace Mercurio\Tables\Action\Handlers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Mercurio\Tables\Action\Action;
+use Mercurio\Tables\Action\ActionResult;
+use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
+use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
+use Mercurio\Tables\Action\Helpers\ActionResponseBuilder;
+use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Services\ActionLogWriter;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
+
+// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+class RowActionHandler
+{
+    public function __construct(
+        private ActionResponseBuilder $responses,
+        private ActionAuthorizer $authorizer,
+        private ActionPayloadResolver $payloads,
+    ) {}
+
+    public function dispatch(
+        Request $request,
+        ListResource $resource,
+        $id,
+        string $action,
+        ?string $routeBaseName,
+    ): Response {
+        $resourceClass = $resource::class;
+        $rowAction = $this->authorizer->findRowAction($resource, $action);
+        $partialHeader = (string) config('tables.partial_header', 'X-Tables-Partial');
+        $isXhr = $partialHeader !== '' && $request->hasHeader($partialHeader);
+
+        if ($rowAction === null) {
+            Log::warning('tables.rowaction.unknown', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            return $this->authorizer->rowActionError($request, $isXhr, "Неизвестное действие: {$action}", 404);
+        }
+
+        $model = $resource->query()->whereKey($id)->first();
+        if ($model === null) {
+            Log::warning('tables.rowaction.missing', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+
+            return $this->authorizer->rowActionError($request, $isXhr, 'Запись не найдена.', 404);
+        }
+
+        if ($rowAction->isHiddenFor($model)) {
+            Log::warning('tables.rowaction.hidden', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+
+            return $this->authorizer->rowActionError($request, $isXhr, 'Действие недоступно.', 403);
+        }
+
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resourceClass)) {
+                if (! $rowAction->hasPolicy()) {
+                    Log::warning('tables.rowaction.forbidden', [
+                        'resource' => $resourceClass,
+                        'action' => $action,
+                        'id' => $id,
+                        'ability' => $rowAction->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
+        }
+
+        $resolved = $this->payloads->resolveRowActionPayload($request, $rowAction, $resourceClass);
+        $payload = $resolved['payload'];
+        $validationSource = $resolved['source'];
+
+        $callback = $rowAction->getCallback();
+        $handlerClass = $rowAction->getHandler();
+        $mode = $rowAction->hasCallback() ? 'callback' : ($handlerClass !== null ? 'handler' : 'none');
+
+        if ($mode === 'none' && $rowAction->getKind() !== 'link') {
+            Log::warning('tables.rowaction.no_handler', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            return $this->authorizer->rowActionError($request, $isXhr, 'Действие не настроено.', 500);
+        }
+
+        $undoSnapshot = null;
+        if ($rowAction->isUndoable()) {
+            try {
+                $undoSnapshot = ($rowAction->getCaptureCallback())([$model->getKey()], $payload, $resource);
+            } catch (Throwable $e) {
+                Log::warning('tables.action.undo.capture_threw', [
+                    'resource' => $resourceClass,
+                    'action' => $action,
+                    'kind' => 'row',
+                    'error' => $e->getMessage(),
+                ]);
+                $undoSnapshot = null;
+            }
+        }
+
+        $result = null;
+        try {
+            if ($mode === 'callback') {
+                $result = $callback($model, $payload, $this->authorizer->currentTableActor());
+            } elseif ($mode === 'handler') {
+                /** @var Action $handler */
+                $handler = app($handlerClass);
+                $result = $handler->execute($model, $payload);
+            }
+        } catch (Throwable $e) {
+            $logKey = $mode === 'callback' ? 'tables.rowaction.callback_threw' : 'tables.rowaction.handler_threw';
+            Log::error($logKey, [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+                'handler' => $handlerClass,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->responses->flashFromException($e, $rowAction, $isXhr, $resourceClass);
+        }
+
+        Log::info('tables.rowaction.executed', [
+            'resource' => $resourceClass,
+            'action' => $action,
+            'id' => $id,
+            'kind' => $rowAction->getKind(),
+            'mode' => $mode,
+            'authz' => $this->authorizer->authzMode($rowAction),
+            'validation' => $validationSource,
+            'affected' => $result?->affected,
+            'message' => $result?->message,
+        ]);
+
+        if ($result instanceof ActionResult && $rowAction->getKind() !== 'link') {
+            ActionLogWriter::write(
+                resourceKey: $resource->key(),
+                actionName: $action,
+                kind: 'row',
+                actorId: $this->authorizer->resolveAuditActorId(),
+                ids: [$model->getKey()],
+                payload: $payload,
+                result: $result,
+                undoSnapshot: $undoSnapshot,
+            );
+        }
+
+        return $this->responses->flashFromActionResult(
+            result: $result ?? new ActionResult(affected: 0),
+            action: $rowAction,
+            isXhr: $isXhr,
+            reload: $rowAction->shouldReloadAfterSubmit(),
+            resourceClass: $resourceClass,
+        );
+    }
+
+    public function renderForm(
+        Request $request,
+        ListResource $resource,
+        $id,
+        string $action,
+        ?string $tableView,
+        array $rowActionForms,
+        ?string $routeBaseName,
+    ): Response {
+        $resourceClass = $resource::class;
+        $rowAction = $this->authorizer->findRowAction($resource, $action);
+
+        if ($rowAction === null) {
+            Log::warning('tables.rowaction.form.unknown', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        if ($rowAction->getKind() !== 'form') {
+            abort(404);
+        }
+
+        $model = $resource->query()->whereKey($id)->first();
+        if ($model === null) {
+            abort(404);
+        }
+
+        if ($rowAction->isHiddenFor($model)) {
+            Log::warning('tables.rowaction.form.hidden', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+            abort(403);
+        }
+
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resourceClass)) {
+                if (! $rowAction->hasPolicy()) {
+                    Log::warning('tables.rowaction.form.forbidden', [
+                        'resource' => $resourceClass,
+                        'action' => $action,
+                        'id' => $id,
+                        'ability' => $rowAction->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
+        }
+
+        $base = $this->authorizer->deriveBaseRouteName($routeBaseName);
+        $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
+
+        if ($rowAction->hasSchema()) {
+            return response()->view('tables::auto-row-form', [
+                'action' => $rowAction,
+                'model' => $model,
+                'submitUrl' => $submitUrl,
+                'schema' => $rowAction->getSchema(),
+            ]);
+        }
+
+        $view = $rowActionForms[$action] ?? null;
+        if ($view === null && is_string($tableView) && $tableView !== '') {
+            $view = $tableView.'-row-action-'.$action;
+        }
+
+        if ($view === null || ! view()->exists($view)) {
+            Log::warning('tables.rowaction.form.view_missing', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'view' => $view,
+            ]);
+            abort(404);
+        }
+
+        return response()->view($view, [
+            'model' => $model,
+            'action' => $rowAction,
+            'submitUrl' => $submitUrl,
+        ]);
+    }
+
+    public function renderPreview(
+        Request $request,
+        ListResource $resource,
+        $id,
+        string $action,
+        ?string $tableView,
+        ?string $routeBaseName,
+    ): Response {
+        $resourceClass = $resource::class;
+        $rowAction = $this->authorizer->findRowAction($resource, $action);
+
+        if ($rowAction === null) {
+            Log::warning('tables.confirm.preview.unknown', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        if ($rowAction->getKind() !== 'confirm') {
+            Log::warning('tables.confirm.preview.kind_mismatch', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'kind' => $rowAction->getKind(),
+            ]);
+            abort(404);
+        }
+
+        if (! $rowAction->hasPreview()) {
+            Log::warning('tables.confirm.preview.no_callback', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+            abort(404);
+        }
+
+        $model = $resource->query()->whereKey($id)->first();
+        if ($model === null) {
+            abort(404);
+        }
+
+        if ($rowAction->isHiddenFor($model)) {
+            Log::warning('tables.confirm.preview.hidden', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+            abort(403);
+        }
+
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resourceClass)) {
+                if (! $rowAction->hasPolicy()) {
+                    Log::warning('tables.confirm.preview.forbidden', [
+                        'resource' => $resourceClass,
+                        'action' => $action,
+                        'id' => $id,
+                        'ability' => $rowAction->getAbility(),
+                    ]);
+                }
+                abort(403);
+            }
+        }
+
+        $payload = $this->payloads->resolveRowActionPayload($request, $rowAction, $resourceClass);
+        $cb = $rowAction->getPreviewCallback();
+
+        try {
+            $result = $cb($model, $payload);
+        } catch (Throwable $e) {
+            Log::error('tables.confirm.preview.callback_threw', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'kind' => 'row',
+                'id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            abort(500, 'Не удалось построить превью.');
+        }
+
+        $html = $this->payloads->renderActionPreview($result);
+        $base = $this->authorizer->deriveBaseRouteName($routeBaseName);
+        $submitUrl = route($base.'.row_action', ['id' => $id, 'action' => $action]);
+
+        return response()->view('tables::confirm-preview', [
+            'kind' => 'row',
+            'action' => $rowAction,
+            'model' => $model,
+            'submitUrl' => $submitUrl,
+            'html' => $html,
+        ]);
+    }
+}
