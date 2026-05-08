@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 use Throwable;
 
@@ -117,11 +116,7 @@ class TagsField extends Field
                         $addUrl = null;
                     }
                 }
-            } catch (Throwable $e) {
-                Log::debug('tables.tags.add_action_failed', [
-                    'field' => $this->name,
-                    'message' => $e->getMessage(),
-                ]);
+            } catch (Throwable) {
                 $addUrl = null;
             }
         }
@@ -188,11 +183,6 @@ class TagsField extends Field
         if ($this->relation !== null && $row !== null) {
             $related = $row->{$this->relation} ?? null;
             if ($related === null) {
-                Log::debug('tables.tags.relation_missing', [
-                    'field' => $this->name,
-                    'relation' => $this->relation,
-                ]);
-
                 return [];
             }
 

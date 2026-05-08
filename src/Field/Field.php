@@ -7,7 +7,6 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Mercurio\Tables\Filter\FilterCondition;
@@ -480,10 +479,8 @@ abstract class Field
     public function resolveFilterOptions(?string $q = null, ?Request $request = null, array $selectedIds = []): array
     {
         $resolved = [];
-        $mode = 'static';
 
         if ($this->filterOptionsCallback !== null) {
-            $mode = 'closure';
             if ($this->filterOptionsArity === null) {
                 $ref = new ReflectionFunction($this->filterOptionsCallback);
                 $this->filterOptionsArity = $ref->getNumberOfParameters();
@@ -516,14 +513,6 @@ abstract class Field
         if ($limit > 0 && count($resolved) > $limit) {
             $resolved = array_slice($resolved, 0, $limit, preserve_keys: true);
         }
-
-        Log::debug('tables.autocomplete.resolve', [
-            'field' => $this->name,
-            'mode' => $mode,
-            'q_len' => mb_strlen($q ?? ''),
-            'in_count' => count($selectedIds),
-            'out_count' => count($resolved),
-        ]);
 
         return $resolved;
     }

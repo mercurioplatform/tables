@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 
 class JsonField extends Field
@@ -60,11 +59,6 @@ class JsonField extends Field
         $full = json_encode($decoded, $prettyFlags);
 
         if ($compact === false || $full === false) {
-            Log::debug('tables.json.invalid', [
-                'field' => $this->name,
-                'reason' => 'json_encode_failed',
-            ]);
-
             return new HtmlString('<code class="small u-mono">'.e($this->emptyText).'</code>');
         }
 
@@ -103,11 +97,6 @@ class JsonField extends Field
             }
             $decoded = json_decode($trimmed, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                Log::debug('tables.json.invalid', [
-                    'field' => $this->name,
-                    'reason' => json_last_error_msg(),
-                ]);
-
                 return $trimmed;
             }
 
