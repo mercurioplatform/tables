@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Filter\FilterApplier;
 use Mercurio\Tables\Filter\FilterParser;
 use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
@@ -59,11 +58,6 @@ class SavedView extends Model
     public function applyToBuilder(Builder $base, ListResource $resource): void
     {
         $state = $this->state_json ?? [];
-
-        Log::debug('tables.savedviews.apply_state', [
-            'key' => $this->key,
-            'state_keys' => array_keys($state),
-        ]);
 
         $rawFilters = $state['f'] ?? null;
         if (is_array($rawFilters) && $rawFilters !== []) {

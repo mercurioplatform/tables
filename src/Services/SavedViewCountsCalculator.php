@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\ListResource;
 
 final class SavedViewCountsCalculator
@@ -42,12 +41,6 @@ final class SavedViewCountsCalculator
         foreach ($aliasMap as $alias => $viewKey) {
             $result[$viewKey] = (int) ($row[$alias] ?? 0);
         }
-
-        Log::debug('tables.savedviews.counts', [
-            'resource' => $resource->key(),
-            'views' => count($views),
-            'counts' => $result,
-        ]);
 
         return $result;
     }

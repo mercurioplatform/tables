@@ -4,7 +4,6 @@ namespace Mercurio\Tables;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
@@ -222,11 +221,6 @@ final class ResourceTable
         if (isset(self::BUILTIN_FILTER_GROUP_LABELS[$key])) {
             return self::BUILTIN_FILTER_GROUP_LABELS[$key];
         }
-
-        Log::debug('tables.filter_groups.label_fallback', [
-            'resource' => $this->key,
-            'key' => $key,
-        ]);
 
         return Str::headline($key);
     }

@@ -2,8 +2,6 @@
 
 namespace Mercurio\Tables;
 
-use Illuminate\Support\Facades\Log;
-
 final class ResourceRegistry
 {
     /** @var array<int, class-string> */
@@ -16,10 +14,6 @@ final class ResourceRegistry
         }
 
         $this->classes[] = $resourceClass;
-
-        if (function_exists('app') && app()->environment('local')) {
-            Log::debug('tables.registry.register', ['class' => $resourceClass]);
-        }
     }
 
     /**

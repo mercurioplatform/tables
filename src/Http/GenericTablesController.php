@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Http;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
 
 final class GenericTablesController
@@ -30,10 +29,5 @@ final class GenericTablesController
         }
 
         $this->resource = $resourceClass;
-
-        Log::debug('tables.generic_controller.boot', [
-            'resource' => $resourceClass,
-            'route' => $route->getName(),
-        ]);
     }
 }

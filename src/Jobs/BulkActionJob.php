@@ -166,14 +166,6 @@ class BulkActionJob implements ShouldQueue
             $totalDenied += $result->denied;
             $totalSkipped += $result->skipped;
             $totalRequested += $result->requested ?? count($chunk);
-
-            Log::debug('tables.bulk_progress.job.chunk_done', [
-                'progress_id' => $this->progressId,
-                'chunk_index' => $i,
-                'chunk_total' => count($chunks),
-                'affected_chunk' => $result->affected,
-                'processed_total' => $progress->processed,
-            ]);
         }
 
         $progress->forceFill([

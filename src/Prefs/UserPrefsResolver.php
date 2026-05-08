@@ -46,21 +46,7 @@ class UserPrefsResolver
             }
         }
 
-        $effective = $defaults->merge($dbPrefs)->merge($urlPrefs);
-
-        Log::debug('tables.prefs.resolve', [
-            'resource' => $resource->key(),
-            'user_id' => $userId,
-            'has_db' => $row !== null,
-            'sources' => [
-                'columns' => $urlPrefs->columns !== null ? 'url' : ($dbPrefs->columns !== null ? 'db' : 'default'),
-                'density' => $urlPrefs->density !== null ? 'url' : ($dbPrefs->density !== null ? 'db' : 'default'),
-                'per_page' => $urlPrefs->perPage !== null ? 'url' : ($dbPrefs->perPage !== null ? 'db' : 'default'),
-            ],
-            'effective' => $effective->toArray(),
-        ]);
-
-        return $effective;
+        return $defaults->merge($dbPrefs)->merge($urlPrefs);
     }
 
     /**
