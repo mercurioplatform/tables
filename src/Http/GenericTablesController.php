@@ -3,11 +3,10 @@
 namespace Mercurio\Tables\Http;
 
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
 
-final class GenericTablesController extends Controller
+final class GenericTablesController
 {
     use HandlesResourceListing;
 
