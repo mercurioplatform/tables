@@ -372,6 +372,12 @@ final class BulkAction
             );
         }
 
+        if ($this->captureCallback !== null || $this->reverseCallback !== null) {
+            throw new InvalidArgumentException(
+                'BulkAction::queue() incompatible with ::undoable() — capture snapshot is not taken in the queued path. Drop one of them or implement queued-undoable in a follow-up block.'
+            );
+        }
+
         $this->shouldQueue = true;
         $this->queueName = $queueName;
 
@@ -495,6 +501,12 @@ final class BulkAction
      */
     public function undoable(Closure $capture, Closure $reverse): self
     {
+        if ($this->shouldQueue) {
+            throw new InvalidArgumentException(
+                'BulkAction::undoable() incompatible with ::queue() — capture snapshot is not taken in the queued path. Drop ::queue() or implement queued-undoable in a follow-up block.'
+            );
+        }
+
         $this->captureCallback = $capture;
         $this->reverseCallback = $reverse;
 
