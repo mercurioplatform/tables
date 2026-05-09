@@ -13,7 +13,11 @@ use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
 
-// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing}.
+ */
 class ActionAuthorizer
 {
     public function findBulkAction(ListResource $resource, string $name): ?BulkAction

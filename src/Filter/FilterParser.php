@@ -4,6 +4,11 @@ namespace Mercurio\Tables\Filter;
 
 use Mercurio\Tables\ListResource;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Filter\Operator}, {@see \Mercurio\Tables\Field\Field::filterable()}.
+ */
 final class FilterParser
 {
     /**

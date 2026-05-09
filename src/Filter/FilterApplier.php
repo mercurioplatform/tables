@@ -5,6 +5,11 @@ namespace Mercurio\Tables\Filter;
 use Illuminate\Database\Eloquent\Builder;
 use Mercurio\Tables\Field\Field;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\ListResource::query()}.
+ */
 final class FilterApplier
 {
     public static function apply(Builder $query, Field $field, FilterCondition $cond): void

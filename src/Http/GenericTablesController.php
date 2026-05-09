@@ -5,6 +5,11 @@ namespace Mercurio\Tables\Http;
 use Illuminate\Http\Request;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Illuminate\Support\Facades\Route::tablesPage()}.
+ */
 final class GenericTablesController
 {
     use HandlesResourceListing;

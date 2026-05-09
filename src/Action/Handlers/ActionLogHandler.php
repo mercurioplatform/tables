@@ -14,7 +14,11 @@ use Mercurio\Tables\Services\ActionLogWriter;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
-// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::actionLog()}.
+ */
 class ActionLogHandler
 {
     public function __construct(

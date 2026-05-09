@@ -13,7 +13,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
-// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::export()} (плюс {@see \Mercurio\Tables\Export\ExportRequest}).
+ */
 class ExportHandler
 {
     public function __construct(private ActionPayloadResolver $payloads) {}

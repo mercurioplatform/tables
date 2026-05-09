@@ -2,6 +2,11 @@
 
 namespace Mercurio\Tables\Filter\Qb;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Filter\Operator}, {@see \Mercurio\Tables\ListResource::query()}.
+ */
 final class QueryBuilderNormalizer
 {
     public static function normalize(AtomGroup $root): ?AtomGroup

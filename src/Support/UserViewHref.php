@@ -5,6 +5,11 @@ namespace Mercurio\Tables\Support;
 use Illuminate\Http\Request;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::index()}.
+ */
 final class UserViewHref
 {
     public static function build(Request $request, SavedViewModel $view): string

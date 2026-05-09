@@ -2,6 +2,11 @@
 
 namespace Mercurio\Tables\Support;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: none — used internally by package services.
+ */
 class Pluralizer
 {
     public static function ru(int $n, string $many, string $one, string $few): string

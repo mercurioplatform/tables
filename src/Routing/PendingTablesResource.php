@@ -6,6 +6,11 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Mercurio\Tables\Http\GenericTablesController;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Illuminate\Support\Facades\Route::tablesResource()}, {@see \Illuminate\Support\Facades\Route::tablesPage()}.
+ */
 class PendingTablesResource
 {
     private Route $indexRoute;

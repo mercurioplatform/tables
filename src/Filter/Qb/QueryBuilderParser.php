@@ -7,6 +7,11 @@ use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\Operator;
 use Mercurio\Tables\ListResource;
 
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Filter\Operator}, {@see \Mercurio\Tables\ListResource::query()}.
+ */
 final class QueryBuilderParser
 {
     public static function parse(?string $rawBase64, ListResource $resource): ?AtomGroup

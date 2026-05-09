@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Public API (snapshot at v0.1.0-prep)
+### Notes
+
+- 2026-05-09: публичный API заморожен под v0.1.0 (см. [`docs/api.md`](docs/api.md)). Тэг `v0.1.0` ставится в момент extract в `github.com/mercurioplatform/tables`.
+
+### Public API matrix v0.1.0
+
+> Полная матрица с per-symbol stability statements и versioning policy: [`docs/api.md`](docs/api.md).
 
 **Resource & lifecycle**
 
@@ -116,15 +122,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tables:flash` — flash-сообщение (status / warning / error) от engine.
 - `tables:filter-groups` — обновлены группы фильтров (advanced QB).
 
-### Internal (subject to change without semver bump)
+### Internal (`@internal`)
 
-*(будет помечено `@internal` PHPDoc-маркерами в 3.18; ниже — pre-flight список.)*
+> Помечены `@internal` PHPDoc-маркерами в коде (`packages/tables/src/`). Полное описание стабильности — [`docs/api.md`](docs/api.md). Прямое использование возможно, но не поддерживается: minor/patch-релизы могут менять сигнатуры без deprecation cycle.
 
-- `Mercurio\Tables\Filter\FilterApplier`, `Mercurio\Tables\Filter\FilterParser`, `Mercurio\Tables\Filter\FilterCondition` (если уйдёт в internal в 3.18).
-- `Mercurio\Tables\Filter\Qb\AtomCondition`, `AtomGroup`, `QueryBuilderApplier`, `QueryBuilderNormalizer`, `QueryBuilderParser`.
-- `Mercurio\Tables\Http\GenericTablesController` — реализация декларативного пути `Route::tablesPage`; внешний код не должен на него полагаться напрямую.
-- `Mercurio\Tables\Routing\PendingTablesResource` — внутренний билдер; публичные точки — макросы `Route::tablesResource` / `Route::tablesPage`.
-- `Mercurio\Tables\Support\Pluralizer`, `Mercurio\Tables\Support\UserViewHref`.
-- `Mercurio\Tables\Form\Field\*` (классы остаются public, но конкретный набор инпутов и их fluent-API могут меняться; minor-bump'ами фиксируется в 3.18).
+- `Mercurio\Tables\Action\Helpers\{ActionAuthorizer, ActionPayloadResolver, ActionResponseBuilder}`.
+- `Mercurio\Tables\Action\Handlers\{BulkActionHandler, RowActionHandler, ActionLogHandler}`.
+- `Mercurio\Tables\Services\{UserViewHandler, CellUpdateHandler}`.
+- `Mercurio\Tables\Export\ExportHandler`.
+- `Mercurio\Tables\Filter\{FilterParser, FilterApplier}`.
+- `Mercurio\Tables\Filter\Qb\{AtomCondition, AtomGroup, QueryBuilderApplier, QueryBuilderNormalizer, QueryBuilderParser}`.
+- `Mercurio\Tables\Routing\PendingTablesResource`.
+- `Mercurio\Tables\Http\GenericTablesController`.
+- `Mercurio\Tables\Support\{Pluralizer, UserViewHref}`.
 
 [Unreleased]: https://github.com/mercurioplatform/tables/commits/main

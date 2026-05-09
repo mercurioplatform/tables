@@ -9,7 +9,11 @@ use Mercurio\Tables\Action\RowAction;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
-// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing}.
+ */
 class ActionResponseBuilder
 {
     /**

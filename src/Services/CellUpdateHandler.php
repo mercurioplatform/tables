@@ -11,7 +11,11 @@ use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
 
-// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::cellEdit()}.
+ */
 class CellUpdateHandler
 {
     public function __construct(private ActionAuthorizer $authorizer) {}

@@ -13,7 +13,11 @@ use Mercurio\Tables\Models\UserTablePrefs;
 use Mercurio\Tables\Support\TableStateKeys;
 use Symfony\Component\HttpFoundation\Response;
 
-// TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
+/**
+ * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
+ *
+ * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing}.
+ */
 class UserViewHandler
 {
     public function saveView(Request $request, ListResource $resource, ?string $routeBaseName): Response
