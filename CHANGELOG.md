@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-05-09
+
 ### Notes
 
-- 2026-05-09: публичный API заморожен под v0.1.0 (см. [`docs/api.md`](docs/api.md)). Тэг `v0.1.0` ставится в момент extract в `github.com/mercurioplatform/tables`.
+- Initial public release. Extracted from `mercurioplatform` monorepo via `git subtree split` (полная история коммитов сохранена).
+- Публичный API заморожен под v0.1.0 (см. [`docs/api.md`](docs/api.md)).
 
 ### Public API matrix v0.1.0
 
