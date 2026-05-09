@@ -2,6 +2,7 @@ import jQuery from 'jquery';
 
 const $ = jQuery;
 
+// Keep in sync with `Mercurio\Tables\Support\TableStateKeys::STATE`.
 const STATE_WHITELIST = ['q', 'f', 'qb', 'sort', 'dir', 'columns', 'density', 'per_page'];
 
 function dispatchNavigate(url) {

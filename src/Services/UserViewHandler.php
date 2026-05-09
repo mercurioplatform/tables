@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 use Mercurio\Tables\Models\UserTablePrefs;
+use Mercurio\Tables\Support\TableStateKeys;
 use Symfony\Component\HttpFoundation\Response;
 
 // TODO 3.18: @internal — будет помечен в 3.18-public-api-freeze.
@@ -52,8 +53,7 @@ class UserViewHandler
         if (! is_array($state)) {
             $state = [];
         }
-        $whitelist = ['q', 'view', 'f', 'qb', 'sort', 'dir', 'columns', 'density', 'per_page'];
-        $filtered = array_intersect_key($state, array_flip($whitelist));
+        $filtered = array_intersect_key($state, array_flip(TableStateKeys::STATE));
 
         $resourceKey = $resource->key();
 
