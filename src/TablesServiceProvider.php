@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Mercurio\Tables\Console\SyncSavedViewsCommand;
+use Mercurio\Tables\Filter\FilterPipeline;
 use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\Routing\PendingTablesResource;
 use Mercurio\Tables\Services\SystemViewSyncer;
+use Mercurio\Tables\Table\TableBuilder;
 
 class TablesServiceProvider extends ServiceProvider
 {
@@ -29,6 +31,8 @@ class TablesServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(UserPrefsResolver::class);
+        $this->app->singleton(FilterPipeline::class);
+        $this->app->singleton(TableBuilder::class);
     }
 
     public function boot(): void

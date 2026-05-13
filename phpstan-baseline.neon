@@ -385,18 +385,6 @@ parameters:
 			path: src/ListResource.php
 
 		-
-			message: '#^Method Mercurio\\Tables\\ListResource\:\:applyFiltersToQuery\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/ListResource.php
-
-		-
-			message: '#^Method Mercurio\\Tables\\ListResource\:\:applySearch\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/ListResource.php
-
-		-
 			message: '#^Method Mercurio\\Tables\\ListResource\:\:exportState\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
 			identifier: missingType.generics
 			count: 1

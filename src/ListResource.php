@@ -12,21 +12,14 @@ use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
 use Mercurio\Tables\Field\Field;
-use Mercurio\Tables\Filter\FilterApplier;
-use Mercurio\Tables\Filter\FilterCondition;
-use Mercurio\Tables\Filter\FilterParser;
 use Mercurio\Tables\Filter\Operator;
 use Mercurio\Tables\Filter\Qb\AtomCondition;
 use Mercurio\Tables\Filter\Qb\AtomGroup;
-use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
-use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
-use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
 use Mercurio\Tables\Page\Breadcrumb;
 use Mercurio\Tables\Page\EmptyState;
 use Mercurio\Tables\Page\HeaderAction;
-use Mercurio\Tables\Prefs\UserPrefsResolver;
-use Mercurio\Tables\Services\SavedViewCountsCalculator;
 use Mercurio\Tables\Summary\Summary;
+use Mercurio\Tables\Table\TableBuilder;
 use Mercurio\Tables\View\SavedView;
 
 abstract class ListResource
@@ -452,138 +445,9 @@ abstract class ListResource
         ]);
     }
 
-    private function normalizeDensity(string $raw): string
-    {
-        return in_array($raw, ['compact', 'comfortable'], true) ? $raw : 'comfortable';
-    }
-
     public function table(Request $request): ResourceTable
     {
-        $query = $this->query();
-        $fields = $this->fieldsMemo();
-        $savedViews = $this->savedViewsMemo();
-        $savedViewCounts = $savedViews === []
-            ? []
-            : app(SavedViewCountsCalculator::class)->counts($this);
-
-        $applied = $this->applyFiltersToQuery($query, $request, $fields, $savedViews);
-        $search = $applied['search'];
-        $currentView = $applied['currentView'];
-        $conditions = $applied['conditions'];
-        $activeFilters = $applied['activeFilters'];
-        $qbRoot = $applied['qbRoot'];
-
-        $sort = $this->resolveSort(
-            $request->query('sort'),
-            $request->query('dir'),
-            $fields,
-        );
-        if ($sort !== null) {
-            $query->orderBy($sort['column'], $sort['direction']);
-        }
-
-        $prefs = app(UserPrefsResolver::class)->resolve($this, $request);
-        $effectivePerPage = $prefs->perPage ?? $this->perPage();
-        $effectiveDensity = $prefs->density ?? $this->density();
-        $effectiveColumns = $prefs->columns;
-
-        $paginator = $query
-            ->paginate($effectivePerPage)
-            ->withQueryString();
-
-        $summary = $this->summary();
-        $emptyState = $this->emptyState();
-
-        $qbVo = $qbRoot !== null
-            ? [
-                'json' => json_encode(self::astToArray($qbRoot), JSON_UNESCAPED_UNICODE),
-                'atoms' => QueryBuilderNormalizer::countAtoms($qbRoot),
-                'depth' => QueryBuilderNormalizer::maxDepth($qbRoot),
-            ]
-            : null;
-
-        return new ResourceTable(
-            key: $this->key(),
-            paginator: $paginator,
-            fields: $fields,
-            savedViews: $savedViews,
-            bulkActions: $this->resolveBulkActions(),
-            rowActions: $this->rowActionsMemo(),
-            sort: $sort,
-            currentView: $currentView,
-            search: $search,
-            density: $this->normalizeDensity($effectiveDensity),
-            summary: $summary,
-            resource: $this,
-            activeFilters: $activeFilters,
-            qb: $qbVo,
-            savedViewCounts: $savedViewCounts,
-            effectiveColumns: $effectiveColumns,
-            perPage: $effectivePerPage,
-            emptyState: $emptyState,
-        );
-    }
-
-    /**
-     * Apply search + saved view + chip filters + qb to the given query.
-     * Sort/pagination are intentionally out of scope (caller decides).
-     *
-     * @param  array<int, Field>  $fields
-     * @param  array<int, SavedView>  $savedViews
-     * @return array{
-     *     search: string|null,
-     *     currentView: string|null,
-     *     conditions: array<int, FilterCondition>,
-     *     activeFilters: array<string, FilterCondition>,
-     *     qbRoot: AtomCondition|AtomGroup|null,
-     * }
-     */
-    private function applyFiltersToQuery(Builder $query, Request $request, array $fields, array $savedViews): array
-    {
-        $search = $this->normalizeSearch($request->query('q'));
-        if ($search !== null) {
-            $this->applySearch($query, $search);
-        }
-
-        $currentView = $this->resolveCurrentView($request->query('view'), $savedViews);
-        if ($currentView !== null) {
-            $this->findView($currentView, $savedViews)?->apply($query);
-        }
-
-        $rawFilters = $request->input('f', []);
-        $conditions = is_array($rawFilters)
-            ? FilterParser::parse($rawFilters, $this)
-            : [];
-
-        $activeFilters = [];
-        foreach ($conditions as $cond) {
-            $field = $this->fieldByName($cond->field, $fields);
-            if ($field !== null) {
-                FilterApplier::apply($query, $field, $cond);
-                $activeFilters[$cond->field] = $cond;
-            }
-        }
-
-        $rawQb = $request->query('qb');
-        $qbRoot = is_string($rawQb) && $rawQb !== ''
-            ? QueryBuilderParser::parse($rawQb, $this)
-            : null;
-        if ($qbRoot !== null) {
-            $qbRoot = QueryBuilderNormalizer::normalize($qbRoot);
-        }
-        if ($qbRoot !== null) {
-            $query->where(function (Builder $sub) use ($qbRoot): void {
-                QueryBuilderApplier::apply($sub, $qbRoot, $this);
-            });
-        }
-
-        return [
-            'search' => $search,
-            'currentView' => $currentView,
-            'conditions' => $conditions,
-            'activeFilters' => $activeFilters,
-            'qbRoot' => $qbRoot,
-        ];
+        return app(TableBuilder::class)->build($this, $request);
     }
 
     /**
@@ -595,40 +459,7 @@ abstract class ListResource
      */
     public function exportState(Request $request): array
     {
-        $query = $this->query();
-        $fields = $this->fieldsMemo();
-        $savedViews = $this->savedViewsMemo();
-
-        $this->applyFiltersToQuery($query, $request, $fields, $savedViews);
-
-        $prefs = app(UserPrefsResolver::class)->resolve($this, $request);
-        $effectiveColumnNames = $prefs->columns ?? array_values(array_map(
-            fn (Field $f) => $f->name,
-            array_filter($fields, fn (Field $f) => ! $f->isHidden() && ! $f->isOnlyFilterable()),
-        ));
-
-        $byName = [];
-        foreach ($fields as $field) {
-            if ($field->isOnlyFilterable()) {
-                continue;
-            }
-            $byName[$field->name] = $field;
-        }
-        $columns = [];
-        foreach ($effectiveColumnNames as $name) {
-            if (isset($byName[$name])) {
-                $columns[] = $byName[$name];
-            }
-        }
-
-        $total = (int) (clone $query)->toBase()->getCountForPagination();
-
-        return [
-            'builder' => $query,
-            'total' => $total,
-            'columns' => $columns,
-            'queryParams' => (array) $request->query(),
-        ];
+        return app(TableBuilder::class)->buildForExport($this, $request);
     }
 
     /**
@@ -694,23 +525,15 @@ abstract class ListResource
         return ['fields' => $fields];
     }
 
-    /**
-     * @param  array<int, Field>  $fields
-     */
-    private function fieldByName(string $name, array $fields): ?Field
+    public function findField(string $name): ?Field
     {
-        foreach ($fields as $field) {
+        foreach ($this->fieldsMemo() as $field) {
             if ($field->name === $name) {
                 return $field;
             }
         }
 
         return null;
-    }
-
-    public function findField(string $name): ?Field
-    {
-        return $this->fieldByName($name, $this->fieldsMemo());
     }
 
     /**
@@ -725,109 +548,5 @@ abstract class ListResource
         }
 
         return $field->resolveFilterOptions($q, $request, $selectedIds);
-    }
-
-    private function normalizeSearch(mixed $raw): ?string
-    {
-        if (! is_string($raw)) {
-            return null;
-        }
-
-        $trimmed = trim($raw);
-        if ($trimmed === '') {
-            return null;
-        }
-
-        return mb_substr($trimmed, 0, 200);
-    }
-
-    private function applySearch(Builder $query, string $term): void
-    {
-        $columns = $this->searchable();
-        if ($columns === []) {
-            return;
-        }
-
-        $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%';
-
-        $query->where(function (Builder $inner) use ($columns, $like): void {
-            foreach ($columns as $column) {
-                if (str_contains($column, '.')) {
-                    [$relation, $relCol] = explode('.', $column, 2);
-                    $inner->orWhereHas($relation, function (Builder $q) use ($relCol, $like): void {
-                        $q->where($relCol, 'LIKE', $like);
-                    });
-                } else {
-                    $inner->orWhere($column, 'LIKE', $like);
-                }
-            }
-        });
-    }
-
-    /**
-     * @param  array<int, SavedView>  $savedViews
-     */
-    private function resolveCurrentView(mixed $raw, array $savedViews): ?string
-    {
-        if (! is_string($raw) || $raw === '') {
-            return null;
-        }
-
-        foreach ($savedViews as $view) {
-            if ($view->key === $raw) {
-                return $raw;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<int, SavedView>  $savedViews
-     */
-    private function findView(string $key, array $savedViews): ?SavedView
-    {
-        foreach ($savedViews as $view) {
-            if ($view->key === $key) {
-                return $view;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<int, Field>  $fields
-     * @return array{column: string, direction: string}|null
-     */
-    private function resolveSort(mixed $rawSort, mixed $rawDir, array $fields): ?array
-    {
-        $direction = is_string($rawDir) && strtolower($rawDir) === 'desc' ? 'desc' : 'asc';
-
-        if (is_string($rawSort) && $rawSort !== '') {
-            foreach ($fields as $field) {
-                if ($field->name === $rawSort && $field->isSortable()) {
-                    return ['column' => $rawSort, 'direction' => $direction];
-                }
-            }
-
-            $default = $this->defaultSort();
-            if ($default !== null) {
-                $defaultDir = strtolower($default[1]) === 'desc' ? 'desc' : 'asc';
-
-                return ['column' => $default[0], 'direction' => $defaultDir];
-            }
-
-            return null;
-        }
-
-        $default = $this->defaultSort();
-        if ($default !== null) {
-            $defaultDir = strtolower($default[1]) === 'desc' ? 'desc' : 'asc';
-
-            return ['column' => $default[0], 'direction' => $defaultDir];
-        }
-
-        return null;
     }
 }
