@@ -29,11 +29,19 @@
     },
     "require-dev": {
         "laravel/pint": "^1.27",
-        "larastan/larastan": "^3.0"
+        "larastan/larastan": "^3.0",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0"
     },
     "autoload": {
         "psr-4": {
             "Mercurio\\Tables\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Mercurio\\Tables\\Tests\\": "tests/"
         }
     },
     "extra": {
@@ -47,13 +55,18 @@
         "pint": "pint --test",
         "pint:fix": "pint",
         "phpstan": "phpstan analyse --memory-limit=512M",
+        "test": "pest",
         "ci": [
             "@pint",
-            "@phpstan"
+            "@phpstan",
+            "@test"
         ]
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
     },
     "minimum-stability": "stable",
     "prefer-stable": true
