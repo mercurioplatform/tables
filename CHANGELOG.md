@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Summary block теперь рендерится между subtitle и Saved Views (ранее — после Saved Views).
+  Затрагивает только дефолтный shell; кастомные `page_head_component`-переопределения не
+  затронуты. Добавлен безусловный wrapper `<div data-tables-summary>` (стабильная точка
+  монтирования для будущего AJAX-обновления partial). Smoke-tested via Blade source
+  review only — host-приложение в этой итерации локально не поднималось.
+
 ## [0.1.0] — 2026-05-09
 
 ### Notes

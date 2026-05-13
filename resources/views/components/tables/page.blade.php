@@ -22,6 +22,14 @@
 
     {{ $afterPageHead ?? '' }}
 
+    <div data-tables-summary>
+        @isset($summary)
+            {{ $summary }}
+        @elseif ($table->summary !== null)
+            <x-tables.summary :summary="$table->summary"/>
+        @endif
+    </div>
+
     {{ $beforeSavedViews ?? '' }}
 
     @if (count($table->savedViews) > 0)
@@ -29,12 +37,6 @@
     @endif
 
     {{ $afterSavedViews ?? '' }}
-
-    @isset($summary)
-        {{ $summary }}
-    @elseif ($table->summary !== null)
-        <x-tables.summary :summary="$table->summary"/>
-    @endif
 
     {{ $beforeFilterBar ?? '' }}
 
