@@ -270,8 +270,79 @@ abstract class ListResource
         return false;
     }
 
+    /** @var array<int, ?string> */
+    private array $resolvedAuditActors = [];
+
     public function resolveAuditActor(?int $actorId): ?string
     {
+        if ($actorId === null) {
+            return null;
+        }
+
+        if (array_key_exists($actorId, $this->resolvedAuditActors)) {
+            return $this->resolvedAuditActors[$actorId];
+        }
+
+        $guard = (string) config('tables.guard', 'web');
+        $providerName = config("auth.guards.{$guard}.provider");
+
+        if (! is_string($providerName) || $providerName === '') {
+            Log::warning('tables.audit_actor.guard_provider_missing', [
+                'resource' => $this->key(),
+                'guard' => $guard,
+            ]);
+
+            return $this->resolvedAuditActors[$actorId] = null;
+        }
+
+        try {
+            $provider = Auth::createUserProvider($providerName);
+        } catch (\InvalidArgumentException $e) {
+            Log::warning('tables.audit_actor.provider_driver_invalid', [
+                'resource' => $this->key(),
+                'guard' => $guard,
+                'provider' => $providerName,
+                'reason' => $e->getMessage(),
+            ]);
+
+            return $this->resolvedAuditActors[$actorId] = null;
+        }
+
+        if ($provider === null) {
+            Log::warning('tables.audit_actor.provider_not_resolvable', [
+                'resource' => $this->key(),
+                'guard' => $guard,
+                'provider' => $providerName,
+            ]);
+
+            return $this->resolvedAuditActors[$actorId] = null;
+        }
+
+        $user = $provider->retrieveById($actorId);
+
+        return $this->resolvedAuditActors[$actorId] = $this->formatAuditActor($user);
+    }
+
+    /**
+     * Format display name for an audit actor. Override for non-standard schemas
+     * (first_name + last_name, display_name, locale-aware formatting).
+     */
+    protected function formatAuditActor(?Authenticatable $user): ?string
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $name = data_get($user, 'name');
+        if (is_string($name) && $name !== '') {
+            return $name;
+        }
+
+        $email = data_get($user, 'email');
+        if (is_string($email) && $email !== '') {
+            return $email;
+        }
+
         return null;
     }
 

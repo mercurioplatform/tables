@@ -32,7 +32,7 @@ Override-points (фиксируются как часть контракта; д
 - `emptyState(): ?EmptyState`
 - `flashKeys(): array<int, string>`
 - `actionHistoryEnabled(): bool`
-- `resolveAuditActor(\Illuminate\Http\Request $request): ?\Illuminate\Contracts\Auth\Authenticatable`
+- `resolveAuditActor(?int $actorId): ?string` — резолвит `actor_id` из `tables_action_log` в человекочитаемое имя для offcanvas «История». Default: `Auth::createUserProvider(config('auth.guards.{tables.guard}.provider'))->retrieveById($actorId)`, форматирование — через protected `formatAuditActor(?Authenticatable $user): ?string` (default `name ?? email ?? null`). Override `resolveAuditActor` целиком — для мульти-источников / soft-deleted / нестандартного lookup'а; override `formatAuditActor` — только для смены формата отображаемого имени.
 
 Invariants:
 

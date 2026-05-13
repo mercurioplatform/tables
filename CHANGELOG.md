@@ -35,6 +35,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   компонент без `data-tables-subtitle`) поведения не меняют. Smoke-tested via
   Blade source review only — host-приложение в этой итерации локально не
   поднималось.
+- `ListResource::resolveAuditActor(?int $actorId): ?string` теперь имеет дефолтную
+  реализацию вместо `return null`. Резолв идёт через Laravel auth-провайдер,
+  привязанный к `config('tables.guard')`:
+  `Auth::createUserProvider(config('auth.guards.{guard}.provider'))->retrieveById($actorId)`.
+  Найденный `Authenticatable` форматируется новым protected hook'ом
+  `formatAuditActor(?Authenticatable $user): ?string` (default —
+  `data_get($user, 'name') ?? data_get($user, 'email') ?? null`). Раньше метод всегда
+  возвращал `null`, и host-проекты в `mercurioplatform/` повторяли один и тот же
+  `Model::find()` + `name ?? email` в каждом Resource'е (5 копий). Конфигурационные
+  аномалии host'а (provider не найден в `auth.providers`, driver не зарегистрирован —
+  `InvalidArgumentException` от `AuthManager::createUserProvider`, имя провайдера
+  пустое) graceful'но логируются через `Log::warning` (три раздельные ветки:
+  `tables.audit_actor.guard_provider_missing`, `tables.audit_actor.provider_driver_invalid`,
+  `tables.audit_actor.provider_not_resolvable`); offcanvas всегда открывается, UI
+  fallback'ится на `#$id`. Операционные ошибки (`QueryException` от `retrieveById`)
+  пробрасываются — Blade-consumer (`resources/views/action-log.blade.php`) уже
+  толерантен через `try/catch`. Включён per-instance memoization
+  (`private array $resolvedAuditActors`) — экономит lookup'ы в пределах одной
+  страницы offcanvas. Override-точки сохранены: для нестандартного lookup'а
+  (`withTrashed`, мульти-источники) — переопределить `resolveAuditActor`; для
+  смены формата (`first_name + last_name`, `display_name`) — переопределить
+  `formatAuditActor`. Public-сигнатура `resolveAuditActor(?int $actorId): ?string`
+  не меняется; добавление protected-hook'а `formatAuditActor` — non-breaking (см.
+  `docs/api.md` invariant о добавлении новых методов). Записи
+  `tables_action_log.actor_id` (`unsignedBigInteger nullable`) и behaviour
+  `ActionAuthorizer::resolveAuditActorId()` не затрагиваются. Smoke-tested via
+  [DevTools на host'е mercurioplatform + проверка negative-case через временно
+  изменённый `auth.providers.driver` / tinker-fallback при недоступности host'а —
+  статус актуализировать при выполнении Task 7].
+
+### Added
+
+- Protected hook `Mercurio\Tables\ListResource::formatAuditActor(?Authenticatable $user): ?string`
+  — override-точка для смены формата отображаемого имени актора в offcanvas
+  «История» без копирования lookup-логики. Default возвращает
+  `data_get($user, 'name') ?? data_get($user, 'email') ?? null`. Через `data_get` —
+  потому что interface `Authenticatable` не определяет свойства `name`/`email`
+  (PHPStan level 6 не пропустил бы прямой property-access).
+
+### Fixed
+
+- `docs/api.md`: запись `resolveAuditActor` синхронизирована с реальной сигнатурой
+  кода (`(?int $actorId): ?string` вместо устаревшего
+  `(\Illuminate\Http\Request $request): ?\Illuminate\Contracts\Auth\Authenticatable`).
+  Остальные расхождения api.md ↔ код запланированы под отдельный milestone — полный
+  синк закроется одной правкой.
 
 ## [0.1.0] — 2026-05-09
 
