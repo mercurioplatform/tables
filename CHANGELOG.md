@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- **`ListResource` memoization.** Hot-path методы `fields()`, `savedViews()`,
+  `bulkActions()`, `rowActions()` теперь резолвятся один раз за request и кешируются
+  в private property на instance Resource'а. До патча `fields()` мог вызываться
+  9 раз за один `index()` запрос (Filter/Qb/Prefs/UserView/ListResource зовут
+  одну и ту же функцию). Если ваш Resource внутри `fields()` ходит в БД
+  (autocomplete-опции, динамические options) — это убирает 8 повторных запросов
+  на странице.
+- Override-точки (`fields()` / `savedViews()` / `bulkActions()` / `rowActions()`)
+  работают без изменений — мемо-слой прозрачен.
+
 ### Breaking changes
 
 - `Mercurio\Tables\Summary\KpiSummary` и `FunnelSummary` удалены. Используйте `new Summary([...])` напрямую — `Summary` теперь `final` контейнер (раньше abstract).
