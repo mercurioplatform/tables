@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `RowAction::sharedAuthz()` — opt-in флаг для row-actions, чья policy/ability
+  не зависит от состояния конкретной модели. При установленном флаге
+  `resolveRowActions()` выполняет один `Gate::check` на класс модели и
+  переиспользует результат для всех строк того же класса. На странице
+  из 25 строк × 4 row-actions это снижает количество Gate-вызовов с 100
+  до 4 (для shared-authz actions). Без флага — текущее поведение (per-row).
+
 ### Performance
 
 - **`ListResource` memoization.** Hot-path методы `fields()`, `savedViews()`,
