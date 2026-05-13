@@ -4,6 +4,9 @@
 
 # mercurioplatform/tables
 
+[![CI](https://github.com/mercurioplatform/tables/actions/workflows/ci.yml/badge.svg)](https://github.com/mercurioplatform/tables/actions/workflows/ci.yml)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/mercurioplatform/tables.svg)](https://packagist.org/packages/mercurioplatform/tables)
+
 Reusable list/table engine для админок на Laravel 13 + Bootstrap 5 + jQuery + Blade. Декларативные `Resource`-классы превращаются в полноценные admin-страницы (поиск, сортировка, фильтры, saved views, bulk/row actions, экспорт, prefs, history+undo) одной строкой роута.
 
 ## Why
