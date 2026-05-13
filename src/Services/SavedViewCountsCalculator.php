@@ -12,7 +12,7 @@ final class SavedViewCountsCalculator
      */
     public function counts(ListResource $resource): array
     {
-        $views = $resource->savedViews();
+        $views = $resource->savedViewsMemo();
         if ($views === []) {
             return [];
         }

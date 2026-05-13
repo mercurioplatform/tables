@@ -101,7 +101,7 @@ class BulkActionJob implements ShouldQueue
 
         /** @var BulkAction|null $action */
         $action = null;
-        foreach ($resource->bulkActions() as $candidate) {
+        foreach ($resource->bulkActionsMemo() as $candidate) {
             if ($candidate instanceof BulkAction && $candidate->name === $this->actionName) {
                 $action = $candidate;
                 break;

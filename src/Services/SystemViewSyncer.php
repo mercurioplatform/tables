@@ -34,7 +34,7 @@ final class SystemViewSyncer
     private function syncResource(ListResource $resource): void
     {
         /** @var array<int, SavedView> $views */
-        $views = $resource->savedViews();
+        $views = $resource->savedViewsMemo();
         if ($views === []) {
             return;
         }

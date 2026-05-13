@@ -82,7 +82,7 @@ abstract class ListResource
         $actor = $this->currentActor();
         $visible = [];
 
-        foreach ($this->rowActions() as $action) {
+        foreach ($this->rowActionsMemo() as $action) {
             if (! $action instanceof RowAction) {
                 continue;
             }
@@ -109,7 +109,7 @@ abstract class ListResource
      */
     public function resolveBulkActions(): array
     {
-        $declared = $this->bulkActions();
+        $declared = $this->bulkActionsMemo();
         if ($declared === []) {
             return [];
         }
@@ -290,6 +290,50 @@ abstract class ListResource
     /** @var array<int, ?string> */
     private array $resolvedAuditActors = [];
 
+    /** @var array<int, Field>|null */
+    private ?array $cachedFields = null;
+
+    /** @var array<int, SavedView>|null */
+    private ?array $cachedSavedViews = null;
+
+    /** @var array<int, BulkAction>|null */
+    private ?array $cachedBulkActions = null;
+
+    /** @var array<int, RowAction>|null */
+    private ?array $cachedRowActions = null;
+
+    /**
+     * @return array<int, Field>
+     */
+    final public function fieldsMemo(): array
+    {
+        return $this->cachedFields ??= $this->fields();
+    }
+
+    /**
+     * @return array<int, SavedView>
+     */
+    final public function savedViewsMemo(): array
+    {
+        return $this->cachedSavedViews ??= $this->savedViews();
+    }
+
+    /**
+     * @return array<int, BulkAction>
+     */
+    final public function bulkActionsMemo(): array
+    {
+        return $this->cachedBulkActions ??= $this->bulkActions();
+    }
+
+    /**
+     * @return array<int, RowAction>
+     */
+    final public function rowActionsMemo(): array
+    {
+        return $this->cachedRowActions ??= $this->rowActions();
+    }
+
     public function resolveAuditActor(?int $actorId): ?string
     {
         if ($actorId === null) {
@@ -396,8 +440,8 @@ abstract class ListResource
     public function table(Request $request): ResourceTable
     {
         $query = $this->query();
-        $fields = $this->fields();
-        $savedViews = $this->savedViews();
+        $fields = $this->fieldsMemo();
+        $savedViews = $this->savedViewsMemo();
         $savedViewCounts = $savedViews === []
             ? []
             : app(SavedViewCountsCalculator::class)->counts($this);
@@ -444,7 +488,7 @@ abstract class ListResource
             fields: $fields,
             savedViews: $savedViews,
             bulkActions: $this->resolveBulkActions(),
-            rowActions: $this->rowActions(),
+            rowActions: $this->rowActionsMemo(),
             sort: $sort,
             currentView: $currentView,
             search: $search,
@@ -532,8 +576,8 @@ abstract class ListResource
     public function exportState(Request $request): array
     {
         $query = $this->query();
-        $fields = $this->fields();
-        $savedViews = $this->savedViews();
+        $fields = $this->fieldsMemo();
+        $savedViews = $this->savedViewsMemo();
 
         $this->applyFiltersToQuery($query, $request, $fields, $savedViews);
 
@@ -596,7 +640,7 @@ abstract class ListResource
     public function qbSchema(): array
     {
         $fields = [];
-        foreach ($this->fields() as $field) {
+        foreach ($this->fieldsMemo() as $field) {
             if (! $field->isFilterable()) {
                 continue;
             }
@@ -646,7 +690,7 @@ abstract class ListResource
 
     public function findField(string $name): ?Field
     {
-        return $this->fieldByName($name, $this->fields());
+        return $this->fieldByName($name, $this->fieldsMemo());
     }
 
     /**

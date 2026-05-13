@@ -157,7 +157,7 @@ class UserViewHandler
             'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
         ]);
 
-        $allowed = array_map(fn ($f) => $f->name, $resource->fields());
+        $allowed = array_map(fn ($f) => $f->name, $resource->fieldsMemo());
         $submittedColumns = $data['columns'] ?? null;
         $cols = is_array($submittedColumns)
             ? array_values(array_intersect($submittedColumns, $allowed))

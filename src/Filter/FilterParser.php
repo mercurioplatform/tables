@@ -18,7 +18,7 @@ final class FilterParser
      */
     public static function parse(array $raw, ListResource $resource): array
     {
-        $fields = $resource->fields();
+        $fields = $resource->fieldsMemo();
         $byName = [];
         $order = [];
         foreach ($fields as $idx => $field) {

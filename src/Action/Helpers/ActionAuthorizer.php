@@ -23,7 +23,7 @@ class ActionAuthorizer
 {
     public function findBulkAction(ListResource $resource, string $name): ?BulkAction
     {
-        foreach ($resource->bulkActions() as $action) {
+        foreach ($resource->bulkActionsMemo() as $action) {
             if ($action->name === $name) {
                 return $action;
             }
@@ -34,7 +34,7 @@ class ActionAuthorizer
 
     public function findRowAction(ListResource $resource, string $name): ?RowAction
     {
-        foreach ($resource->rowActions() as $action) {
+        foreach ($resource->rowActionsMemo() as $action) {
             if ($action instanceof RowAction && $action->name === $name) {
                 return $action;
             }

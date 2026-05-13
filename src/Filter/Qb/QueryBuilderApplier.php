@@ -19,7 +19,7 @@ final class QueryBuilderApplier
     public static function apply(Builder $query, AtomGroup $root, ListResource $resource): void
     {
         $fields = [];
-        foreach ($resource->fields() as $field) {
+        foreach ($resource->fieldsMemo() as $field) {
             $fields[$field->name] = $field;
         }
 

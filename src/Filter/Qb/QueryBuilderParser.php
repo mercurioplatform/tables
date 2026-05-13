@@ -41,7 +41,7 @@ final class QueryBuilderParser
         }
 
         $fields = [];
-        foreach ($resource->fields() as $field) {
+        foreach ($resource->fieldsMemo() as $field) {
             $fields[$field->name] = $field;
         }
 

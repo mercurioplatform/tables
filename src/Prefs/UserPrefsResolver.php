@@ -13,7 +13,7 @@ class UserPrefsResolver
 {
     public function resolve(ListResource $resource, Request $request): UserPrefs
     {
-        $fields = $resource->fields();
+        $fields = $resource->fieldsMemo();
         $allowedNames = array_map(fn (Field $f) => $f->name, $fields);
 
         $defaultColumns = array_values(array_map(
