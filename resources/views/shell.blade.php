@@ -59,7 +59,6 @@
         </x-dynamic-component>
     @endif
 
-    {{-- Subtitle: внешний контейнер для AJAX-замены, чтобы не зависеть от того, поддерживает ли page-head компонент `data-tables-subtitle`. --}}
     <p class="ap-page-head__sub @if($subtitle === null) d-none @endif" data-tables-subtitle>{{ $subtitle ?? '' }}</p>
 
     @foreach($flashKeys as $key => $variant)

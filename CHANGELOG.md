@@ -21,6 +21,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   кастомные переопределения partial-вьюхи не затронуты (swap пропускается no-op'ом,
   summary остаётся прежним). Smoke-tested via Blade + JS source review and syntax check
   only — host-приложение локально не поднималось.
+- Engine-компонент `tables.page-head` (runtime fallback для `shell.page_head_component`,
+  активируется у host'ов без published `config/tables.php` либо с `null` для этого
+  ключа) больше не рендерит внутренний placeholder `<p data-tables-subtitle>`. Раньше
+  при этом fallback'е в DOM присутствовало два элемента с атрибутом
+  `data-tables-subtitle` (внешний из `shell.blade.php` + внутренний из page-head),
+  и AJAX-swap subtitle обновлял только первый в tree-order. Теперь единственный
+  placeholder для full-страницы живёт в `shell.blade.php` (снаружи page-head),
+  для AJAX-фрагмента — в `partial.blade.php`. Из `@props` page-head'а удалены
+  ключи `subtitle` и `subtitleAttr` — эти prop'ы не задокументированы в
+  `docs/api.md` и не были частью публичного контракта. Host-проекты с published
+  `config/tables.php` (где `page_head_component` указывает на собственный
+  компонент без `data-tables-subtitle`) поведения не меняют. Smoke-tested via
+  Blade source review only — host-приложение в этой итерации локально не
+  поднималось.
 
 ## [0.1.0] — 2026-05-09
 
