@@ -138,18 +138,6 @@ class RowActionHandler
             return $this->responses->flashFromException($e, $rowAction, $isXhr, $resourceClass);
         }
 
-        Log::info('tables.rowaction.executed', [
-            'resource' => $resourceClass,
-            'action' => $action,
-            'id' => $id,
-            'kind' => $rowAction->getKind(),
-            'mode' => $mode,
-            'authz' => $this->authorizer->authzMode($rowAction),
-            'validation' => $validationSource,
-            'affected' => $result?->affected,
-            'message' => $result?->message,
-        ]);
-
         if ($result instanceof ActionResult && $rowAction->getKind() !== 'link') {
             ActionLogWriter::write(
                 resourceKey: $resource->key(),

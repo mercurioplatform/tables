@@ -75,14 +75,6 @@ class BulkActionJob implements ShouldQueue
         /** @var ListResource $resource */
         $resource = app($this->resourceClass);
 
-        Log::info('tables.bulk_progress.job.start', [
-            'progress_id' => $this->progressId,
-            'resource' => $this->resourceClass,
-            'action' => $this->actionName,
-            'total' => count($this->ids),
-            'actor_id' => $this->actorId,
-        ]);
-
         $guard = $resource->effectiveGuard();
 
         if ($this->actorId !== null) {
@@ -172,17 +164,6 @@ class BulkActionJob implements ShouldQueue
             'status' => 'done',
             'finished_at' => now(),
         ])->save();
-
-        Log::info('tables.bulk_progress.job.done', [
-            'progress_id' => $this->progressId,
-            'resource' => $this->resourceClass,
-            'action' => $this->actionName,
-            'total' => count($this->ids),
-            'affected' => $totalAffected,
-            'duration_s' => $progress->started_at !== null
-                ? (int) abs(now()->diffInSeconds($progress->started_at))
-                : null,
-        ]);
 
         $aggregate = new ActionResult(
             affected: $totalAffected,

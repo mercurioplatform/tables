@@ -97,13 +97,6 @@ class UserViewHandler
             'state_json' => $filtered,
         ]);
 
-        Log::info('tables.savedviews.create', [
-            'resource' => $resourceKey,
-            'name' => $data['name'],
-            'user_id' => $userId,
-            'state_keys' => array_keys($filtered),
-        ]);
-
         if ($request->expectsJson()) {
             return response()->json(['status' => 'Вид сохранён']);
         }
@@ -126,11 +119,6 @@ class UserViewHandler
             ->firstOrFail();
 
         $view->delete();
-
-        Log::info('tables.savedviews.delete', [
-            'id' => $id,
-            'user_id' => $userId,
-        ]);
 
         if ($request->expectsJson()) {
             return response()->json(['status' => 'Вид удалён']);
@@ -188,12 +176,6 @@ class UserViewHandler
 
         UserTablePrefs::upsertFor((int) $userId, $resource->key(), $prefs);
 
-        Log::info('tables.prefs.saved', [
-            'resource' => $resource->key(),
-            'user_id' => $userId,
-            'keys' => array_keys($prefs),
-        ]);
-
         return response()->json([
             'status' => 'ok',
             'message' => 'Настройки сохранены',
@@ -212,11 +194,6 @@ class UserViewHandler
             ->forUser((int) $userId)
             ->forResource($resource->key())
             ->delete();
-
-        Log::info('tables.prefs.reset', [
-            'resource' => $resource->key(),
-            'user_id' => $userId,
-        ]);
 
         return response()->json([
             'status' => 'ok',

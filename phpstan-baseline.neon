@@ -15,7 +15,7 @@ parameters:
 		-
 			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionLog\:\:\$action_name\.$#'
 			identifier: property.notFound
-			count: 6
+			count: 5
 			path: src/Action/Handlers/ActionLogHandler.php
 
 		-
@@ -365,12 +365,6 @@ parameters:
 			identifier: argument.type
 			count: 2
 			path: src/Http/GenericTablesController.php
-
-		-
-			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$started_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Jobs/BulkActionJob.php
 
 		-
 			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$status\.$#'

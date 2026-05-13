@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\ResourceRegistry;
 use Mercurio\Tables\Services\SystemViewSyncer;
 
@@ -17,8 +16,6 @@ class SyncSavedViewsCommand extends Command
     public function handle(SystemViewSyncer $syncer, ResourceRegistry $registry): int
     {
         $force = (bool) $this->option('force');
-
-        Log::info('tables.savedviews.sync.command_run', ['force' => $force]);
 
         if ($force) {
             foreach ($registry->classes() as $class) {

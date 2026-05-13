@@ -87,20 +87,8 @@ class CellUpdateHandler
 
         $value = $validator->validated()['value'] ?? null;
         $column = $f->getEditableColumn();
-        $oldValue = $model->{$column} ?? null;
 
         DB::transaction(fn () => $model->update([$column => $value]));
-
-        Log::info('tables.cell.update', [
-            'resource' => $resourceClass,
-            'field' => $field,
-            'column' => $column,
-            'id' => $id,
-            'old' => $oldValue,
-            'new' => $value,
-            'actor_id' => $this->authorizer->currentTableActor($resource)?->getAuthIdentifier(),
-            'is_xhr' => $isXhr,
-        ]);
 
         $fresh = $resource->query()->whereKey($id)->first();
         $table = $resource->table($request);

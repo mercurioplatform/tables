@@ -84,11 +84,5 @@ final class SystemViewSyncer
             ->delete();
 
         $this->cache->forever($cacheKey, $fp);
-
-        Log::info('tables.savedviews.sync', [
-            'resource' => $resourceKey,
-            'views' => count($views),
-            'fingerprint' => $fp,
-        ]);
     }
 }

@@ -187,19 +187,6 @@ class BulkActionHandler
             }
         }
 
-        Log::info('tables.bulk', [
-            'resource' => $resourceClass,
-            'action' => $name,
-            'kind' => $kind,
-            'mode' => $mode,
-            'authz' => $this->authorizer->authzMode($action),
-            'has_form_request' => $formRequestClass !== null,
-            'validation' => $validationSource,
-            'ids_count' => count($ids),
-            'affected' => $result?->affected,
-            'missing' => $result?->missing,
-        ]);
-
         if ($result instanceof ActionResult) {
             ActionLogWriter::write(
                 resourceKey: $resource->key(),
@@ -559,17 +546,6 @@ class BulkActionHandler
         }
 
         dispatch($job);
-
-        Log::info('tables.bulk_progress.dispatched', [
-            'resource' => $resourceClass,
-            'action' => $name,
-            'progress_id' => $progressId,
-            'total' => count($ids),
-            'queue' => $queueName,
-            'connection' => config('queue.default'),
-            'chunk_size' => $action->getQueueChunkSize() ?? (int) config('tables.bulk_progress.default_chunk_size', 0),
-            'actor_id' => $actorId,
-        ]);
 
         $base = $resource->routeBaseName() ?? $this->authorizer->deriveBaseRouteName($routeBaseName);
         $progressUrl = $base !== '' && Route::has($base.'.action_progress')

@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
-use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -65,12 +64,6 @@ class ExportHandler
                         (int) $userId,
                         $total,
                     );
-                    Log::info('tables.export.dispatched', [
-                        'resource' => $resourceClass,
-                        'user_id' => $userId,
-                        'rows' => $total,
-                        'job_id' => $jobId,
-                    ]);
 
                     return response()->json([
                         'status' => 'queued',
@@ -110,22 +103,10 @@ class ExportHandler
             columns: $columns,
         );
 
-        Log::info('tables.export.start', [
-            'resource' => $resourceClass,
-            'user_id' => $userId,
-            'rows' => $total,
-            'columns' => array_map(fn (Field $f) => $f->name, $columns),
-            'filename' => $exportRequest->filename,
-        ]);
-
-        $logger = function (string $event, array $ctx) use ($exportRequest): void {
-            Log::info('tables.export.'.$event, ['filename' => $exportRequest->filename] + $ctx);
-        };
-
         return new StreamedResponse(
-            function () use ($exportRequest, $builder, $logger): void {
+            function () use ($exportRequest, $builder): void {
                 try {
-                    CsvStreamWriter::stream($exportRequest, $builder, $logger);
+                    CsvStreamWriter::stream($exportRequest, $builder);
                 } catch (Throwable $e) {
                     Log::error('tables.export.error', [
                         'filename' => $exportRequest->filename,

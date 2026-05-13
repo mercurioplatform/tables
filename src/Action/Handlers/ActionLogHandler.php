@@ -184,15 +184,6 @@ class ActionLogHandler
             return $this->authorizer->undoError($request, 'Откат вернул неверный результат.', 500);
         }
 
-        Log::info('tables.action_log.undo.executed', [
-            'resource' => $resourceClass,
-            'log_id' => $logId,
-            'action_name' => $row->action_name,
-            'kind' => $kind,
-            'ids_count' => count($ids),
-            'affected' => $reverseResult->affected,
-        ]);
-
         ActionLogWriter::write(
             resourceKey: $resource->key(),
             actionName: $row->action_name,
