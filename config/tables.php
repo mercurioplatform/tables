@@ -1,5 +1,7 @@
 <?php
 
+use Mercurio\Tables\Jobs\BulkActionJob;
+
 return [
 
     /*
@@ -330,7 +332,7 @@ return [
         'poll_max_duration_ms' => 600000,
         'progress_ttl_minutes' => 1440,
         'max_affected_ids_for_cta' => 200,
-        'job_class' => \Mercurio\Tables\Jobs\BulkActionJob::class,
+        'job_class' => BulkActionJob::class,
         'job_tries' => 1,
         'job_timeout_seconds' => 600,
         'tray_position' => 'bottom-right',
@@ -348,10 +350,10 @@ return [
     |
     */
     'tables' => [
-        'saved_views'      => 'tables_saved_views',
+        'saved_views' => 'tables_saved_views',
         'user_table_prefs' => 'tables_user_table_prefs',
-        'action_log'       => 'tables_action_log',
-        'action_progress'  => 'tables_action_progress',
+        'action_log' => 'tables_action_log',
+        'action_progress' => 'tables_action_progress',
     ],
 
 ];

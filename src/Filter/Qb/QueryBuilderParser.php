@@ -10,7 +10,7 @@ use Mercurio\Tables\ListResource;
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Filter\Operator}, {@see \Mercurio\Tables\ListResource::query()}.
+ * Public surface: {@see Operator}, {@see ListResource::query()}.
  */
 final class QueryBuilderParser
 {

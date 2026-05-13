@@ -13,6 +13,7 @@ use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
 use Mercurio\Tables\Action\Helpers\ActionResponseBuilder;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\Jobs\BulkActionJob;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\ActionProgress;
@@ -23,7 +24,7 @@ use Throwable;
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::bulkAction()}.
+ * Public surface: {@see HandlesResourceListing::bulkAction()}.
  */
 class BulkActionHandler
 {

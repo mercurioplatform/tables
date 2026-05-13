@@ -10,13 +10,14 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing}.
+ * Public surface: {@see HandlesResourceListing}.
  */
 class ActionAuthorizer
 {

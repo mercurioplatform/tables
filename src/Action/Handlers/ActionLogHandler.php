@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\ActionResult;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
 use Mercurio\Tables\Action\Helpers\ActionResponseBuilder;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\ActionLog;
 use Mercurio\Tables\Services\ActionLogWriter;
@@ -17,7 +18,7 @@ use Throwable;
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::actionLog()}.
+ * Public surface: {@see HandlesResourceListing::actionLog()}.
  */
 class ActionLogHandler
 {

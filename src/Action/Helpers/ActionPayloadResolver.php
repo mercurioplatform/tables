@@ -11,13 +11,14 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\Form\Field\FieldRow;
 use Mercurio\Tables\Form\Field\FormField;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing}.
+ * Public surface: {@see HandlesResourceListing}.
  */
 class ActionPayloadResolver
 {

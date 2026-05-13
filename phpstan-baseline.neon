@@ -1,0 +1,601 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Action\:\:execute\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Action/Action.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\BulkAction\:\:getTooltip\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Action/BulkAction.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionLog\:\:\$action_name\.$#'
+			identifier: property.notFound
+			count: 6
+			path: src/Action/Handlers/ActionLogHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionLog\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/ActionLogHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionLog\:\:\$kind\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/ActionLogHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionLog\:\:\$resource_key\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Action/Handlers/ActionLogHandler.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\ConnectionInterface\:\:getDriverName\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Action/Handlers/ActionLogHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$actor_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$affected\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$denied\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$error_message\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$finished_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$missing\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$processed\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$resource_key\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$skipped\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$started_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Handlers\\BulkActionHandler\:\:renderForm\(\) has parameter \$bulkActionForms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Action/Handlers/BulkActionHandler.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Handlers\\RowActionHandler\:\:dispatch\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Action/Handlers/RowActionHandler.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Handlers\\RowActionHandler\:\:renderForm\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Action/Handlers/RowActionHandler.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Handlers\\RowActionHandler\:\:renderForm\(\) has parameter \$rowActionForms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Action/Handlers/RowActionHandler.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Handlers\\RowActionHandler\:\:renderPreview\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Action/Handlers/RowActionHandler.php
+
+		-
+			message: '#^Variable \$subjectClass on left side of \?\? is never defined\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/Action/Helpers/ActionAuthorizer.php
+
+		-
+			message: '#^Variable \$subjectKey on left side of \?\? is never defined\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: src/Action/Helpers/ActionAuthorizer.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\Helpers\\ActionPayloadResolver\:\:renderActionPreview\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Action/Helpers/ActionPayloadResolver.php
+
+		-
+			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Action/Helpers/ActionPayloadResolver.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Action\\RowAction\:\:getTooltip\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Action/RowAction.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Export\\CsvStreamWriter\:\:stream\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Export/CsvStreamWriter.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Field\\BelongsToManyField\:\:applyFilter\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Field/BelongsToManyField.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/Field/BelongsToManyField.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/Field/BelongsToManyField.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Field\\Field\:\:applyFilter\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Field/Field.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Field\\Field\:\:filterOptions\(\) has parameter \$optionsOrFn with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Field/Field.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Field\\Field\:\:filterable\(\) has parameter \$operators with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Field/Field.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: src/Field/Field.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Field\\StatusField\:\:kinds\(\) has parameter \$map with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Field/StatusField.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Field\\StatusField\:\:labels\(\) has parameter \$map with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Field/StatusField.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\FilterApplier\:\:apply\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Filter/FilterApplier.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\FilterApplier\:\:applyBuiltin\(\) has parameter \$q with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Filter/FilterApplier.php
+
+		-
+			message: '#^Call to function is_string\(\) with '''' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Filter/FilterParser.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\AtomGroup\:\:__construct\(\) has parameter \$children with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Filter/Qb/AtomGroup.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderApplier\:\:apply\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Filter/Qb/QueryBuilderApplier.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderApplier\:\:applyCondition\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Filter/Qb/QueryBuilderApplier.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderApplier\:\:applyGroup\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Filter/Qb/QueryBuilderApplier.php
+
+		-
+			message: '#^Instanceof between Mercurio\\Tables\\Filter\\Qb\\AtomGroup and Mercurio\\Tables\\Filter\\Qb\\AtomGroup will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Filter/Qb/QueryBuilderNormalizer.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderParser\:\:walkCondition\(\) has parameter \$node with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Filter/Qb/QueryBuilderParser.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderParser\:\:walkGroup\(\) has parameter \$node with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Filter/Qb/QueryBuilderParser.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Http\\GenericTablesController\:\:\$bulkActionForms\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Http\\GenericTablesController\:\:\$bulkRequest\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Http\\GenericTablesController\:\:\$routeBaseName\.$#'
+			identifier: property.notFound
+			count: 9
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Http\\GenericTablesController\:\:\$rowActionForms\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Http\\GenericTablesController\:\:\$tableView\.$#'
+			identifier: property.notFound
+			count: 4
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Call to function property_exists\(\) with \$this\(Mercurio\\Tables\\Http\\GenericTablesController\) and ''tableView'' will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Http\\GenericTablesController\:\:cellUpdate\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Http\\GenericTablesController\:\:rowAction\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Http\\GenericTablesController\:\:rowActionForm\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Http\\GenericTablesController\:\:rowActionPreview\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Http/GenericTablesController.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$started_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Jobs/BulkActionJob.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Jobs/BulkActionJob.php
+
+		-
+			message: '#^Dead catch \- InvalidArgumentException is never thrown in the try block\.$#'
+			identifier: catch.neverThrown
+			count: 1
+			path: src/ListResource.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\ListResource\:\:applyFiltersToQuery\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/ListResource.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\ListResource\:\:applySearch\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/ListResource.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\ListResource\:\:exportState\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/ListResource.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\ListResource\:\:query\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/ListResource.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\ActionLog\:\:scopeForResource\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/ActionLog.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\ActionLog\:\:scopeForResource\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/ActionLog.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$affected\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$denied\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$missing\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$processed\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\ActionProgress\:\:\$skipped\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\ActionProgress\:\:scopeForActor\(\) has parameter \$q with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\ActionProgress\:\:scopeForActor\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\ActionProgress\:\:scopeForResource\(\) has parameter \$q with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\ActionProgress\:\:scopeForResource\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/ActionProgress.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:applyToBuilder\(\) has parameter \$base with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:scopeForResource\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:scopeForResource\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:scopeForUser\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:scopeForUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:scopeSystem\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\SavedView\:\:scopeSystem\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/SavedView.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\UserTablePrefs\:\:\$prefs_json\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/UserTablePrefs.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\UserTablePrefs\:\:scopeForResource\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/UserTablePrefs.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\UserTablePrefs\:\:scopeForResource\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/UserTablePrefs.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\UserTablePrefs\:\:scopeForUser\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/UserTablePrefs.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Models\\UserTablePrefs\:\:scopeForUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Models/UserTablePrefs.php
+
+		-
+			message: '#^Access to an undefined property Mercurio\\Tables\\Models\\UserTablePrefs\:\:\$prefs_json\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Prefs/UserPrefsResolver.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\ResourceTable\:\:__construct\(\) has parameter \$paginator with generic class Illuminate\\Pagination\\LengthAwarePaginator but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/ResourceTable.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\ResourceTable\:\:rows\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/ResourceTable.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Services\\ActionLogWriter\:\:serializeUndoSnapshot\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Services/ActionLogWriter.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Services\\CellUpdateHandler\:\:handle\(\) has parameter \$id with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Services/CellUpdateHandler.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\Services\\UserSavedViewLoader\:\:loadFor\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Services/UserSavedViewLoader.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\View\\SavedView\:\:apply\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/View/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\View\\SavedView\:\:applyForCount\(\) has parameter \$base with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/View/SavedView.php
+
+		-
+			message: '#^Method Mercurio\\Tables\\View\\SavedView\:\:applyForCount\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/View/SavedView.php

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +17,7 @@ use Throwable;
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::export()} (плюс {@see \Mercurio\Tables\Export\ExportRequest}).
+ * Public surface: {@see HandlesResourceListing::export()} (плюс {@see ExportRequest}).
  */
 class ExportHandler
 {

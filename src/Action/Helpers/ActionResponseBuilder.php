@@ -6,13 +6,14 @@ use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\ActionResult;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing}.
+ * Public surface: {@see HandlesResourceListing}.
  */
 class ActionResponseBuilder
 {

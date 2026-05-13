@@ -4,11 +4,12 @@ namespace Mercurio\Tables\Filter;
 
 use Illuminate\Database\Eloquent\Builder;
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\ListResource;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\ListResource::query()}.
+ * Public surface: {@see ListResource::query()}.
  */
 final class FilterApplier
 {

@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterApplier;
 use Mercurio\Tables\Filter\FilterCondition;
+use Mercurio\Tables\Filter\Operator;
 use Mercurio\Tables\ListResource;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Filter\Operator}, {@see \Mercurio\Tables\ListResource::query()}.
+ * Public surface: {@see Operator}, {@see ListResource::query()}.
  */
 final class QueryBuilderApplier
 {

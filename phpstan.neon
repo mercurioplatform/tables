@@ -1,5 +1,6 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
     level: 6
@@ -7,11 +8,5 @@ parameters:
         - src
         - database/migrations
     treatPhpDocTypesAsCertain: false
-    checkMissingIterableValueType: false
-    ignoreErrors:
-        # Generic-неполнота на Eloquent QueryBuilder в FilterApplier/QueryBuilderApplier — закроется в 3.18 при @internal-разметке.
-        -
-            identifier: missingType.generics
-            paths:
-                - src/Filter/*
-                - src/Filter/Qb/*
+    # phpstan-baseline.neon фиксирует pre-existing legacy errors (bump phpstan 1.x → 2.x).
+    # Новые ошибки в src/* всё ещё будут падать. Старые ошибки чистятся по мере касания файла.

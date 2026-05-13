@@ -3,12 +3,13 @@
 namespace Mercurio\Tables\Support;
 
 use Illuminate\Http\Request;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::index()}.
+ * Public surface: {@see HandlesResourceListing::index()}.
  */
 final class UserViewHref
 {

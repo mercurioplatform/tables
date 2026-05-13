@@ -9,6 +9,7 @@ use Mercurio\Tables\Action\ActionResult;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
 use Mercurio\Tables\Action\Helpers\ActionResponseBuilder;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Services\ActionLogWriter;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,7 @@ use Throwable;
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::rowAction()}.
+ * Public surface: {@see HandlesResourceListing::rowAction()}.
  */
 class RowActionHandler
 {

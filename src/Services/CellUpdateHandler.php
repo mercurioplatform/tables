@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
+use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
  *
- * Public surface: {@see \Mercurio\Tables\Concerns\HandlesResourceListing::cellEdit()}.
+ * Public surface: {@see HandlesResourceListing::cellEdit()}.
  */
 class CellUpdateHandler
 {

@@ -10,9 +10,9 @@ use Throwable;
 final class ActionLogWriter
 {
     /**
-     * @param  array<int, mixed>     $ids     primary keys
-     * @param  array<string, mixed>  $payload validated payload
-     * @param  array<string, mixed>|null  $undoSnapshot per-id snapshot для отката (null — не undoable)
+     * @param  array<int, mixed>  $ids  primary keys
+     * @param  array<string, mixed>  $payload  validated payload
+     * @param  array<string, mixed>|null  $undoSnapshot  per-id snapshot для отката (null — не undoable)
      * @param  ?int  $undoOfLogId  если запись — undo, ID исходной log-записи (записывается в payload_json.undo_of)
      */
     public static function write(

@@ -3,11 +3,14 @@
 namespace Mercurio\Tables\Action;
 
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 use InvalidArgumentException;
 use Mercurio\Tables\Form\Field\FieldRow;
 use Mercurio\Tables\Form\Field\FormField;
+use Mercurio\Tables\ListResource;
 use Throwable;
 
 final class RowAction
@@ -53,12 +56,12 @@ final class RowAction
     protected ?Closure $transformValidatedHook = null;
 
     /**
-     * @var Closure(mixed, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     * @var Closure(mixed, array<string, mixed>, ?Authenticatable): ActionResult|null
      */
     protected ?Closure $callback = null;
 
     /**
-     * @var Closure(mixed, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>)|null
+     * @var Closure(mixed, array<string, mixed>): (View|string|array<string, mixed>)|null
      */
     protected ?Closure $previewCallback = null;
 
@@ -353,7 +356,7 @@ final class RowAction
      * Authz: closure НЕ делает Gate::authorize внутри — engine вызывает policy()/authorizeAction до invocation.
      * Если action декларирует UI без policy() — он open; защита возложена на policy() декларацию.
      *
-     * @param Closure(mixed, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult $callback
+     * @param  Closure(mixed, array<string, mixed>, ?Authenticatable): ActionResult  $callback
      */
     public function using(Closure $callback): self
     {
@@ -380,7 +383,7 @@ final class RowAction
      * Callback должен быть быстрым (< 200 ms): не тянуть тяжёлые отношения, явно select(...)
      * нужные колонки. Для долгих расчётов вынести в выделенный сервис и cache().
      *
-     * @param Closure(mixed, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>) $callback
+     * @param  Closure(mixed, array<string, mixed>): (View|string|array<string, mixed>)  $callback
      */
     public function preview(Closure $callback): self
     {
@@ -400,20 +403,20 @@ final class RowAction
     }
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>|null
+     * @var Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>|null
      */
     protected ?Closure $captureCallback = null;
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
      */
     protected ?Closure $reverseCallback = null;
 
     /**
      * Декларативный undo для row-action. Capture получает [$model->getKey()] и payload.
      *
-     * @param  Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>  $capture
-     * @param  Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult  $reverse
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>  $capture
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult  $reverse
      */
     public function undoable(Closure $capture, Closure $reverse): self
     {
@@ -438,10 +441,10 @@ final class RowAction
         return $this->captureCallback !== null && $this->reverseCallback !== null;
     }
 
-    /** @var Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>)|null */
+    /** @var Closure(ActionResult): (string|array<string, mixed>)|null */
     protected ?Closure $onSuccessCallback = null;
 
-    /** @var Closure(\Throwable): (string|array<string, mixed>)|null */
+    /** @var Closure(Throwable): (string|array<string, mixed>)|null */
     protected ?Closure $onErrorCallback = null;
 
     /**
@@ -453,7 +456,7 @@ final class RowAction
      *   - string → ['status' => $string] (зелёный alert);
      *   - array → нормализуется по ключам status/warning/error/counts.
      *
-     * @param Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>) $cb
+     * @param  Closure(ActionResult): (string|array<string, mixed>)  $cb
      */
     public function onSuccess(Closure $cb): self
     {
@@ -467,7 +470,7 @@ final class RowAction
      * ['error' => $string]) или array. HTTP status response остаётся 500 (для XHR),
      * redirect — back()->withErrors([...]).
      *
-     * @param Closure(\Throwable): (string|array<string, mixed>) $cb
+     * @param  Closure(Throwable): (string|array<string, mixed>)  $cb
      */
     public function onError(Closure $cb): self
     {

@@ -3,10 +3,13 @@
 namespace Mercurio\Tables\Action;
 
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Validator;
 use InvalidArgumentException;
 use Mercurio\Tables\Form\Field\FieldRow;
 use Mercurio\Tables\Form\Field\FormField;
+use Mercurio\Tables\ListResource;
 
 final class BulkAction
 {
@@ -50,12 +53,12 @@ final class BulkAction
     protected ?Closure $transformValidatedHook = null;
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
      */
     protected ?Closure $callback = null;
 
     /**
-     * @var Closure(array<int, int|string>, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>)|null
+     * @var Closure(array<int, int|string>, array<string, mixed>): (View|string|array<string, mixed>)|null
      */
     protected ?Closure $previewCallback = null;
 
@@ -342,7 +345,7 @@ final class BulkAction
      * Authz: closure НЕ делает Gate::authorize внутри — engine вызывает policy()/authorizeAction до invocation.
      * Если action декларирует UI без policy() — он open; защита возложена на policy() декларацию.
      *
-     * @param Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult $callback
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult  $callback
      */
     public function using(Closure $callback): self
     {
@@ -460,7 +463,7 @@ final class BulkAction
      * Callback должен быть быстрым (< 200 ms): для больших selections используйте
      * summary вместо полного списка; явно select(...) нужные колонки, без лишних eager-load.
      *
-     * @param Closure(array<int, int|string>, array<string, mixed>): (\Illuminate\Contracts\View\View|string|array<string, mixed>) $callback
+     * @param  Closure(array<int, int|string>, array<string, mixed>): (View|string|array<string, mixed>)  $callback
      */
     public function preview(Closure $callback): self
     {
@@ -480,12 +483,12 @@ final class BulkAction
     }
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>|null
+     * @var Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>|null
      */
     protected ?Closure $captureCallback = null;
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult|null
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
      */
     protected ?Closure $reverseCallback = null;
 
@@ -496,8 +499,8 @@ final class BulkAction
      * Engine принципиально требует ОБА callback'а — capture без reverse бесполезен,
      * reverse без capture не имеет данных.
      *
-     * @param  Closure(array<int, mixed>, array<string, mixed>, \Mercurio\Tables\ListResource): array<string, mixed>  $capture
-     * @param  Closure(array<int, mixed>, array<string, mixed>, ?\Illuminate\Contracts\Auth\Authenticatable): \Mercurio\Tables\Action\ActionResult  $reverse
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>  $capture
+     * @param  Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult  $reverse
      */
     public function undoable(Closure $capture, Closure $reverse): self
     {
@@ -536,7 +539,7 @@ final class BulkAction
 
     protected ?int $queueThreshold = null;
 
-    /** @var Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>)|null */
+    /** @var Closure(ActionResult): (string|array<string, mixed>)|null */
     protected ?Closure $onSuccessCallback = null;
 
     /** @var Closure(\Throwable): (string|array<string, mixed>)|null */
@@ -553,7 +556,7 @@ final class BulkAction
      *
      * Если callback бросил — engine логирует и flash'ит дефолт.
      *
-     * @param Closure(\Mercurio\Tables\Action\ActionResult): (string|array<string, mixed>) $cb
+     * @param  Closure(ActionResult): (string|array<string, mixed>)  $cb
      */
     public function onSuccess(Closure $cb): self
     {
@@ -570,7 +573,7 @@ final class BulkAction
      * Если callback бросил — engine логирует tables.action.flash.error_callback_threw
      * и применяет дефолт «Внутренняя ошибка. См. логи.».
      *
-     * @param Closure(\Throwable): (string|array<string, mixed>) $cb
+     * @param  Closure(\Throwable): (string|array<string, mixed>)  $cb
      */
     public function onError(Closure $cb): self
     {
