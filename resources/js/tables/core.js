@@ -83,6 +83,14 @@ function requestPartial(url, $page, options) {
             }
         }
 
+        const newSummary = doc.querySelector('[data-tables-summary]');
+        if (newSummary) {
+            const $oldSummary = $page.find('[data-tables-summary]').first();
+            if ($oldSummary.length > 0) {
+                $oldSummary.get(0).replaceWith(newSummary);
+            }
+        }
+
         // Subtitle update (Tables/3.1) — subtitle живёт в shell снаружи [data-tables-page],
         // поэтому ищем его глобально в документе.
         const newSubtitle = doc.querySelector('[data-tables-subtitle]');

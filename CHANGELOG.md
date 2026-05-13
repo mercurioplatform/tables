@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   затронуты. Добавлен безусловный wrapper `<div data-tables-summary>` (стабильная точка
   монтирования для будущего AJAX-обновления partial). Smoke-tested via Blade source
   review only — host-приложение в этой итерации локально не поднималось.
+- AJAX-partial теперь рендерит и обновляет блок summary через стабильный wrapper
+  `<div data-tables-summary>`. Раньше KPI-карточки оставались со значениями полного
+  reload'а и не пересчитывались при фильтрации / сортировке / пагинации / переключении
+  saved-view. Затрагивает host-проекты, использующие дефолтный `tables::partial`;
+  кастомные переопределения partial-вьюхи не затронуты (swap пропускается no-op'ом,
+  summary остаётся прежним). Smoke-tested via Blade + JS source review and syntax check
+  only — host-приложение локально не поднималось.
 
 ## [0.1.0] — 2026-05-09
 
