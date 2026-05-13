@@ -80,6 +80,7 @@ abstract class ListResource
     public function resolveRowActions(mixed $row): array
     {
         $actor = $this->currentActor();
+        $rowClass = is_object($row) ? $row::class : 'array';
         $visible = [];
 
         foreach ($this->rowActionsMemo() as $action) {
@@ -91,11 +92,27 @@ abstract class ListResource
                 continue;
             }
 
-            if (! $this->isActionAuthorized($action, $row, $actor)) {
+            $hasPolicy = $action->hasPolicy() || $action->getAbility() !== null;
+            if (! $hasPolicy) {
+                $visible[] = $action;
+
                 continue;
             }
 
-            $visible[] = $action;
+            if ($action->isSharedAuthz()) {
+                $cacheKey = $action->name.'@'.$rowClass;
+                $allowed = $this->rowAuthzCache[$cacheKey]
+                    ??= $this->isActionAuthorized($action, $row, $actor);
+                if ($allowed) {
+                    $visible[] = $action;
+                }
+
+                continue;
+            }
+
+            if ($this->isActionAuthorized($action, $row, $actor)) {
+                $visible[] = $action;
+            }
         }
 
         return $visible;
@@ -289,6 +306,9 @@ abstract class ListResource
 
     /** @var array<int, ?string> */
     private array $resolvedAuditActors = [];
+
+    /** @var array<string, bool> */
+    private array $rowAuthzCache = [];
 
     /** @var array<int, Field>|null */
     private ?array $cachedFields = null;

@@ -290,6 +290,36 @@ final class RowAction
         return $this->ability;
     }
 
+    protected bool $sharedAuthz = false;
+
+    /**
+     * Mark this row-action as «authorization не зависит от конкретного `$row`».
+     * При установленном флаге resolveRowActions() кеширует результат Gate::check
+     * по [action.name, get_class($row)] и переиспользует на всех строках того же класса.
+     *
+     * Использовать ТОЛЬКО когда policy/ability действительно type-based:
+     *
+     *     class PostPolicy {
+     *         public function update(User $user, Post $post): bool {
+     *             return $user->hasRole('admin'); // не зависит от $post → ok для sharedAuthz()
+     *         }
+     *     }
+     *
+     * Если policy зависит от состояния модели (Post::status, ownership-проверка,
+     * timestamps) — НЕ ставить флаг, иначе получишь stale-authz через кеш.
+     */
+    public function sharedAuthz(): self
+    {
+        $this->sharedAuthz = true;
+
+        return $this;
+    }
+
+    public function isSharedAuthz(): bool
+    {
+        return $this->sharedAuthz;
+    }
+
     public function getTooltip(): ?string
     {
         return $this->tooltip ?? $this->label;
