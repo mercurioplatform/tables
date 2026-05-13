@@ -116,6 +116,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`ListResource` декомпозиция.** Логика сборки `ResourceTable` извлечена в
+  `Mercurio\Tables\Table\TableBuilder` (`@internal`, регистрируется как
+  singleton). Применение search + saved-view + chip-фильтров + AST query
+  builder'а переехало в `Mercurio\Tables\Filter\FilterPipeline`. Резолв
+  сортировки — в `Mercurio\Tables\Table\SortResolver` (static helper).
+  `ListResource::table()` и `exportState()` теперь — тонкие фасады поверх
+  `app(TableBuilder::class)`. Публичный API не меняется: host-Resource'ы
+  продолжают наследоваться от `ListResource`, сигнатуры `fields()` /
+  `savedViews()` / `bulkActions()` / `rowActions()` / `findField()` /
+  `filterOptions()` / `qbSchema()` / `astToArray()` остаются. Размер
+  `ListResource.php` сократился с 833 до 551 LOC.
 - Summary block теперь рендерится между subtitle и Saved Views (ранее — после Saved Views).
   Затрагивает только дефолтный shell; кастомные `page_head_component`-переопределения не
   затронуты. Добавлен безусловный wrapper `<div data-tables-summary>` (стабильная точка
