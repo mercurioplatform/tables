@@ -50,7 +50,7 @@ class CellUpdateHandler
 
         $policy = $f->getEditPolicy();
         if ($policy !== null) {
-            $actor = $this->authorizer->currentTableActor();
+            $actor = $this->authorizer->currentTableActor($resource);
             $allowed = (bool) Gate::forUser($actor)->check($policy['method'], $model);
             if (! $allowed) {
                 Log::warning('tables.cell.update.forbidden', [
@@ -97,7 +97,7 @@ class CellUpdateHandler
             'id' => $id,
             'old' => $oldValue,
             'new' => $value,
-            'actor_id' => $this->authorizer->currentTableActor()?->getAuthIdentifier(),
+            'actor_id' => $this->authorizer->currentTableActor($resource)?->getAuthIdentifier(),
             'is_xhr' => $isXhr,
         ]);
 

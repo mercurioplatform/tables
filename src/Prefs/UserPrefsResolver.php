@@ -32,7 +32,7 @@ class UserPrefsResolver
 
         $urlPrefs = $this->parseUrl($request, $allowedNames, $resource->key());
 
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
 
         $row = null;

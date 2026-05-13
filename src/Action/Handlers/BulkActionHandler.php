@@ -86,7 +86,7 @@ class BulkActionHandler
 
                 return $this->authorizer->bulkActionError($isXhr, 'Запись не найдена.', 404);
             }
-            if (! $this->authorizer->authorizeAction($action, $probe, 'bulk', $resourceClass)) {
+            if (! $this->authorizer->authorizeAction($action, $probe, 'bulk', $resource)) {
                 if (! $action->hasPolicy()) {
                     Log::warning('tables.bulk.forbidden', [
                         'resource' => $resourceClass,
@@ -157,7 +157,7 @@ class BulkActionHandler
 
         if ($mode === 'callback') {
             try {
-                $result = $callback($ids, $payload, $this->authorizer->currentTableActor());
+                $result = $callback($ids, $payload, $this->authorizer->currentTableActor($resource));
             } catch (Throwable $e) {
                 Log::error('tables.bulk.callback_threw', [
                     'resource' => $resourceClass,
@@ -204,7 +204,7 @@ class BulkActionHandler
                 resourceKey: $resource->key(),
                 actionName: $name,
                 kind: 'bulk',
-                actorId: $this->authorizer->resolveAuditActorId(),
+                actorId: $this->authorizer->resolveAuditActorId($resource),
                 ids: $ids,
                 payload: $payload,
                 result: $result,
@@ -265,7 +265,7 @@ class BulkActionHandler
                 ]);
                 abort(404, 'Запись не найдена.');
             }
-            if (! $this->authorizer->authorizeAction($bulk, $probe, 'bulk', $resourceClass)) {
+            if (! $this->authorizer->authorizeAction($bulk, $probe, 'bulk', $resource)) {
                 if (! $bulk->hasPolicy()) {
                     Log::warning('tables.bulk.form.forbidden', [
                         'resource' => $resourceClass,
@@ -366,7 +366,7 @@ class BulkActionHandler
                 ]);
                 abort(404);
             }
-            if (! $this->authorizer->authorizeAction($bulk, $probe, 'bulk', $resourceClass)) {
+            if (! $this->authorizer->authorizeAction($bulk, $probe, 'bulk', $resource)) {
                 if (! $bulk->hasPolicy()) {
                     Log::warning('tables.confirm.preview.forbidden', [
                         'resource' => $resourceClass,
@@ -422,7 +422,7 @@ class BulkActionHandler
             abort(404);
         }
 
-        $actorId = $this->authorizer->resolveAuditActorId();
+        $actorId = $this->authorizer->resolveAuditActorId($resource);
         if ($row->actor_id !== $actorId) {
             Log::warning('tables.bulk_progress.read.foreign', [
                 'resource' => $resourceClass,
@@ -517,7 +517,7 @@ class BulkActionHandler
         }
 
         $progressId = (string) Str::uuid();
-        $actorId = $this->authorizer->resolveAuditActorId();
+        $actorId = $this->authorizer->resolveAuditActorId($resource);
 
         ActionProgress::create([
             'id' => $progressId,

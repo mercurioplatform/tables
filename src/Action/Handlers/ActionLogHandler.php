@@ -149,7 +149,7 @@ class ActionLogHandler
         if ($actionDecl->hasPolicy() || $actionDecl->getAbility() !== null) {
             $probeId = $ids[0] ?? null;
             $probe = $probeId !== null ? $resource->query()->whereKey($probeId)->first() : null;
-            if ($probe === null || ! $this->authorizer->authorizeAction($actionDecl, $probe, $kind, $resourceClass)) {
+            if ($probe === null || ! $this->authorizer->authorizeAction($actionDecl, $probe, $kind, $resource)) {
                 abort(403);
             }
         }
@@ -159,7 +159,7 @@ class ActionLogHandler
         $isXhr = $partialHeader !== '' && $request->hasHeader($partialHeader);
 
         try {
-            $reverseResult = $reverseCallback($ids, $snapshot, $this->authorizer->currentTableActor());
+            $reverseResult = $reverseCallback($ids, $snapshot, $this->authorizer->currentTableActor($resource));
         } catch (Throwable $e) {
             Log::error('tables.action_log.undo.reverse_threw', [
                 'resource' => $resourceClass,
@@ -196,7 +196,7 @@ class ActionLogHandler
             resourceKey: $resource->key(),
             actionName: $row->action_name,
             kind: $kind,
-            actorId: $this->authorizer->resolveAuditActorId(),
+            actorId: $this->authorizer->resolveAuditActorId($resource),
             ids: $ids,
             payload: [],
             result: $reverseResult,

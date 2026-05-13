@@ -6,11 +6,9 @@
 
 .tables-summary {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: var(--tables-summary-gap, 12px);
     margin-bottom: var(--tables-summary-mb, 16px);
-
-    &--kpi    { grid-template-columns: repeat(4, 1fr); }
-    &--funnel { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 }
 
 .tables-kpi {

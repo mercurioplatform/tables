@@ -1,4 +1,4 @@
-@props(['field', 'row'])
+@props(['field', 'row', 'table' => null])
 
 @php
     $value = data_get($row, $field->name);
@@ -16,7 +16,7 @@
     if ($editable) {
         $policy = $field->getEditPolicy();
         if ($policy !== null) {
-            $guard = (string) config('tables.guard', 'web');
+            $guard = $table?->resource?->effectiveGuard() ?? (string) config('tables.guard', 'web');
             $actor = auth()->guard($guard)->user();
             $editable = (bool) \Illuminate\Support\Facades\Gate::forUser($actor)->check($policy['method'], $row);
         }

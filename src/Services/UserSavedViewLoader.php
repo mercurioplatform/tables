@@ -4,6 +4,7 @@ namespace Mercurio\Tables\Services;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\SavedView as SavedViewModel;
 
 final class UserSavedViewLoader
@@ -11,21 +12,21 @@ final class UserSavedViewLoader
     /** @var array<string, Collection<int, SavedViewModel>> */
     private array $cache = [];
 
-    public function loadFor(string $resourceKey): Collection
+    public function loadFor(ListResource $resource): Collection
     {
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
         if ($userId === null) {
             return collect();
         }
 
-        $cacheKey = $resourceKey.':'.$userId;
+        $cacheKey = $resource->key().':'.$userId;
         if (isset($this->cache[$cacheKey])) {
             return $this->cache[$cacheKey];
         }
 
         $items = SavedViewModel::query()
-            ->forResource($resourceKey)
+            ->forResource($resource->key())
             ->forUser((int) $userId)
             ->orderBy('position')
             ->orderBy('id')

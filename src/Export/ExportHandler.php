@@ -25,7 +25,7 @@ class ExportHandler
     public function handle(Request $request, ListResource $resource): Response
     {
         $resourceClass = $resource::class;
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
         if ($userId === null) {
             abort(401);

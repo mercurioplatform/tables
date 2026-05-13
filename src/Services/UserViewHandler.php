@@ -22,7 +22,7 @@ class UserViewHandler
 {
     public function saveView(Request $request, ListResource $resource, ?string $routeBaseName): Response
     {
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
         if ($userId === null) {
             abort(401);
@@ -112,7 +112,7 @@ class UserViewHandler
 
     public function deleteUserView(Request $request, ListResource $resource, int $id): Response
     {
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
         if ($userId === null) {
             abort(401);
@@ -140,7 +140,7 @@ class UserViewHandler
 
     public function savePrefs(Request $request, ListResource $resource): Response
     {
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
         if ($userId === null) {
             abort(401);
@@ -201,7 +201,7 @@ class UserViewHandler
 
     public function resetPrefs(Request $request, ListResource $resource): Response
     {
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
         $userId = Auth::guard($guard)->id();
         if ($userId === null) {
             abort(401);

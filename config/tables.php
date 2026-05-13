@@ -7,9 +7,12 @@ return [
     | Auth Guard
     |--------------------------------------------------------------------------
     |
-    | Guard name used by the engine for policy/Gate checks in BulkAction
-    | and RowAction handlers. Override in published config when an app
-    | uses a different admin guard.
+    | Default auth guard used by the engine for policy/Gate checks, user
+    | prefs, saved views, exports, cell-edit policies, and audit log.
+    | Override per-Resource via `ListResource::guard(): ?string` — return
+    | a guard name to override this default, or null to use it as-is.
+    | Useful for multi-guard pages (e.g. admin + web storefront on one
+    | screen).
     |
     */
     'guard' => 'admin',

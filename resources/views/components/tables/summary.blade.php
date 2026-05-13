@@ -1,7 +1,7 @@
 @props(['summary'])
 
-@if ($summary instanceof \Mercurio\Tables\Summary\KpiSummary)
-    <x-tables.kpi-summary :cards="$summary->cards"/>
-@elseif ($summary instanceof \Mercurio\Tables\Summary\FunnelSummary)
-    <x-tables.funnel-summary :cards="$summary->cards"/>
-@endif
+<div class="tables-summary">
+    @foreach ($summary->cards as $card)
+        <x-dynamic-component :component="$card->cellView()" :card="$card"/>
+    @endforeach
+</div>

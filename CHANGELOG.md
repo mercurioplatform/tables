@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- `Mercurio\Tables\Summary\KpiSummary` и `FunnelSummary` удалены. Используйте `new Summary([...])` напрямую — `Summary` теперь `final` контейнер (раньше abstract).
+- Добавлен `Mercurio\Tables\Summary\SummaryCard` (abstract) с обязательным `cellView(): string`. `KpiCard` / `FunnelCard` теперь его наследуют. Публичные конструкторы карточек не изменились — host-named-arguments стабильны.
+- Blade-шаблоны `tables::kpi-summary` / `tables::funnel-summary` удалены — рендером занимается единый `tables::summary` через `<x-dynamic-component>`.
+- CSS-классы `.tables-summary--kpi` / `.tables-summary--funnel` удалены. Контейнер использует `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))` (раньше: фиксированные 4 колонки для KPI, auto-fit 140px для funnel). Host может переопределить через CSS-переменные.
+- Миграция call-site'ов: `new KpiSummary($cards)` / `new FunnelSummary($cards)` → `new Summary($cards)`.
+- `@internal` `Mercurio\Tables\Services\UserSavedViewLoader::loadFor(string $resourceKey)` → `loadFor(\Mercurio\Tables\ListResource $resource)`. Класс отмечен `@internal`, но если хост ранее обращался к нему напрямую — заменить аргумент на сам Resource.
+- `@internal` `Mercurio\Tables\Action\Helpers\ActionAuthorizer::authorizeAction(...)` — последний аргумент `string $resourceClass` заменён на `\Mercurio\Tables\ListResource $resource`. `currentTableActor()` / `resolveAuditActorId()` получили опциональный параметр `?ListResource $resource = null`.
+
 ### Documentation
 
 - `docs/api.md` приведён в соответствие реальному коду. Исправлено:
@@ -143,6 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Mercurio\Tables\ListResource::guard(): ?string` — override-точка для auth guard'а. Дефолт `null` = `config('tables.guard', 'web')`. Используется engine'ом во всех точках актора (policy/Gate, prefs, saved views, экспорт, audit). Позволяет держать на одной странице Resource'ы с разными guard'ами без подмены глобального конфига.
+- `Mercurio\Tables\ListResource::effectiveGuard(): string` (final) — резолвит override или конфиг. Использовать в host-коде и кастомных интеграциях вместо чтения `config('tables.guard')`.
 - Protected hook `Mercurio\Tables\ListResource::formatAuditActor(?Authenticatable $user): ?string`
   — override-точка для смены формата отображаемого имени актора в offcanvas
   «История» без копирования lookup-логики. Default возвращает

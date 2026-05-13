@@ -152,9 +152,26 @@ abstract class ListResource
 
     protected function currentActor(): ?Authenticatable
     {
-        $guard = (string) config('tables.guard', 'web');
+        return Auth::guard($this->effectiveGuard())->user();
+    }
 
-        return Auth::guard($guard)->user();
+    /**
+     * Override the auth guard for this Resource. Return null to use
+     * config('tables.guard', 'web') (default). Useful when two Resources
+     * with different guards (e.g. admin + storefront) coexist on one page.
+     */
+    public function guard(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Effective guard for this Resource (override or config fallback).
+     * Use in services/views instead of reading config('tables.guard') directly.
+     */
+    final public function effectiveGuard(): string
+    {
+        return $this->guard() ?? (string) config('tables.guard', 'web');
     }
 
     private function isActionAuthorized(BulkAction|RowAction $action, mixed $subject, ?Authenticatable $actor): bool
@@ -283,7 +300,7 @@ abstract class ListResource
             return $this->resolvedAuditActors[$actorId];
         }
 
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $this->effectiveGuard();
         $providerName = config("auth.guards.{$guard}.provider");
 
         if (! is_string($providerName) || $providerName === '') {

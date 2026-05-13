@@ -70,7 +70,7 @@ class RowActionHandler
         }
 
         if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
-            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resourceClass)) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resource)) {
                 if (! $rowAction->hasPolicy()) {
                     Log::warning('tables.rowaction.forbidden', [
                         'resource' => $resourceClass,
@@ -118,7 +118,7 @@ class RowActionHandler
         $result = null;
         try {
             if ($mode === 'callback') {
-                $result = $callback($model, $payload, $this->authorizer->currentTableActor());
+                $result = $callback($model, $payload, $this->authorizer->currentTableActor($resource));
             } elseif ($mode === 'handler') {
                 /** @var Action $handler */
                 $handler = app($handlerClass);
@@ -154,7 +154,7 @@ class RowActionHandler
                 resourceKey: $resource->key(),
                 actionName: $action,
                 kind: 'row',
-                actorId: $this->authorizer->resolveAuditActorId(),
+                actorId: $this->authorizer->resolveAuditActorId($resource),
                 ids: [$model->getKey()],
                 payload: $payload,
                 result: $result,
@@ -210,7 +210,7 @@ class RowActionHandler
         }
 
         if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
-            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resourceClass)) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resource)) {
                 if (! $rowAction->hasPolicy()) {
                     Log::warning('tables.rowaction.form.forbidden', [
                         'resource' => $resourceClass,
@@ -307,7 +307,7 @@ class RowActionHandler
         }
 
         if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
-            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resourceClass)) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resource)) {
                 if (! $rowAction->hasPolicy()) {
                     Log::warning('tables.confirm.preview.forbidden', [
                         'resource' => $resourceClass,

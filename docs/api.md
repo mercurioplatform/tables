@@ -25,6 +25,7 @@ Override-points (фиксируются как часть контракта; д
 - `defaultSort(): array{0: string, 1: string}|null` — pair `[column, 'asc'|'desc']`; engine приводит `dir` к `'asc'`/`'desc'`.
 - `routeBaseName(): ?string`
 - `layout(): string` — Blade-layout, который `@extends`'ит `tables::shell`; default — `config('tables.shell.layout')`.
+- `guard(): ?string` — override auth guard для этого Resource. `null` (default) = `config('tables.guard', 'web')`. Используется engine'ом для policy/Gate checks, user prefs, saved views, экспорта, audit log. Позволяет одной странице держать Resource'ы с разными guard'ами (например, админский `admin` + сторфронтовый `web`). Эффективное значение читается через `final effectiveGuard(): string` — используйте его в host-коде и кастомных интеграциях вместо прямого чтения `config('tables.guard')`.
 - `pageTitle(): ?string`
 - `browserTitle(): ?string`
 - `subtitle(int $total): ?string`
@@ -35,11 +36,12 @@ Override-points (фиксируются как часть контракта; д
 - `filterGroupLabels(): array<string, string>` — кастомные label'ы для аккордеон-группировки филтр-чипов; ключ — значение `Field::filterGroup(...)`.
 - `filterGroupThreshold(): int` — порог количества filterable-полей, выше которого включается аккордеон-группировка (default `10`).
 - `actionHistoryEnabled(): bool`
-- `resolveAuditActor(?int $actorId): ?string` — резолвит `actor_id` из `tables_action_log` в человекочитаемое имя для offcanvas «История». Default: `Auth::createUserProvider(config('auth.guards.{tables.guard}.provider'))->retrieveById($actorId)`, форматирование — через protected `formatAuditActor(?Authenticatable $user): ?string` (default `name ?? email ?? null`). Override `resolveAuditActor` целиком — для мульти-источников / soft-deleted / нестандартного lookup'а; override `formatAuditActor` — только для смены формата отображаемого имени.
+- `resolveAuditActor(?int $actorId): ?string` — резолвит `actor_id` из `tables_action_log` в человекочитаемое имя для offcanvas «История». Default: `Auth::createUserProvider(config("auth.guards.{$this->effectiveGuard()}.provider"))->retrieveById($actorId)`, форматирование — через protected `formatAuditActor(?Authenticatable $user): ?string` (default `name ?? email ?? null`). Override `resolveAuditActor` целиком — для мульти-источников / soft-deleted / нестандартного lookup'а; override `formatAuditActor` — только для смены формата отображаемого имени.
 
 Invariants:
 
 - `key()` стабилен по жизни приложения (используется как FK в `tables_saved_views.resource_key` и audit log).
+- `guard()` стабилен по жизни Resource'а (читается на каждый HTTP-action; смена в runtime не поддерживается).
 - Любой переопределённый метод вызывается **до** AJAX/HTTP-обработки; side-effects (запросы к БД, IO) допустимы только в `query()` и `summary()`.
 
 #### `Mercurio\Tables\ResourceTable`
@@ -381,9 +383,11 @@ return new ActionResult(
 
 ### Summary
 
-- `Mercurio\Tables\Summary\Summary` (abstract).
-- `Mercurio\Tables\Summary\KpiSummary`, `KpiCard`.
-- `Mercurio\Tables\Summary\FunnelSummary`, `FunnelCard`.
+- `Mercurio\Tables\Summary\Summary` (final) — контейнер: `new Summary(array<int, SummaryCard> $cards)`.
+- `Mercurio\Tables\Summary\SummaryCard` (abstract) — точка расширения. Обязательный `abstract public function cellView(): string` возвращает имя Blade-компонента (например, `'tables::kpi-card'`).
+- `Mercurio\Tables\Summary\KpiCard extends SummaryCard` (final) — `cellView()` = `'tables::kpi-card'`. Конструктор без изменений.
+- `Mercurio\Tables\Summary\FunnelCard extends SummaryCard` (final) — `cellView()` = `'tables::funnel-card'`. Конструктор без изменений.
+- Карточки разных типов в одной `Summary` допустимы (контейнер не привязан к одному типу).
 
 ### Models (Eloquent — public по факту вынесения миграций тегом `tables-migrations`)
 

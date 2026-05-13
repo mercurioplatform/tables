@@ -46,11 +46,13 @@ class ActionAuthorizer
      * Единый authz-резолвер для bulk/row-actions.
      * Приоритет: policy(class, method) → ability(name) → open (true).
      */
-    public function authorizeAction(BulkAction|RowAction $action, mixed $subject, string $kind, string $resourceClass): bool
+    public function authorizeAction(BulkAction|RowAction $action, mixed $subject, string $kind, ListResource $resource): bool
     {
+        $resourceClass = $resource::class;
+
         $policy = $action->getPolicy();
         if ($policy !== null) {
-            $actor = $this->currentTableActor();
+            $actor = $this->currentTableActor($resource);
             $allowed = (bool) Gate::forUser($actor)->check($policy['method'], $subject);
 
             if (! $allowed) {
@@ -77,16 +79,16 @@ class ActionAuthorizer
         return true;
     }
 
-    public function currentTableActor(): ?Authenticatable
+    public function currentTableActor(?ListResource $resource = null): ?Authenticatable
     {
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource?->effectiveGuard() ?? (string) config('tables.guard', 'web');
 
         return Auth::guard($guard)->user();
     }
 
-    public function resolveAuditActorId(): ?int
+    public function resolveAuditActorId(?ListResource $resource = null): ?int
     {
-        $id = $this->currentTableActor()?->getAuthIdentifier();
+        $id = $this->currentTableActor($resource)?->getAuthIdentifier();
 
         if ($id === null) {
             return null;

@@ -72,6 +72,9 @@ class BulkActionJob implements ShouldQueue
             'started_at' => now(),
         ])->save();
 
+        /** @var ListResource $resource */
+        $resource = app($this->resourceClass);
+
         Log::info('tables.bulk_progress.job.start', [
             'progress_id' => $this->progressId,
             'resource' => $this->resourceClass,
@@ -80,7 +83,7 @@ class BulkActionJob implements ShouldQueue
             'actor_id' => $this->actorId,
         ]);
 
-        $guard = (string) config('tables.guard', 'web');
+        $guard = $resource->effectiveGuard();
 
         if ($this->actorId !== null) {
             try {
@@ -95,9 +98,6 @@ class BulkActionJob implements ShouldQueue
                 ]);
             }
         }
-
-        /** @var ListResource $resource */
-        $resource = app($this->resourceClass);
 
         /** @var BulkAction|null $action */
         $action = null;

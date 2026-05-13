@@ -2,7 +2,7 @@
 
 namespace Mercurio\Tables\Summary;
 
-final class KpiCard
+final class KpiCard extends SummaryCard
 {
     /**
      * @param  array<int, int|float>|null  $sparklineValues
@@ -16,4 +16,9 @@ final class KpiCard
         public readonly ?array $sparklineValues = null,
         public readonly bool $sparklineFilled = true,
     ) {}
+
+    public function cellView(): string
+    {
+        return 'tables::kpi-card';
+    }
 }

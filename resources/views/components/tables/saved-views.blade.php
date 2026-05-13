@@ -4,8 +4,9 @@
     $views = $table->savedViews;
     $current = $table->currentView ?? ($views[0]->key ?? null);
     $counts = $table->savedViewCounts ?? [];
-    $userViews = app(\Mercurio\Tables\Services\UserSavedViewLoader::class)
-        ->loadFor($table->key);
+    $userViews = $table->resource !== null
+        ? app(\Mercurio\Tables\Services\UserSavedViewLoader::class)->loadFor($table->resource)
+        : collect();
     $hasUser = $userViews->isNotEmpty();
     $modalSlug = preg_replace('/[^a-z0-9]+/i', '-', $table->key);
 

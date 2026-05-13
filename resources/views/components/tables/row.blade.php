@@ -21,7 +21,7 @@
         </td>
     @endif
     @foreach ($fields as $field)
-        <x-tables.cell :field="$field" :row="$row"/>
+        <x-tables.cell :field="$field" :row="$row" :table="$table"/>
     @endforeach
     @if ($hasRowActions)
         <td class="ap-table__more text-end">
