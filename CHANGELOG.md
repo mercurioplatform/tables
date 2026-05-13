@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- `docs/api.md` приведён в соответствие реальному коду. Исправлено:
+  - `HandlesResourceListing`: `prefs(...)` заменён на `savePrefs(...)` + `resetPrefs(...)`,
+    `cellEdit(...)` → `cellUpdate(...)`, несуществующий список
+    `savedViewSave/Update/Delete/SetDefault` заменён на реальные `saveView(Request)` +
+    `deleteUserView(Request, int $id)`. Добавлены `bulkActionPreview(Request, string $action)`
+    и `rowActionPreview(Request, $id, string $action)`. Поправлен порядок аргументов
+    `rowAction`/`rowActionForm` на `(Request, $id, string $action)`. Типизирован
+    `actionLogUndo(Request, int $logId)`. Имена параметров приведены к коду
+    (`$name → $action`, `$progressId → $progress`).
+  - `Field` DSL: удалены несуществующие fluent-методы `label(string)`, `searchable(bool|string)`,
+    `width(string)`, `editStep(float)`, `editMin(int|float)`, `editMax(int|float)`.
+    Поправлены сигнатуры: `make(string $name, ?string $label = null)`,
+    `sortable(bool $value = true)` (без `|string`), `editable(bool $value = true)`
+    (раньше заявлен `?\Closure $rules`; rules задаются отдельно через `editRules(array|Closure)`),
+    `filterable(array $operators = [])`, `filterOptions(\Closure|array $optionsOrFn)`,
+    `onlyFilterable(bool $value = true)`. Comment-hint'ы callback'ов `subline`/`linkTo`
+    выровнены с реальным рендером — оба получают `($value, $row)`, не `($row)`.
+    Добавлены публичные `filterGroup(string)`, `filterPopover(string)`,
+    `filterAutocomplete(bool)`.
+  - `Action`: `Mercurio\Tables\Action\Action` — это `interface` с единственным методом
+    `execute(mixed $subject, array $payload): ActionResult`, не abstract base.
+    `BulkAction`/`RowAction` его не имплементируют; интерфейс реализуют handler-классы,
+    передаваемые в `->handler(string $actionClass)`.
+  - `BulkAction`: `confirm(?string $text = null)` (Closure не поддерживается),
+    `undoable(\Closure $capture, \Closure $reverse)` — два Closure, не один;
+    `queueWhen(int $threshold)` — int, не Closure. Добавлен mutex `queue()` ↔ `using()`.
+    Перечислены недостающие fluent-методы (`kind`, `confirmText`, `formRequest`, `slot`,
+    `reloadAfterSubmit`, `tooltip`, `ability`).
+  - `RowAction`: `link(string $name, string $label, \Closure $href)` — factory-метод,
+    не fluent setter. Расписан полный набор fluent-методов (раньше шёл общим намёком
+    на «то же, что BulkAction»).
+  - `ActionResult`: убран несуществовавший параметр `array $flash = []`. Добавлен реальный
+    `?int $requested = null` (6-й параметр). Переставлен порядок: `(affected, missing,
+    message, denied, skipped, requested)`. Удалены несуществующие getter-методы
+    `affected()/missing()/skipped()/denied()/message()/flash()` — всё доступно как
+    `public readonly` properties (`$result->affected`). Единственный метод — `counts()`.
+  - `ListResource`: убран override-point `policy(): ?string` (его нет в коде; policy
+    декларируется на уровне action'а). Добавлены реально существующие override'ы
+    `density()`, `layout()`, `filterGroupLabels()`, `filterGroupThreshold()`.
+  - `ResourceTable`: уточнён список public-properties (убраны `total`/`prefs` —
+    их нет; добавлены реально публичные `key`, `search`, `activeFilters`, `qb`,
+    `savedViewCounts`, `effectiveColumns`, `perPage`, `emptyState`). `rows` —
+    метод, не property. Список public-методов расписан.
+  - `ResourceRegistry`: убран несуществующий `find(string $key): ?ListResource`,
+    добавлены `all()` и `classes()`.
+  - `Route` macros: имена параметров приведены к реальным (`$uri → $path`,
+    `$controllerClass → $controller`).
+  - `Form\Field`: `SelectField::enum` — без 4-го параметра `$labeler`;
+    `SelectField::relation(string $name, string $label, \Closure $resolver)` —
+    реальная сигнатура (раньше заявлена `(string $modelClass, ?string $labelColumn)`).
+    Fluent-методы `FormField` пересмотрены: убраны несуществующие `placeholder`,
+    `disabled`, `default`, `help`; добавлены реальные `value`, `valueFrom`, `helper`,
+    `attrs`, `attribute`.
+  - `SavedView`: фактические сигнатуры `color(?string)`, `icon(?string)` + добавлен
+    `countWith(\Closure)`. `Operator::Empty` уточнён до `Operator::Empty_` (case с
+    trailing underscore; `value === 'empty'`).
+  - `FilterCondition`: удалено несуществующее свойство `not` — у VO только
+    `field/operator/value`.
+  - `Page\HeaderAction`/`Breadcrumb`: имена параметров приведены к коду
+    (`$href → $url`), добавлены `HeaderAction::size`/`target`.
+  - `Export\ExportRequest`: описание уточнено — это VO параметров CSV-export'а
+    (filename/delimiter/encoding/columns), не «состояния списка».
+  - `Blade public surface`: `tables::shell` — это view-файл, не x-компонент.
+    `<x-tables.page>` принимает prop `:table`, не `:resource`; слоты в page
+    компоненте: `summary` + набор `before*`/`after*` (не `header`/`empty-state`).
+  - `JS events`: удалён `tables:filter-groups` — это localStorage-prefix, не event.
+    Эмит-механизм для `tables:flash` уточнён (jQuery trigger).
+
+  Это **не breaking change**: документация была неточной с момента freeze'а v0.1.0,
+  пользователи, опиравшиеся на отсутствующие методы (`cellEdit`, `prefs`, `savedViewSave`,
+  `Field::label`, `ActionResult::affected()` и т.п.), получали `BadMethodCallException`
+  или `TypeError` при первом вызове и не могли построить на этом рабочий код. Публичный
+  surface самого кода (`tables/src/`) не менялся; источник правды — код.
+
 ### Changed
 
 - Summary block теперь рендерится между subtitle и Saved Views (ранее — после Saved Views).
