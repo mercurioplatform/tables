@@ -285,7 +285,7 @@ final class ResourceTable
 
         $url = route($base.'.action_log');
         $offcanvasId = $this->actionLogOffcanvasId();
-        $label = (string) config('tables.action_log.header_action_label', 'История');
+        $label = (string) __((string) config('tables.action_log.header_action_label', 'tables::action_log.header_action_label'));
         $icon = (string) config('tables.action_log.header_action_icon', 'bi-clock-history');
 
         $history = HeaderAction::make($label, '#'.$offcanvasId)

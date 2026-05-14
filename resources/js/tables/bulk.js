@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
 import { tablesConfirm } from './confirm.js';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -133,7 +134,7 @@ function fillFormHidden($form, set) {
 export function submitBulkAjax($form, resourceKey) {
     const url = $form.attr('action');
     const formData = $form.serialize();
-    const actionLabel = $form.data('pendingLabel') || 'Bulk-действие';
+    const actionLabel = $form.data('pendingLabel') || tablesT('bulk.queued_default_label');
 
     $.ajax({
         url,
@@ -175,7 +176,7 @@ export function submitBulkAjax($form, resourceKey) {
         .fail((xhr) => {
             const message = (xhr && xhr.responseJSON && xhr.responseJSON.message)
                 ? xhr.responseJSON.message
-                : 'Ошибка запуска фонового действия (HTTP ' + (xhr ? xhr.status : '?') + ').';
+                : tablesT('bulk.queued_dispatch_failed', { status: xhr ? xhr.status : '?' });
             // eslint-disable-next-line no-console
             console.error('[tables.bulk_progress]', xhr ? xhr.status : null, message);
             if (window.TablesProgress && typeof window.TablesProgress.errorToast === 'function') {
@@ -202,9 +203,9 @@ $(document).on('submit', '[data-tables-bulk-form]', async function (e) {
     if (confirmText) {
         e.preventDefault();
         const ok = await tablesConfirm({
-            title: 'Подтверждение',
+            title: tablesT('confirm.title_default'),
             message: confirmText,
-            confirmText: 'Подтвердить',
+            confirmText: tablesT('confirm.confirm_default'),
             confirmVariant: 'danger',
             icon: 'bi-exclamation-circle',
         });

@@ -108,7 +108,8 @@ Route::middleware(['auth'])->group(function () {
 - [Action log + undo](#action-log) — окно отката для идемпотентных bulk.
 - [Prefs popover](#prefs) — видимые столбцы / density / page size, persisted на пользователя.
 - [Summary slot](#summary) — KPI и funnel-cards над таблицей.
-- [CSV export](#export) — стрим, не блокирует worker; async fallback через `ExportJobDispatcher`.
+- [Streaming export](#export) — CSV (default) + JSON + XLSX (opt-in), single endpoint, async fallback через `ExportJobDispatcher`.
+- [Localization](#localization) — ru/en из коробки, namespace `tables::*`, расширяется через `vendor:publish --tag=tables-lang`.
 
 ### Saved views
 
@@ -195,9 +196,23 @@ public function summary(): ?Summary
 }
 ```
 
+Host может добавить собственные карточки — наследник `SummaryCard` + host-namespaced Blade-template (`Blade::anonymousComponentNamespace(...)` в `AppServiceProvider`). Опционально регистрируется по slug'у в `config('tables.summary_cards')`. Подробности и обработка ошибок рендера — [docs/summary-cards.md](docs/summary-cards.md).
+
 ### Export
 
-CSV-стрим на текущее состояние списка (search + view + chips + qb + sort + visible columns). Лимит — `config('tables.export.sync_limit')`; выше — `ExportJobDispatcher` (опционально) или HTTP 413. Кнопка появляется автоматически.
+Стрим в нескольких форматах на текущее состояние списка (search + view + chips + qb + sort + visible columns) через единый endpoint `?format=csv|json|xlsx`. CSV/JSON встроены, XLSX — opt-in (`composer require openspout/openspout`). Лимит — `config('tables.export.sync_limit')`; выше — `ExportJobDispatcher` (опционально) или HTTP 413. UI рендерит dropdown форматов автоматически, если зарегистрировано больше одного writer'а. Подробности и кастомный writer — [docs/export.md](docs/export.md).
+
+### Localization
+
+Пакет поставляется с двумя локалями — **ru** и **en** — namespace `tables::*` (12 групп: `action_log`, `bulk`, `cell`, `confirm`, `export`, `filters`, `prefs`, `qb`, `row_actions`, `saved_views`, `shell`, `summary`). Переключение через `App::setLocale()`. Runtime JS обращается к строкам через `window.TablesI18n` + helper `tablesT(key, params)`.
+
+Дефолты в `config/tables.php` для UI-меток (`qb_button_label`, `export.button_label`, `user_prefs.popover_button_label`, `action_log.header_action_label`) указаны как translation keys пакета — переопределение в хосте может передать как ключ (`'app::custom.label'`), так и готовую строку.
+
+```bash
+php artisan vendor:publish --tag=tables-lang
+```
+
+Подробности в [docs/i18n.md](docs/i18n.md).
 
 ## Configuration
 

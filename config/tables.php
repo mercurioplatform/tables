@@ -1,5 +1,6 @@
 <?php
 
+use Mercurio\Tables\Export\JsonStreamWriter;
 use Mercurio\Tables\Jobs\BulkActionJob;
 
 return [
@@ -99,7 +100,7 @@ return [
     'qb_max_payload_size' => 4096,
     'qb_max_depth' => 5,
     'qb_max_atoms' => 100,
-    'qb_button_label' => 'Расширенный фильтр',
+    'qb_button_label' => 'tables::qb.button_label',
     'qb_offcanvas_width' => 'qb-offcanvas-md',
 
     /*
@@ -188,7 +189,7 @@ return [
     'user_prefs' => [
         'per_page_options' => [15, 25, 50, 100],
         'density_options' => ['compact', 'comfortable'],
-        'popover_button_label' => 'Настроить таблицу',
+        'popover_button_label' => 'tables::prefs.popover_button_label',
         'popover_button_icon' => 'bi-gear',
     ],
 
@@ -230,9 +231,63 @@ return [
         'ability' => null,
         'async_dispatcher' => null,
         'log_chunks' => false,
-        'button_label' => 'Экспорт',
+        'button_label' => 'tables::export.button_label',
         'button_icon' => 'bi-download',
+
+        /*
+         * Available export writers, keyed by format slug. The slug is
+         * passed in the URL as `?format=...`. Registered as a singleton
+         * `ExportWriterRegistry` by the service provider.
+         *
+         * CSV is pre-registered by `ExportWriterRegistry::__construct()`;
+         * JSON is enabled by default. XLSX is kept commented because it
+         * requires the optional `openspout/openspout` dependency — add it
+         * to your host project (`composer require openspout/openspout`)
+         * and uncomment the line below.
+         */
+        'writers' => [
+            'json' => JsonStreamWriter::class,
+            // 'xlsx' => \Mercurio\Tables\Export\XlsxStreamWriter::class,
+        ],
+
+        /*
+         * Format used when the URL does not contain `?format=` or contains
+         * an unknown value (after a Log::error fallback).
+         */
+        'default_format' => 'csv',
+
+        /*
+         * UI labels for the Export dropdown. Labels are translation keys
+         * (`tables::...`) — host can override per-format. Order in this
+         * array determines the dropdown order. Formats not present in
+         * the writer registry are silently skipped.
+         */
+        'formats' => [
+            'csv' => 'tables::export.format_csv',
+            'json' => 'tables::export.format_json',
+            'xlsx' => 'tables::export.format_xlsx',
+        ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Summary Cards (Tables/3.15)
+    |--------------------------------------------------------------------------
+    |
+    | Host-registered SummaryCard types for the `<x-tables.summary>` slot.
+    | Built-in cards `kpi` and `funnel` are pre-registered by the package;
+    | this map allows the host to add its own:
+    |
+    |   'summary_cards' => [
+    |       'chart' => \App\Tables\Summary\ChartCard::class,
+    |   ],
+    |
+    | Each class must extend `Mercurio\Tables\Summary\SummaryCard` and
+    | return its own `cellView()` (host-namespaced — see
+    | `tables/docs/summary-cards.md`).
+    |
+    */
+    'summary_cards' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -295,7 +350,7 @@ return [
         'subjects_id_limit' => 100,
         'recent_limit' => 200,
         'per_page' => 25,
-        'header_action_label' => 'История',
+        'header_action_label' => 'tables::action_log.header_action_label',
         'header_action_icon' => 'bi-clock-history',
         'payload_max_bytes' => 16384,
         'undo_window_minutes' => 60,

@@ -193,12 +193,13 @@ class ActionPayloadResolver
         };
     }
 
-    public function buildExportFilename(string $resourceKey): string
+    public function buildExportFilename(string $resourceKey, string $extension = 'csv'): string
     {
         $prefix = (string) config('tables.export.filename_prefix', '');
         $slug = Str::slug(str_replace('.', '-', $resourceKey));
         $stamp = now()->format('Ymd-Hi');
+        $ext = ltrim($extension, '.');
 
-        return ltrim($prefix.$slug.'-'.$stamp.'.csv', '-');
+        return ltrim($prefix.$slug.'-'.$stamp.'.'.$ext, '-');
     }
 }

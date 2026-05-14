@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -7,13 +8,16 @@ function escapeHtml(str) {
 }
 
 export function tablesConfirm({
-    title = 'Подтверждение',
+    title,
     message = '',
-    confirmText = 'OK',
-    cancelText = 'Отмена',
+    confirmText,
+    cancelText,
     confirmVariant = 'primary',
     icon = 'bi-question-circle',
 } = {}) {
+    if (title === undefined) title = tablesT('confirm.title_default');
+    if (confirmText === undefined) confirmText = tablesT('confirm.confirm_default');
+    if (cancelText === undefined) cancelText = tablesT('confirm.cancel_default');
     return new Promise((resolve) => {
         const Bootstrap = window.bootstrap;
         if (!Bootstrap || !Bootstrap.Modal) {

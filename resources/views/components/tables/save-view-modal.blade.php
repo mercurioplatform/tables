@@ -28,29 +28,29 @@
             <input type="hidden" name="state" data-tables-save-view-state value="">
 
             <div class="modal-header">
-                <h5 class="modal-title" id="{{ $titleId }}">Сохранить текущий вид</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title" id="{{ $titleId }}">{{ __('tables::saved_views.modal.title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('tables::shell.close') }}"></button>
             </div>
 
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label small text-muted" for="{{ $modalId }}-name">Название</label>
+                    <label class="form-label small text-muted" for="{{ $modalId }}-name">{{ __('tables::saved_views.modal.name_label') }}</label>
                     <input type="text"
                            class="form-control"
                            id="{{ $modalId }}-name"
                            name="name"
                            required
                            maxlength="120"
-                           placeholder="Например: Хиты текущего месяца">
+                           placeholder="{{ __('tables::saved_views.modal.name_placeholder') }}">
                     <div class="invalid-feedback" data-tables-save-view-error="name"></div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label small text-muted d-block">Цвет метки</label>
+                    <label class="form-label small text-muted d-block">{{ __('tables::saved_views.modal.color_label') }}</label>
                     <div class="d-flex flex-wrap gap-2 ap-saved-views__palette">
                         <label class="ap-saved-views__color">
                             <input type="radio" name="color" value="" class="visually-hidden" checked>
-                            <span class="ap-saved-views__dot ap-saved-views__dot--none" title="Без цвета"></span>
+                            <span class="ap-saved-views__dot ap-saved-views__dot--none" title="{{ __('tables::saved_views.modal.color_none_title') }}"></span>
                         </label>
                         @foreach ($palette as $color)
                             <label class="ap-saved-views__color">
@@ -62,11 +62,11 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label small text-muted d-block">Иконка</label>
+                    <label class="form-label small text-muted d-block">{{ __('tables::saved_views.modal.icon_label') }}</label>
                     <div class="d-flex flex-wrap gap-2 ap-saved-views__icons">
                         <label class="ap-saved-views__icon">
                             <input type="radio" name="icon" value="" class="visually-hidden" checked>
-                            <span class="ap-saved-views__icon-tile" title="Без иконки">
+                            <span class="ap-saved-views__icon-tile" title="{{ __('tables::saved_views.modal.icon_none_title') }}">
                                 <i class="bi bi-slash-circle text-muted"></i>
                             </span>
                         </label>
@@ -83,8 +83,8 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Отмена</button>
-                <button type="submit" class="btn btn-primary">Сохранить</button>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ __('tables::shell.cancel') }}</button>
+                <button type="submit" class="btn btn-primary">{{ __('tables::saved_views.modal.submit') }}</button>
             </div>
         </form>
     </div>

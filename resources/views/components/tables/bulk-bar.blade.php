@@ -26,7 +26,7 @@
         <input type="hidden" name="ids" data-tables-bulk-ids-input value="">
 
         <span class="ap-bulk__count">
-            Выбрано <span data-tables-bulk-count>0</span>
+            {{ __('tables::bulk.selected_count') }} <span data-tables-bulk-count>0</span>
         </span>
         <span class="ap-bulk__sep">·</span>
         <span class="ap-bulk__actions">
@@ -38,7 +38,7 @@
                         default   => 'btn btn-sm btn-outline-secondary',
                     };
                     $kind = $bulk->getKind();
-                    $confirm = $kind === 'confirm' ? ($bulk->getConfirmText() ?? 'Подтвердить?') : null;
+                    $confirm = $kind === 'confirm' ? ($bulk->getConfirmText() ?? __('tables::bulk.default_confirm')) : null;
                     $previewUrl = ($kind === 'confirm' && $bulk->hasPreview() && $baseName !== '')
                         ? route($baseName.'.bulk_action_preview', ['action' => $bulk->name])
                         : null;
@@ -81,7 +81,7 @@
             type="button"
             class="ap-bulk__close btn btn-sm btn-link p-0 ms-auto"
             data-tables-bulk-clear
-            aria-label="Закрыть"
+            aria-label="{{ __('tables::shell.close') }}"
         >
             <i class="bi bi-x-lg"></i>
         </button>

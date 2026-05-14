@@ -32,7 +32,7 @@
             class="tables-chip__remove"
             data-tables-chip-remove
             data-field="{{ $field->name }}"
-            aria-label="Убрать"
+            aria-label="{{ __('tables::filters.chip_remove_aria') }}"
         >
             <i class="bi bi-x" aria-hidden="true"></i>
         </button>

@@ -21,7 +21,7 @@
                                     class="form-check-input"
                                     type="checkbox"
                                     data-tables-select-all
-                                    aria-label="Выбрать все строки"
+                                    aria-label="{{ __('tables::row_actions.select_all_aria') }}"
                                 >
                             </div>
                         </th>
@@ -55,7 +55,7 @@
                     @endforeach
                     @if ($hasRowActions)
                         <th class="ap-table__more text-end">
-                            <span class="visually-hidden">Действия</span>
+                            <span class="visually-hidden">{{ __('tables::row_actions.actions_header') }}</span>
                         </th>
                     @endif
                 </tr>

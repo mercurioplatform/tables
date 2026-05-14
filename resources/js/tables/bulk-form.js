@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -73,7 +74,7 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
     const ids = readSelectedIds($scope);
 
     if (ids.length === 0) {
-        window.alert('Сначала выберите элементы.');
+        window.alert(tablesT('bulk.empty_selection'));
         return;
     }
 
@@ -93,7 +94,9 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
     const $body = $oc.find('[data-tables-bulk-action-body]');
     $body.attr('data-reload-after', reloadAfter ? '1' : '0');
     $body.addClass('is-loading').html(
-        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></div>'
+        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">' +
+            tablesT('bulk.form.loading') +
+            '</span></div></div>'
     );
 
     const instance = bootstrap.Offcanvas.getOrCreateInstance(oc);
@@ -109,8 +112,8 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
         $body.removeClass('is-loading').html(html);
     }).fail(function (jqXHR) {
         const message = jqXHR.status === 401 || jqXHR.status === 419
-            ? 'Сессия истекла. Перезагрузите страницу.'
-            : 'Не удалось загрузить форму';
+            ? tablesT('bulk.session_expired')
+            : tablesT('bulk.form.load_failed');
         $body.removeClass('is-loading').html(
             '<div class="alert alert-danger m-0">' + message + '</div>'
         );
@@ -130,7 +133,7 @@ $(document).on('submit', 'form[data-tables-bulk-action-submit]', function (e) {
     const ids = readSelectedIds($scope);
 
     if (ids.length === 0) {
-        window.alert('Выбор пуст. Закройте форму и выберите элементы.');
+        window.alert(tablesT('bulk.form.empty_selection'));
         return;
     }
 
@@ -175,11 +178,11 @@ $(document).on('submit', 'form[data-tables-bulk-action-submit]', function (e) {
             return;
         }
         if (jqXHR.status === 401 || jqXHR.status === 419) {
-            window.alert('Сессия истекла. Перезагрузите страницу.');
+            window.alert(tablesT('bulk.session_expired'));
             return;
         }
-        const msg = jqXHR.responseJSON?.message || jqXHR.statusText || 'Ошибка';
-        window.alert('Ошибка: ' + msg);
+        const msg = jqXHR.responseJSON?.message || jqXHR.statusText || tablesT('bulk.form.generic_error');
+        window.alert(tablesT('bulk.form.error_label', { message: msg }));
     }).always(function () {
         $submit.prop('disabled', false);
     });

@@ -387,7 +387,10 @@ return new ActionResult(
 - `Mercurio\Tables\Summary\SummaryCard` (abstract) — точка расширения. Обязательный `abstract public function cellView(): string` возвращает имя Blade-компонента (например, `'tables::kpi-card'`).
 - `Mercurio\Tables\Summary\KpiCard extends SummaryCard` (final) — `cellView()` = `'tables::kpi-card'`. Конструктор без изменений.
 - `Mercurio\Tables\Summary\FunnelCard extends SummaryCard` (final) — `cellView()` = `'tables::funnel-card'`. Конструктор без изменений.
+- `Mercurio\Tables\Summary\SummaryCardRegistry` (final) — singleton-реестр host-кастомных карточек по slug'у. Методы: `register(string $key, class-string<SummaryCard> $class): void`, `has(string $key): bool`, `resolve(string $key): class-string<SummaryCard>`, `all(): array<string, class-string<SummaryCard>>`. Pre-registered: `'kpi'`, `'funnel'`. Регистрация в host — через `config('tables.summary_cards')` (см. ниже).
+- Рендер карточек в `<x-tables.summary>` обёрнут `try/catch` — на исключении `Log::error('tables.summary.card_render_failed', ['view' => ..., 'class' => ..., 'error' => ...])` + плейсхолдер `tables::summary.card_render_failed`. Stacktrace — только при `config('app.debug')`.
 - Карточки разных типов в одной `Summary` допустимы (контейнер не привязан к одному типу).
+- Подробности — [docs/summary-cards.md](summary-cards.md).
 
 ### Models (Eloquent — public по факту вынесения миграций тегом `tables-migrations`)
 
@@ -410,9 +413,14 @@ Override через `app()->bind(...)` — поддерживается.
 
 ### Export
 
-- `Mercurio\Tables\Export\ExportRequest` — `final readonly` VO параметров CSV-export'а (`filename`, `delimiter`, `enclosure`, `escape`, `bom`, `chunkSize`, `logChunks`, `columns: array<int, Field>`). Состояние списка (q/f/qb/sort/dir/columns) собирается отдельно через `ListResource::exportState($request)`.
-- `Mercurio\Tables\Export\CsvStreamWriter::stream(ExportRequest, Builder $query, ?\Closure $logger = null): void` — статический writer; стримит в `php://output` через `chunkById`.
+- `Mercurio\Tables\Export\ExportRequest` — `final readonly` VO параметров экспорта (`filename`, `delimiter`, `enclosure`, `escape`, `bom`, `chunkSize`, `logChunks`, `columns: array<int, Field>`, `format = 'csv'`). Состояние списка (q/f/qb/sort/dir/columns) собирается отдельно через `ListResource::exportState($request)`.
+- `Mercurio\Tables\Export\ExportWriter` — публичный интерфейс writer'а: `open(ExportRequest)`, `writeHeader(array<int, string>)`, `writeRow(array<int, string>)`, `close()`, `contentType(): string`, `fileExtension(): string`. `ExportHandler` гарантирует `close()` в `finally`.
+- `Mercurio\Tables\Export\ExportWriterRegistry` — singleton, `register(string $format, class-string<ExportWriter>): void`, `has(string): bool`, `make(string): ExportWriter`, `formats(): array<int, string>`, `all(): array<string, class-string<ExportWriter>>`. CSV pre-registered.
+- `Mercurio\Tables\Export\CsvStreamWriter implements ExportWriter` — default writer; стримит в `php://output`. Статический `CsvStreamWriter::stream(ExportRequest, Builder, ?Closure $logger)` сохранён как deprecated wrapper.
+- `Mercurio\Tables\Export\JsonStreamWriter implements ExportWriter` — JSON-массив объектов (header → keys), UTF-8 без BOM.
+- `Mercurio\Tables\Export\XlsxStreamWriter implements ExportWriter` — opt-in writer на `openspout/openspout` (host-managed dep). Без библиотеки `open()` бросает `RuntimeException`.
 - `Mercurio\Tables\Export\ExportJobDispatcher` — interface для async fallback (пользователь реализует и биндит в DI). Метод `dispatch(string $resourceClass, array<string, mixed> $queryParams, int $userId, int $estimatedRows): string`.
+- Подробности и custom writer recipe — [docs/export.md](export.md).
 
 ### Console
 
@@ -426,7 +434,7 @@ Override через `app()->bind(...)` — поддерживается.
 
 Полный список — см. CHANGELOG `### Public API matrix v0.1.0` → блок `**Config keys**`. Вкратце:
 
-`guard`, `route_prefix`, `default_per_page`, `partial_header`, `js_event_prefix`, `resources`, `autocomplete_*`, `qb_*`, `sync_system_views`, `saved_view_color_palette`, `saved_view_icons`, `row_actions.*`, `bulk_actions.*`, `cell_edit.*`, `user_prefs.*`, `export.*`, `shell.*`, `action_log.*`, `bulk_progress.*`, `tables.*` (DB table names override).
+`guard`, `route_prefix`, `default_per_page`, `partial_header`, `js_event_prefix`, `resources`, `autocomplete_*`, `qb_*`, `sync_system_views`, `saved_view_color_palette`, `saved_view_icons`, `row_actions.*`, `bulk_actions.*`, `cell_edit.*`, `user_prefs.*`, `export.*`, `shell.*`, `summary_cards`, `action_log.*`, `bulk_progress.*`, `tables.*` (DB table names override).
 
 Изменение default-значений — non-breaking (patch). Удаление ключа — breaking (major). Переименование — breaking + deprecation cycle.
 
@@ -444,6 +452,14 @@ Override через `app()->bind(...)` — поддерживается.
 - `tables-migrations` → миграции `tables_saved_views`, `tables_user_table_prefs`, `tables_action_log`, `tables_action_progress`.
 - `tables-views` → `resources/views/components/tables/*` + корневые view-файлы.
 - `tables-assets` → `resources/{js,scss}` пакета.
+- `tables-lang` → `resources/lang/{ru,en}/*` (12 групп: `action_log`, `bulk`, `cell`, `confirm`, `export`, `filters`, `prefs`, `qb`, `row_actions`, `saved_views`, `shell`, `summary`). Подробности — [docs/i18n.md](i18n.md).
+
+### Localization (i18n)
+
+- Translation namespace — `tables::*`. Зарегистрирован через `loadTranslationsFrom(__DIR__.'/../resources/lang', 'tables')` в `TablesServiceProvider::boot()`. Все Blade-шаблоны движка используют `__('tables::<group>.<key>', $params)`.
+- Runtime JS получает translations через `window.TablesI18n` (PHP serializer — `Mercurio\Tables\Support\JsTranslations::payload()`, whitelist в `JsTranslations::whitelist()`) + helper `tablesT(key, params)` из `resources/js/tables/i18n.js`. Missing key → `console.error('tables.i18n missing key', key)` + возврат самого ключа.
+- Дефолты в `config/tables.php` для UI-меток (`qb_button_label`, `export.button_label`, `user_prefs.popover_button_label`, `action_log.header_action_label`) — translation keys (`tables::<group>.<key>`); read-сайты в Blade оборачивают значение в `__($value)`, поэтому host может передавать как translation key, так и готовую строку.
+- `SavedView::all(label)` / `SavedView::scope(key, label, ...)` — `$label` может быть translation key или обычным текстом; Blade рендерит через `__($view->label)`.
 
 ### JS events
 

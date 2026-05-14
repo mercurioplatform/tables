@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
 import { submitBulkAjax } from './bulk.js';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 const OFFCANVAS_ID = 'tables-confirm-preview-offcanvas';
@@ -35,13 +36,15 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
     const $submit = $oc.find('[data-tables-confirm-preview-submit]');
 
     $body.html(
-        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></div>'
+        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">' +
+            tablesT('confirm.preview.loading') +
+            '</span></div></div>'
     );
     $submit
         .prop('disabled', true)
         .removeClass(SUBMIT_VARIANT_CLASSES)
         .addClass('btn-primary')
-        .text('Подтвердить');
+        .text(tablesT('confirm.preview.confirm_default'));
 
     const inst = bs.Offcanvas.getOrCreateInstance(oc);
     inst.show();
@@ -55,7 +58,7 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
         .done(function (html) {
             $body.html(html);
             const $payload = $body.find('.ap-confirm-preview').first();
-            const confirmText = $payload.attr('data-confirm-text') || 'Подтвердить';
+            const confirmText = $payload.attr('data-confirm-text') || tablesT('confirm.preview.confirm_default');
             const variant = $payload.attr('data-confirm-variant') || 'primary';
             $submit
                 .removeClass(SUBMIT_VARIANT_CLASSES)
@@ -65,8 +68,8 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
         })
         .fail(function (jqXHR) {
             const msg = jqXHR.status === 401 || jqXHR.status === 419
-                ? 'Сессия истекла. Перезагрузите страницу.'
-                : 'Не удалось загрузить превью.';
+                ? tablesT('confirm.preview.session_expired')
+                : tablesT('confirm.preview.load_failed');
             $body.html('<div class="alert alert-danger m-0">' + msg + '</div>');
         });
 
@@ -162,7 +165,7 @@ $(document).on('click', '[data-tables-row-preview-url]', function (e) {
         },
     });
 
-    if (!opened && window.confirm($btn.attr('data-confirm-text') || 'Подтвердить?')) {
+    if (!opened && window.confirm($btn.attr('data-confirm-text') || tablesT('row_actions.default_confirm'))) {
         $form.trigger('submit');
     }
 });

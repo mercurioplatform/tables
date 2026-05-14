@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -97,8 +98,8 @@ function buildNumberInput($cell) {
 
 function buildBooleanInput($cell) {
     const current = ($cell.attr('data-current-value') || '').toString();
-    const trueLabel = $cell.attr('data-true-label') || 'Да';
-    const falseLabel = $cell.attr('data-false-label') || 'Нет';
+    const trueLabel = $cell.attr('data-true-label') || tablesT('cell.true_default');
+    const falseLabel = $cell.attr('data-false-label') || tablesT('cell.false_default');
     const truthy = current === '1' || current === 'true';
     const $wrap = $('<div class="d-flex flex-column gap-1" data-tables-cell-edit-input></div>');
     const name = 'cell-edit-bool-' + Math.random().toString(36).slice(2);
@@ -149,8 +150,10 @@ function buildPopover($cell) {
 
     const $form = $('<form data-tables-cell-edit-form></form>').append($input);
     const $actions = $('<div class="d-flex justify-content-end gap-2 mt-2"></div>');
-    $actions.append('<button type="button" class="btn btn-sm btn-link" data-tables-cell-edit-cancel>Отмена</button>');
-    $actions.append('<button type="submit" class="btn btn-sm btn-primary" data-tables-cell-edit-save>Сохранить</button>');
+    $actions.append('<button type="button" class="btn btn-sm btn-link" data-tables-cell-edit-cancel></button>');
+    $actions.find('[data-tables-cell-edit-cancel]').text(tablesT('cell.cancel'));
+    $actions.append('<button type="submit" class="btn btn-sm btn-primary" data-tables-cell-edit-save></button>');
+    $actions.find('[data-tables-cell-edit-save]').text(tablesT('cell.save'));
     $form.append($actions);
 
     const $pop = $('<div class="' + POPOVER_CLASS + '" role="dialog"></div>').append($form);
@@ -215,7 +218,7 @@ function submitFromPopover($pop) {
     const template = getUrlTemplate($owner);
     const url = buildUrl(template, id, field);
     if (!url) {
-        window.alert('Не задан URL для inline-редактирования.');
+        window.alert(tablesT('cell.no_url'));
         return;
     }
 
@@ -264,26 +267,26 @@ function submitFromPopover($pop) {
             } else if (data.message) {
                 window.alert(data.message);
             } else {
-                window.alert('Не удалось сохранить.');
+                window.alert(tablesT('cell.save_failed'));
             }
             return;
         }
         if (jqXHR.status === 401 || jqXHR.status === 419) {
-            window.alert('Сессия истекла. Перезагрузите страницу.');
+            window.alert(tablesT('cell.session_expired'));
             return;
         }
         if (jqXHR.status === 403) {
-            window.alert('Нет прав для редактирования.');
+            window.alert(tablesT('cell.no_permission'));
             closePopover();
             return;
         }
         if (jqXHR.status === 404) {
-            window.alert('Запись не найдена.');
+            window.alert(tablesT('cell.record_not_found'));
             closePopover();
             return;
         }
-        const msg = (jqXHR.responseJSON && jqXHR.responseJSON.message) || 'Ошибка';
-        window.alert('Ошибка: ' + msg);
+        const msg = (jqXHR.responseJSON && jqXHR.responseJSON.message) || tablesT('cell.generic_error');
+        window.alert(tablesT('cell.error_label', { message: msg }));
     }).always(function () {
         $save.prop('disabled', false);
     });

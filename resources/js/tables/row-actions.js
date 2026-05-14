@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
 import { tablesConfirm } from './confirm.js';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -53,11 +54,11 @@ $(document).on('click', '[data-tables-row-action-confirm]:not([data-tables-row-p
     e.preventDefault();
     e.stopImmediatePropagation();
     const $btn = $(this);
-    const text = $btn.attr('data-confirm-text') || 'Подтвердить?';
+    const text = $btn.attr('data-confirm-text') || tablesT('row_actions.default_confirm');
     const ok = await tablesConfirm({
-        title: 'Подтверждение',
+        title: tablesT('confirm.title_default'),
         message: text,
-        confirmText: 'Подтвердить',
+        confirmText: tablesT('confirm.confirm_default'),
         confirmVariant: 'danger',
         icon: 'bi-exclamation-circle',
     });
@@ -94,7 +95,9 @@ $(document).on('click', '[data-tables-row-action-form-button]', function (e) {
     $body.attr('data-submit-url', submitUrl);
     $body.attr('data-reload-after', reloadAfter ? '1' : '0');
     $body.addClass('is-loading').html(
-        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></div>'
+        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">' +
+            tablesT('row_actions.loading') +
+            '</span></div></div>'
     );
 
     const instance = bootstrap.Offcanvas.getOrCreateInstance(oc);
@@ -109,8 +112,8 @@ $(document).on('click', '[data-tables-row-action-form-button]', function (e) {
         $body.removeClass('is-loading').html(html);
     }).fail(function (jqXHR) {
         const message = jqXHR.status === 401 || jqXHR.status === 419
-            ? 'Сессия истекла. Перезагрузите страницу.'
-            : 'Не удалось загрузить форму';
+            ? tablesT('cell.session_expired')
+            : tablesT('row_actions.load_failed');
         $body.removeClass('is-loading').html(
             '<div class="alert alert-danger m-0">' + message + '</div>'
         );
@@ -161,11 +164,11 @@ $(document).on('submit', 'form[data-tables-row-action-submit]', function (e) {
             return;
         }
         if (jqXHR.status === 401 || jqXHR.status === 419) {
-            window.alert('Сессия истекла. Перезагрузите страницу.');
+            window.alert(tablesT('cell.session_expired'));
             return;
         }
-        const msg = jqXHR.responseJSON?.message || jqXHR.statusText || 'Ошибка';
-        window.alert('Ошибка: ' + msg);
+        const msg = jqXHR.responseJSON?.message || jqXHR.statusText || tablesT('row_actions.generic_error');
+        window.alert(tablesT('row_actions.error_label', { message: msg }));
     }).always(function () {
         $submit.prop('disabled', false);
     });

@@ -16,6 +16,8 @@
     $finalBrowserTitle = ($browserTitle !== null && is_string($titleSuffix) && $titleSuffix !== '')
         ? sprintf($titleSuffix, $browserTitle)
         : $browserTitle;
+
+    $i18nPayload = \Mercurio\Tables\Support\JsTranslations::payload();
 @endphp
 
 @extends($layout)
@@ -40,6 +42,7 @@
 @endif
 
 @section('content')
+    <script>window.TablesI18n = @json($i18nPayload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);</script>
     @if($pageTitle !== null || !empty($actions))
         <x-dynamic-component :component="$pageHeadComponent" :title="$pageTitle ?? ''" :title-large="false">
             @if(!empty($actions))

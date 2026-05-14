@@ -9,29 +9,13 @@
  * ============================================================ */
 
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
-const OPERATOR_LABELS_RU = {
-    eq: 'Равно',
-    neq: 'Не равно',
-    in: 'В списке',
-    not_in: 'Не в списке',
-    contains: 'Содержит',
-    not_contains: 'Не содержит',
-    starts_with: 'Начинается с',
-    not_starts_with: 'Не начинается с',
-    ends_with: 'Заканчивается на',
-    not_ends_with: 'Не заканчивается на',
-    between: 'Между',
-    not_between: 'Не между',
-    empty: 'Пусто',
-    not_empty: 'Не пусто',
-    gt: 'Больше',
-    lt: 'Меньше',
-    gte: 'Больше или равно',
-    lte: 'Меньше или равно',
-};
+function operatorLabel(opCode) {
+    return tablesT('qb.operators.' + opCode);
+}
 
 const OPERATOR_VALUE_MODE = {
     eq: 'single',
@@ -244,18 +228,18 @@ function renderGroup(group, path, schema, isRoot) {
 
     let header = `
         <div class="tables-qb-group__header d-flex align-items-center gap-2 mb-2">
-            <div class="btn-group btn-group-sm tables-qb-op-toggle" role="group" aria-label="AND или OR">
-                <button type="button" class="btn btn-outline-secondary qb-op-and ${opAndActive}" data-path="${pathAttr(path)}">И</button>
-                <button type="button" class="btn btn-outline-secondary qb-op-or ${opOrActive}" data-path="${pathAttr(path)}">ИЛИ</button>
+            <div class="btn-group btn-group-sm tables-qb-op-toggle" role="group" aria-label="${escapeHtml(tablesT('qb.group.and_or_aria'))}">
+                <button type="button" class="btn btn-outline-secondary qb-op-and ${opAndActive}" data-path="${pathAttr(path)}">${escapeHtml(tablesT('qb.group.and_short'))}</button>
+                <button type="button" class="btn btn-outline-secondary qb-op-or ${opOrActive}" data-path="${pathAttr(path)}">${escapeHtml(tablesT('qb.group.or_short'))}</button>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-danger tables-qb-not-toggle qb-not-toggle ${notActive}" data-path="${pathAttr(path)}" title="Инвертировать группу">НЕ</button>
+            <button type="button" class="btn btn-sm btn-outline-danger tables-qb-not-toggle qb-not-toggle ${notActive}" data-path="${pathAttr(path)}" title="${escapeHtml(tablesT('qb.invert_group_title'))}">${escapeHtml(tablesT('qb.group.not_short'))}</button>
             <div class="ms-auto d-flex gap-1">
-                <button type="button" class="btn btn-sm btn-outline-secondary qb-add-cond" data-path="${pathAttr(path)}">+ Условие</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary qb-add-group" data-path="${pathAttr(path)}">+ Группа</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary qb-add-cond" data-path="${pathAttr(path)}">${escapeHtml(tablesT('qb.add_condition'))}</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary qb-add-group" data-path="${pathAttr(path)}">${escapeHtml(tablesT('qb.add_group'))}</button>
                 ${
                     isRoot
                         ? ''
-                        : `<button type="button" class="btn btn-sm btn-outline-danger qb-delete-group" data-path="${pathAttr(path)}" title="Удалить группу">&times;</button>`
+                        : `<button type="button" class="btn btn-sm btn-outline-danger qb-delete-group" data-path="${pathAttr(path)}" title="${escapeHtml(tablesT('qb.delete_group_title'))}">&times;</button>`
                 }
             </div>
         </div>
@@ -263,7 +247,7 @@ function renderGroup(group, path, schema, isRoot) {
 
     let body = '';
     if (group.children.length === 0) {
-        body = `<div class="tables-qb-empty text-muted small px-2 py-1">Нет условий — нажмите «+ Условие» или «+ Группа».</div>`;
+        body = `<div class="tables-qb-empty text-muted small px-2 py-1">${escapeHtml(tablesT('qb.empty_hint'))}</div>`;
     } else {
         body = group.children
             .map((child, idx) => {
@@ -303,7 +287,7 @@ function renderCondition(cond, path, schema) {
     const operatorOptionsHtml = operators
         .map((opCode) => {
             const sel = opCode === cond.operator ? 'selected' : '';
-            const lbl = OPERATOR_LABELS_RU[opCode] || opCode;
+            const lbl = operatorLabel(opCode);
             return `<option value="${escapeHtml(opCode)}" ${sel}>${escapeHtml(lbl)}</option>`;
         })
         .join('');
@@ -319,8 +303,8 @@ function renderCondition(cond, path, schema) {
                 ${operatorOptionsHtml}
             </select>
             <div class="flex-grow-1 qb-value-wrap" data-path="${pathAttr(path)}">${valueHtml}</div>
-            <button type="button" class="btn btn-sm btn-outline-danger tables-qb-not-toggle qb-not-toggle ${notActive}" data-path="${pathAttr(path)}" title="Инвертировать условие">НЕ</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary qb-delete" data-path="${pathAttr(path)}" title="Удалить условие" aria-label="Удалить">&times;</button>
+            <button type="button" class="btn btn-sm btn-outline-danger tables-qb-not-toggle qb-not-toggle ${notActive}" data-path="${pathAttr(path)}" title="${escapeHtml(tablesT('qb.invert_condition_title'))}">${escapeHtml(tablesT('qb.group.not_short'))}</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary qb-delete" data-path="${pathAttr(path)}" title="${escapeHtml(tablesT('qb.delete_condition_title'))}" aria-label="${escapeHtml(tablesT('qb.delete_condition_aria'))}">&times;</button>
         </div>
     `;
 }
@@ -347,8 +331,8 @@ function renderValueInput(fieldMeta, operator, value, path) {
         return `
             <select class="form-select form-select-sm qb-value-input qb-value-single" data-path="${pathAttr(path)}">
                 <option value="" ${sel('')}>—</option>
-                <option value="1" ${sel('1')}>Да</option>
-                <option value="0" ${sel('0')}>Нет</option>
+                <option value="1" ${sel('1')}>${escapeHtml(tablesT('qb.bool_yes'))}</option>
+                <option value="0" ${sel('0')}>${escapeHtml(tablesT('qb.bool_no'))}</option>
             </select>
         `;
     }
@@ -360,18 +344,18 @@ function renderValueInput(fieldMeta, operator, value, path) {
         const arr = Array.isArray(value) ? value : ['', ''];
         return `
             <div class="d-flex gap-1 qb-value-wrap-inner">
-                <input type="${inputType}" ${stepAttr} class="form-control form-control-sm qb-value-input qb-value-min" data-path="${pathAttr(path)}" placeholder="От" value="${escapeHtml(arr[0] == null ? '' : arr[0])}">
-                <input type="${inputType}" ${stepAttr} class="form-control form-control-sm qb-value-input qb-value-max" data-path="${pathAttr(path)}" placeholder="До" value="${escapeHtml(arr[1] == null ? '' : arr[1])}">
+                <input type="${inputType}" ${stepAttr} class="form-control form-control-sm qb-value-input qb-value-min" data-path="${pathAttr(path)}" placeholder="${escapeHtml(tablesT('qb.range_min_placeholder'))}" value="${escapeHtml(arr[0] == null ? '' : arr[0])}">
+                <input type="${inputType}" ${stepAttr} class="form-control form-control-sm qb-value-input qb-value-max" data-path="${pathAttr(path)}" placeholder="${escapeHtml(tablesT('qb.range_max_placeholder'))}" value="${escapeHtml(arr[1] == null ? '' : arr[1])}">
             </div>
         `;
     }
 
     if (mode === 'multiple') {
         const arr = Array.isArray(value) ? value : (value != null && value !== '' ? [value] : []);
-        return `<input type="text" class="form-control form-control-sm qb-value-input qb-value-multi" data-path="${pathAttr(path)}" placeholder="Через запятую" value="${escapeHtml(arr.join(', '))}">`;
+        return `<input type="text" class="form-control form-control-sm qb-value-input qb-value-multi" data-path="${pathAttr(path)}" placeholder="${escapeHtml(tablesT('qb.multi_placeholder'))}" value="${escapeHtml(arr.join(', '))}">`;
     }
 
-    return `<input type="${inputType}" ${stepAttr} class="form-control form-control-sm qb-value-input qb-value-single" data-path="${pathAttr(path)}" placeholder="Значение" value="${escapeHtml(value == null ? '' : value)}">`;
+    return `<input type="${inputType}" ${stepAttr} class="form-control form-control-sm qb-value-input qb-value-single" data-path="${pathAttr(path)}" placeholder="${escapeHtml(tablesT('qb.single_placeholder'))}" value="${escapeHtml(value == null ? '' : value)}">`;
 }
 
 function renderSelect(fieldMeta, mode, value, path) {
@@ -410,7 +394,7 @@ function renderAutocomplete(fieldMeta, mode, value, path) {
         .map((v) => `
             <span class="tables-filter-popover__chip" data-value="${escapeHtml(v)}">
                 <span class="tables-filter-popover__chip-label">${escapeHtml(v)}</span>
-                <button type="button" class="tables-filter-popover__chip-remove" data-tables-autocomplete-chip-remove aria-label="Удалить">&times;</button>
+                <button type="button" class="tables-filter-popover__chip-remove" data-tables-autocomplete-chip-remove aria-label="${escapeHtml(tablesT('filters.autocomplete.chip_remove_aria'))}">&times;</button>
                 <input type="hidden" name="value[]" value="${escapeHtml(v)}">
             </span>
         `)
@@ -426,7 +410,7 @@ function renderAutocomplete(fieldMeta, mode, value, path) {
              data-tables-autocomplete-min-chars="0"
              data-tables-autocomplete-debounce="250">
             <div class="tables-filter-popover__selected" data-tables-autocomplete-selected-list>${chipsHtml}</div>
-            <input type="text" class="form-control form-control-sm tables-filter-popover__input" data-tables-autocomplete-input placeholder="Найти…" autocomplete="off">
+            <input type="text" class="form-control form-control-sm tables-filter-popover__input" data-tables-autocomplete-input placeholder="${escapeHtml(tablesT('filters.autocomplete.input_placeholder'))}" autocomplete="off">
             <ul class="tables-filter-popover__results" data-tables-autocomplete-results hidden></ul>
         </div>
     `;

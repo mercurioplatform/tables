@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -9,9 +10,7 @@ $(document).on('click', '[data-tables-export]', function (e) {
     const threshold = parseInt($btn.attr('data-confirm-above') || '5000', 10);
 
     if (total > 0 && total > threshold) {
-        const ok = window.confirm(
-            'Экспортировать ' + total + ' строк? Это может занять несколько секунд.',
-        );
+        const ok = window.confirm(tablesT('export.confirm_message', { total }));
         if (!ok) {
             e.preventDefault();
             return;

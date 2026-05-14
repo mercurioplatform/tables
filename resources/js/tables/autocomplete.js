@@ -6,6 +6,7 @@
  * ============================================================ */
 
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -37,7 +38,7 @@ function buildChipHtml(value, label) {
     return (
         '<span class="tables-filter-popover__chip" data-value="' + escapeHtml(value) + '">' +
         '<span class="tables-filter-popover__chip-label">' + escapeHtml(label) + '</span>' +
-        '<button type="button" class="tables-filter-popover__chip-remove" data-tables-autocomplete-chip-remove aria-label="Удалить">×</button>' +
+        '<button type="button" class="tables-filter-popover__chip-remove" data-tables-autocomplete-chip-remove aria-label="' + escapeHtml(tablesT('filters.autocomplete.chip_remove_aria')) + '">×</button>' +
         '<input type="hidden" name="value[]" value="' + escapeHtml(value) + '">' +
         '</span>'
     );
@@ -48,7 +49,7 @@ function renderResults($root, items, activeValues) {
     $results.empty();
 
     if (!items || items.length === 0) {
-        $results.append('<li class="tables-filter-popover__empty">Ничего не найдено</li>');
+        $results.append('<li class="tables-filter-popover__empty">' + escapeHtml(tablesT('filters.autocomplete.no_results')) + '</li>');
         $results.prop('hidden', false);
         return;
     }

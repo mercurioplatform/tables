@@ -18,13 +18,13 @@
 >
     <div class="offcanvas-header border-bottom">
         <h5 class="offcanvas-title m-0" id="tables-qb-{{ $table->key }}-label">
-            {{ config('tables.qb_button_label', 'Расширенный фильтр') }}
+            {{ __((string) config('tables.qb_button_label', 'tables::qb.button_label')) }}
         </h5>
         <button
             type="button"
             class="btn-close"
             data-bs-dismiss="offcanvas"
-            aria-label="Закрыть"
+            aria-label="{{ __('tables::shell.close') }}"
         ></button>
     </div>
 
@@ -43,21 +43,21 @@
             class="btn btn-sm btn-outline-danger"
             data-tables-qb-reset
         >
-            Очистить
+            {{ __('tables::qb.clear_button') }}
         </button>
         <button
             type="button"
             class="btn btn-sm btn-outline-secondary"
             data-bs-dismiss="offcanvas"
         >
-            Отмена
+            {{ __('tables::shell.cancel') }}
         </button>
         <button
             type="button"
             class="btn btn-sm btn-primary"
             data-tables-qb-apply
         >
-            Применить
+            {{ __('tables::qb.apply_button') }}
         </button>
     </div>
 </div>

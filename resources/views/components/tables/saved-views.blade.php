@@ -35,7 +35,7 @@
                 @if ($view->getIcon())
                     <i class="bi {{ e($view->getIcon()) }}"></i>
                 @endif
-                {{ $view->label }}
+                {{ __($view->label) }}
                 @if ($count !== null)
                     <span class="ap-saved-views__count">{{ number_format($count, 0, '.', ' ') }}</span>
                 @endif
@@ -48,16 +48,16 @@
            class="ap-saved-views__reset"
            data-tables-saved-view
            data-tables-saved-view-key=""
-           title="Сбросить вид и фильтры">
+           title="{{ __('tables::saved_views.reset_tooltip') }}">
             <i class="bi bi-x-circle"></i>
-            <span>Сбросить</span>
+            <span>{{ __('tables::saved_views.reset_label') }}</span>
         </a>
     @endif
 
     <div class="ap-saved-views__more dropdown" data-tables-user-views>
         <button type="button" class="ap-saved-views__item dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-three-dots"></i>
-            <span>Сохранённые фильтры</span>
+            <span>{{ __('tables::saved_views.menu_label') }}</span>
             @if ($hasUser)
                 <span class="ap-saved-views__count">{{ $userViews->count() }}</span>
             @endif
@@ -84,11 +84,11 @@
                                 class="btn-close btn-close-sm ap-saved-views__remove"
                                 data-tables-user-view-delete
                                 data-tables-user-view-id="{{ $uv->id }}"
-                                aria-label="Удалить вид"></button>
+                                aria-label="{{ __('tables::saved_views.delete_view_aria') }}"></button>
                     </a>
                 </li>
             @empty
-                <li><span class="dropdown-item-text text-muted small">Нет сохранённых видов</span></li>
+                <li><span class="dropdown-item-text text-muted small">{{ __('tables::saved_views.empty_user_views') }}</span></li>
             @endforelse
             <li><hr class="dropdown-divider"></li>
             <li>
@@ -97,7 +97,7 @@
                         data-tables-save-view-trigger
                         data-bs-toggle="modal"
                         data-bs-target="#tables-save-view-{{ $modalSlug }}">
-                    <i class="bi bi-bookmark-plus"></i> Сохранить текущий вид
+                    <i class="bi bi-bookmark-plus"></i> {{ __('tables::saved_views.save_current_view_action') }}
                 </button>
             </li>
         </ul>

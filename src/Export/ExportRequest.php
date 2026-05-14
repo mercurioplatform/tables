@@ -18,5 +18,6 @@ final readonly class ExportRequest
         public int $chunkSize,
         public bool $logChunks,
         public array $columns,
+        public string $format = 'csv',
     ) {}
 }

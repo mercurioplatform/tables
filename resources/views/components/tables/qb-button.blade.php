@@ -1,7 +1,7 @@
 @props(['table', 'label' => null])
 
 @php
-    $resolvedLabel = $label ?? config('tables.qb_button_label', 'Расширенный фильтр');
+    $resolvedLabel = $label ?? __((string) config('tables.qb_button_label', 'tables::qb.button_label'));
     $atomCount = (int) ($table->qb['atoms'] ?? 0);
 @endphp
 
@@ -24,8 +24,8 @@
             type="button"
             class="btn btn-sm btn-link text-danger p-0"
             data-tables-qb-clear
-            title="Очистить расширенный фильтр"
-            aria-label="Очистить расширенный фильтр"
+            title="{{ __('tables::qb.clear_extended_aria') }}"
+            aria-label="{{ __('tables::qb.clear_extended_aria') }}"
         >
             <i class="bi bi-x-circle" aria-hidden="true"></i>
         </button>

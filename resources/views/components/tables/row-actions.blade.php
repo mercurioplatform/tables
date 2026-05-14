@@ -64,7 +64,7 @@
                             class="{{ $btnClass }}"
                             title="{{ $tooltip }}"
                             aria-label="{{ $action->label }}"
-                            @if ($kind === 'confirm') data-tables-row-action-confirm data-confirm-text="{{ $action->getConfirmText() ?? 'Подтвердить?' }}" @endif
+                            @if ($kind === 'confirm') data-tables-row-action-confirm data-confirm-text="{{ $action->getConfirmText() ?? __('tables::row_actions.default_confirm') }}" @endif
                             @if ($previewUrl !== null) data-tables-row-preview-url="{{ $previewUrl }}" data-action-label="{{ $action->label }}" @endif>
                         {!! $iconHtml !!}
                     </button>

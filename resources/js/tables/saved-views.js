@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -137,7 +138,7 @@ $(document).on('click', '[data-tables-user-view-delete]', function (e) {
     const $btn = $(this);
     const id = $btn.attr('data-tables-user-view-id');
     if (!id) return;
-    if (!window.confirm('Удалить вид?')) return;
+    if (!window.confirm(tablesT('saved_views.delete_view_confirm'))) return;
 
     const path = window.location.pathname.replace(/\/$/, '');
     const url = path + '/user-views/' + encodeURIComponent(id);

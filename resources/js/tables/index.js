@@ -1,3 +1,4 @@
+import './i18n.js';
 import './core.js';
 import './bulk.js';
 import './bulk-form.js';

@@ -10,14 +10,14 @@
     <input type="hidden" name="ids" value="{{ implode(',', $ids) }}">
 
     <div class="ap-bulk-action-form__preview alert alert-info py-2 small mb-3">
-        Применить к: <strong>{{ $idsCount }}</strong> объектам
+        {!! __('tables::bulk.apply_to_summary', ['count' => '<strong>'.e((string) $idsCount).'</strong>']) !!}
     </div>
 
     {{ $slot }}
 
     <div class="ap-bulk-action-form__footer mt-3 d-flex gap-2 justify-content-end">
         {{ $footer ?? '' }}
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="offcanvas">Отмена</button>
-        <button type="submit" class="btn btn-primary btn-sm">Применить</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="offcanvas">{{ __('tables::shell.cancel') }}</button>
+        <button type="submit" class="btn btn-primary btn-sm">{{ __('tables::bulk.apply_button') }}</button>
     </div>
 </form>

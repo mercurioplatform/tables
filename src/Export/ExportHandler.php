@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
+use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\ListResource;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -20,7 +21,10 @@ use Throwable;
  */
 class ExportHandler
 {
-    public function __construct(private ActionPayloadResolver $payloads) {}
+    public function __construct(
+        private ActionPayloadResolver $payloads,
+        private ExportWriterRegistry $writers,
+    ) {}
 
     public function handle(Request $request, ListResource $resource): Response
     {
@@ -92,8 +96,11 @@ class ExportHandler
             ], 413);
         }
 
+        $format = $this->resolveFormat($request, $resourceClass);
+        $writer = $this->writers->make($format);
+
         $exportRequest = new ExportRequest(
-            filename: $this->payloads->buildExportFilename($resource->key()),
+            filename: $this->payloads->buildExportFilename($resource->key(), $writer->fileExtension()),
             delimiter: (string) config('tables.export.csv_delimiter', ','),
             enclosure: (string) config('tables.export.csv_enclosure', '"'),
             escape: (string) config('tables.export.csv_escape', '\\'),
@@ -101,28 +108,74 @@ class ExportHandler
             chunkSize: (int) config('tables.export.chunk_size', 500),
             logChunks: (bool) config('tables.export.log_chunks', false),
             columns: $columns,
+            format: $format,
         );
 
         return new StreamedResponse(
-            function () use ($exportRequest, $builder): void {
+            function () use ($exportRequest, $builder, $writer, $resourceClass): void {
                 try {
-                    CsvStreamWriter::stream($exportRequest, $builder);
+                    $writer->open($exportRequest);
+                    $writer->writeHeader(array_map(fn (Field $f) => $f->label, $exportRequest->columns));
+
+                    $builder->chunkById($exportRequest->chunkSize, function ($rows) use ($writer, $exportRequest): void {
+                        foreach ($rows as $row) {
+                            $line = [];
+                            foreach ($exportRequest->columns as $field) {
+                                $raw = $row->{$field->name} ?? null;
+                                $line[] = $field->exportValue($raw, $row);
+                            }
+                            $writer->writeRow($line);
+                        }
+                        if (function_exists('flush')) {
+                            @ob_flush();
+                            @flush();
+                        }
+                    });
                 } catch (Throwable $e) {
-                    Log::error('tables.export.error', [
+                    Log::error('tables.export.write_failed', [
+                        'resource' => $resourceClass,
                         'filename' => $exportRequest->filename,
+                        'format' => $exportRequest->format,
                         'error' => $e->getMessage(),
                     ]);
                     throw $e;
+                } finally {
+                    $writer->close();
                 }
             },
             200,
             [
-                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Type' => $writer->contentType(),
                 'Content-Disposition' => 'attachment; filename="'.$exportRequest->filename.'"',
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
                 'Pragma' => 'no-cache',
                 'X-Accel-Buffering' => 'no',
             ],
         );
+    }
+
+    private function resolveFormat(Request $request, string $resourceClass): string
+    {
+        $default = (string) config('tables.export.default_format', 'csv');
+        $requested = (string) $request->query('format', $default);
+        if ($requested === '') {
+            $requested = $default;
+        }
+
+        if (! $this->writers->has($requested)) {
+            Log::error('tables.export.unknown_format', [
+                'resource' => $resourceClass,
+                'requested' => $requested,
+                'fallback' => $default,
+            ]);
+            $requested = $default;
+        }
+
+        if (! $this->writers->has($requested)) {
+            // default itself is missing — last-resort csv (always registered).
+            $requested = 'csv';
+        }
+
+        return $requested;
     }
 }

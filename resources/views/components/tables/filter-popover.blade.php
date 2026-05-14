@@ -91,7 +91,7 @@
                             <span class="form-check-label">{{ $optionLabel }}</span>
                         </label>
                     @empty
-                        <div class="text-muted small px-1 py-2">Нет вариантов</div>
+                        <div class="text-muted small px-1 py-2">{{ __('tables::filters.no_options') }}</div>
                     @endforelse
                 </div>
                 @break
@@ -104,7 +104,7 @@
                         name="value[min]"
                         class="form-control form-control-sm tables-filter-popover__range-input"
                         data-range-input="min"
-                        placeholder="От"
+                        placeholder="{{ __('tables::filters.range_min_placeholder') }}"
                         value="{{ $rawMin }}"
                         @class(['d-none' => ! $isCurrentRange])
                     >
@@ -114,7 +114,7 @@
                         name="value[max]"
                         class="form-control form-control-sm tables-filter-popover__range-input"
                         data-range-input="max"
-                        placeholder="До"
+                        placeholder="{{ __('tables::filters.range_max_placeholder') }}"
                         value="{{ $rawMax }}"
                         @class(['d-none' => ! $isCurrentRange])
                     >
@@ -124,7 +124,7 @@
                         name="value[single]"
                         class="form-control form-control-sm tables-filter-popover__range-input"
                         data-range-input="single"
-                        placeholder="Значение"
+                        placeholder="{{ __('tables::filters.range_single_placeholder') }}"
                         value="{{ $rawSingle }}"
                         @class(['d-none' => $isCurrentRange])
                     >
@@ -165,7 +165,7 @@
                                     type="button"
                                     class="tables-filter-popover__chip-remove"
                                     data-tables-autocomplete-chip-remove
-                                    aria-label="Удалить"
+                                    aria-label="{{ __('tables::filters.autocomplete.chip_remove_aria') }}"
                                 >×</button>
                                 <input type="hidden" name="value[]" value="{{ $val }}">
                             </span>
@@ -175,7 +175,7 @@
                         type="text"
                         class="form-control form-control-sm tables-filter-popover__input"
                         data-tables-autocomplete-input
-                        placeholder="Найти…"
+                        placeholder="{{ __('tables::filters.autocomplete.input_placeholder') }}"
                         autocomplete="off"
                     >
                     <ul
@@ -193,7 +193,7 @@
                     name="value"
                     class="form-control form-control-sm"
                     value="{{ is_scalar($currentValue) ? $currentValue : '' }}"
-                    placeholder="Введите значение"
+                    placeholder="{{ __('tables::filters.value_placeholder') }}"
                 >
         @endswitch
     </div>
@@ -204,12 +204,12 @@
             class="btn btn-sm btn-link tables-filter-popover__clear"
             data-tables-filter-clear
             data-field="{{ $field->name }}"
-        >Очистить</button>
+        >{{ __('tables::filters.clear_button') }}</button>
         <button
             type="button"
             class="btn btn-sm btn-primary tables-filter-popover__apply"
             data-tables-filter-apply
             data-field="{{ $field->name }}"
-        >Применить</button>
+        >{{ __('tables::filters.apply_button') }}</button>
     </div>
 </div>

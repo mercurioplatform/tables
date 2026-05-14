@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import { tablesT } from './i18n.js';
 
 const STORAGE_KEY = 'tables.progress.active';
 const TRAY_SELECTOR = '[data-tables-progress-tray]';
@@ -58,7 +59,7 @@ function escapeHtml(s) {
 }
 
 function buildCard(opts) {
-    const safeLabel = escapeHtml(opts.actionLabel || 'Фоновая задача');
+    const safeLabel = escapeHtml(opts.actionLabel || tablesT('bulk.progress.default_label'));
     const safeId = escapeHtml(opts.progressId);
     const total = Math.max(0, opts.total | 0);
     const $card = $(
@@ -66,7 +67,9 @@ function buildCard(opts) {
             '<div class="tables-progress-card__header">' +
                 '<div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>' +
                 '<div class="tables-progress-card__title">' + safeLabel + '</div>' +
-                '<button type="button" class="tables-progress-card__close" data-tables-progress-dismiss aria-label="Закрыть" hidden>' +
+                '<button type="button" class="tables-progress-card__close" data-tables-progress-dismiss aria-label="' +
+                    escapeHtml(tablesT('bulk.progress.close')) +
+                    '" hidden>' +
                     '<i class="bi bi-x-lg"></i>' +
                 '</button>' +
             '</div>' +
@@ -98,7 +101,7 @@ function showToast(opts) {
     const icon = opts.icon || 'bi-check-circle-fill';
     const cta = opts.cta;
     const ctaHtml = cta && cta.href
-        ? '<a href="' + escapeHtml(cta.href) + '" class="btn btn-sm btn-link p-0 ms-2" data-tables-progress-cta>' + escapeHtml(cta.label || 'Открыть') + '</a>'
+        ? '<a href="' + escapeHtml(cta.href) + '" class="btn btn-sm btn-link p-0 ms-2" data-tables-progress-cta>' + escapeHtml(cta.label || tablesT('bulk.progress.open_cta')) + '</a>'
         : '';
 
     const $toast = $(
@@ -106,7 +109,7 @@ function showToast(opts) {
             '<div class="toast-header">' +
                 '<i class="bi ' + escapeHtml(icon) + ' text-' + escapeHtml(variant) + ' me-2"></i>' +
                 '<strong class="me-auto">' + escapeHtml(opts.title || '') + '</strong>' +
-                '<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Закрыть"></button>' +
+                '<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="' + escapeHtml(tablesT('bulk.progress.close')) + '"></button>' +
             '</div>' +
             '<div class="toast-body">' +
                 '<span>' + escapeHtml(opts.body || '') + '</span>' +
@@ -135,7 +138,7 @@ function showErrorToastFallback(message) {
         '<div class="toast align-items-center text-bg-danger border-0" role="alert">' +
             '<div class="d-flex">' +
                 '<div class="toast-body">' + escapeHtml(message) + '</div>' +
-                '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Закрыть"></button>' +
+                '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="' + escapeHtml(tablesT('bulk.progress.close')) + '"></button>' +
             '</div>' +
         '</div>'
     );
@@ -182,7 +185,7 @@ function pollOnce(progressId, opts, $card, $tray) {
         $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
         showToast({
             title: opts.actionLabel,
-            body: 'Действие зависло. См. Историю или логи.',
+            body: tablesT('bulk.progress.stuck_body'),
             variant: 'danger',
             icon: 'bi-exclamation-triangle-fill',
         });
@@ -206,10 +209,13 @@ function pollOnce(progressId, opts, $card, $tray) {
                 const ctaUrl = buildAffectedFilterUrl(opts.indexUrl, ids);
                 showToast({
                     title: opts.actionLabel,
-                    body: 'Готово: ' + (data.affected | 0) + ' из ' + (data.total | 0) + '.',
+                    body: tablesT('bulk.progress.success_body', {
+                        affected: data.affected | 0,
+                        total: data.total | 0,
+                    }),
                     variant: 'success',
                     icon: 'bi-check-circle-fill',
-                    cta: ctaUrl ? { href: ctaUrl, label: 'Открыть затронутые' } : null,
+                    cta: ctaUrl ? { href: ctaUrl, label: tablesT('bulk.progress.success_cta') } : null,
                 });
                 setTimeout(() => {
                     $card.addClass('is-fading-out');
@@ -226,7 +232,7 @@ function pollOnce(progressId, opts, $card, $tray) {
                 $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
                 showToast({
                     title: opts.actionLabel,
-                    body: data.error_message || 'Не удалось выполнить действие.',
+                    body: data.error_message || tablesT('bulk.progress.failure_body'),
                     variant: 'danger',
                     icon: 'bi-x-circle-fill',
                 });
@@ -253,7 +259,7 @@ function pollOnce(progressId, opts, $card, $tray) {
                 $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
                 showToast({
                     title: opts.actionLabel,
-                    body: 'Прогресс недоступен (HTTP ' + xhr.status + ').',
+                    body: tablesT('bulk.progress.poll_failed', { status: xhr.status }),
                     variant: 'danger',
                     icon: 'bi-exclamation-triangle-fill',
                 });

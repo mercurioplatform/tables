@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import { tablesT } from './i18n.js';
 
 const URL_ATTR = 'data-tables-action-log-url';
 const TRIGGER_ATTR = 'data-tables-action-log-trigger';
@@ -15,9 +16,9 @@ function loadInto($body, url) {
         })
         .fail((xhr) => {
             $body.html(
-                '<div class="alert alert-danger m-3 small">Не удалось загрузить историю (HTTP ' +
-                    xhr.status +
-                    ').</div>',
+                '<div class="alert alert-danger m-3 small">' +
+                    tablesT('action_log.load_failed', { status: xhr.status }) +
+                    '</div>',
             );
         })
         .always(() => {
@@ -74,17 +75,19 @@ $(document).on('submit', '[data-tables-action-log-undo]', function (e) {
             if (reloadUrl) {
                 loadInto($body, reloadUrl);
             }
-            const msg = (resp && resp.message) || 'Откат выполнен.';
+            const msg = (resp && resp.message) || tablesT('action_log.undo_default_success');
             $(document).trigger('tables:flash', [{ status: msg }]);
         })
         .fail((xhr) => {
             const msg =
                 (xhr.responseJSON && xhr.responseJSON.message) ||
-                'Не удалось откатить (HTTP ' + xhr.status + ').';
+                tablesT('action_log.undo_failed', { status: xhr.status });
             $body.prepend(
                 '<div class="alert alert-danger small m-2 alert-dismissible fade show" role="alert">' +
                     msg +
-                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="' +
+                    tablesT('shell.close') +
+                    '"></button>' +
                     '</div>',
             );
             $btn.prop('disabled', false);

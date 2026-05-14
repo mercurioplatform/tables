@@ -1,8 +1,8 @@
 @if ($paginator->hasPages())
-    <nav aria-label="Постраничная навигация">
+    <nav aria-label="{{ __('tables::shell.pagination.aria') }}">
         <ul class="pagination pagination-sm mb-0">
             <li class="page-item {{ $paginator->onFirstPage() ? 'disabled' : '' }}">
-                <a class="page-link" href="{{ $paginator->previousPageUrl() ?? '#' }}" aria-label="Назад">
+                <a class="page-link" href="{{ $paginator->previousPageUrl() ?? '#' }}" aria-label="{{ __('tables::shell.pagination.prev_aria') }}">
                     <i class="bi bi-chevron-left"></i>
                 </a>
             </li>
@@ -22,7 +22,7 @@
             @endforeach
 
             <li class="page-item {{ $paginator->hasMorePages() ? '' : 'disabled' }}">
-                <a class="page-link" href="{{ $paginator->nextPageUrl() ?? '#' }}" aria-label="Вперёд">
+                <a class="page-link" href="{{ $paginator->nextPageUrl() ?? '#' }}" aria-label="{{ __('tables::shell.pagination.next_aria') }}">
                     <i class="bi bi-chevron-right"></i>
                 </a>
             </li>

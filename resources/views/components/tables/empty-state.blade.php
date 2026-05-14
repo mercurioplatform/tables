@@ -18,8 +18,8 @@
 @if ($hasFilters)
     <div class="d-inline-flex flex-column align-items-center text-muted py-4">
         <i class="bi bi-search fs-2 mb-2" aria-hidden="true"></i>
-        <div>Ничего не найдено</div>
-        <div class="small mt-1">Попробуйте сбросить фильтры или изменить запрос</div>
+        <div>{{ __('tables::shell.empty_state.not_found') }}</div>
+        <div class="small mt-1">{{ __('tables::shell.empty_state.filtered_hint') }}</div>
     </div>
 @elseif ($hasDeclared)
     @php
@@ -49,6 +49,6 @@
 @else
     <div class="d-inline-flex flex-column align-items-center text-muted py-3">
         <i class="bi bi-inbox fs-3 mb-2" aria-hidden="true"></i>
-        <div>Ничего не найдено</div>
+        <div>{{ __('tables::shell.empty_state.not_found') }}</div>
     </div>
 @endif

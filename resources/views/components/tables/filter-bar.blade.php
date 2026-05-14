@@ -37,8 +37,8 @@
             type="search"
             name="q"
             value="{{ $table->search ?? '' }}"
-            placeholder="Поиск…"
-            aria-label="Поиск"
+            placeholder="{{ __('tables::filters.search_placeholder') }}"
+            aria-label="{{ __('tables::filters.search_aria') }}"
             class="form-control form-control-sm"
             style="width:280px;"
         >
@@ -66,8 +66,8 @@
                 type="search"
                 name="q"
                 value="{{ $table->search ?? '' }}"
-                placeholder="Поиск…"
-                aria-label="Поиск"
+                placeholder="{{ __('tables::filters.search_placeholder') }}"
+                aria-label="{{ __('tables::filters.search_aria') }}"
                 class="form-control form-control-sm"
                 style="width:280px;"
             >

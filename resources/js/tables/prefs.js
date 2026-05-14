@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
 import { tablesConfirm } from './confirm.js';
+import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
@@ -103,9 +104,9 @@ $(document).on('click', '[data-tables-prefs-submit]', function (e) {
         });
         if (messages.length === 0) {
             if (jqXHR.status === 419) {
-                messages.push('Сессия истекла. Перезагрузите страницу.');
+                messages.push(tablesT('prefs.session_expired'));
             } else {
-                messages.push('Не удалось сохранить настройки. Попробуйте позже.');
+                messages.push(tablesT('prefs.save_failed'));
             }
         }
         showError($form, messages.join(' '));
@@ -122,10 +123,10 @@ $(document).on('click', '[data-tables-prefs-reset]', function (e) {
     if ($trigger.length === 0) return;
 
     tablesConfirm({
-        title: 'Сбросить настройки таблицы?',
-        message: 'Колонки, плотность и количество строк вернутся к значениям по умолчанию.',
-        confirmText: 'Сбросить',
-        cancelText: 'Отмена',
+        title: tablesT('prefs.reset_confirm_title'),
+        message: tablesT('prefs.reset_confirm_message'),
+        confirmText: tablesT('prefs.reset_confirm_button'),
+        cancelText: tablesT('prefs.cancel'),
         confirmVariant: 'danger',
         icon: 'bi-arrow-counterclockwise',
     }).then((ok) => {
@@ -147,8 +148,8 @@ $(document).on('click', '[data-tables-prefs-reset]', function (e) {
             dispatchNavigate(cleaned);
         }).fail(function (jqXHR) {
             const msg = jqXHR.status === 419
-                ? 'Сессия истекла. Перезагрузите страницу.'
-                : 'Не удалось сбросить настройки. Попробуйте позже.';
+                ? tablesT('prefs.session_expired')
+                : tablesT('prefs.reset_failed');
             showError($form, msg);
         });
     });

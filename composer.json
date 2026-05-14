@@ -30,7 +30,11 @@
     "require-dev": {
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.27",
+        "openspout/openspout": "^4.26",
         "orchestra/testbench": "^11.0"
+    },
+    "suggest": {
+        "openspout/openspout": "Required for XLSX export (^4.26). Install in the host project to enable `?format=xlsx`."
     },
     "autoload": {
         "psr-4": {

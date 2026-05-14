@@ -15,7 +15,7 @@
                     type="checkbox"
                     data-tables-row-checkbox
                     data-tables-row-id="{{ data_get($row, 'id') }}"
-                    aria-label="Выбрать строку"
+                    aria-label="{{ __('tables::row_actions.select_row_aria') }}"
                 >
             </div>
         </td>
