@@ -82,7 +82,7 @@ class NumberField extends Field
 
     public function getEditInputType(): ?string
     {
-        return $this->editable ? 'number' : null;
+        return $this->isCellEditEnabled() ? 'number' : null;
     }
 
     protected function defaultEditRules(?Model $row = null): array

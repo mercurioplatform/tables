@@ -36,6 +36,7 @@ Override-points (фиксируются как часть контракта; д
 - `filterGroupLabels(): array<string, string>` — кастомные label'ы для аккордеон-группировки филтр-чипов; ключ — значение `Field::filterGroup(...)`.
 - `filterGroupThreshold(): int` — порог количества filterable-полей, выше которого включается аккордеон-группировка (default `10`).
 - `actionHistoryEnabled(): bool`
+- `cellEditEnabled(): bool` — default `true`. Если `false`, route `PATCH {base}/cells/{id}/{field}` не регистрируется (404), вне зависимости от наличия полей с `editable()`/`editableUsing()`. Probe вызывается один раз в boot-time из `Route::tablesPage(...)`; любая ошибка резолва Resource'а трактуется как fallback `true` (запись `Log::warning` `tables.routing.cell_edit_probe_failed`). Для `Route::tablesResource(...)` (host-controller) probe не выполняется и route регистрируется всегда.
 - `resolveAuditActor(?int $actorId): ?string` — резолвит `actor_id` из `tables_action_log` в человекочитаемое имя для offcanvas «История». Default: `Auth::createUserProvider(config("auth.guards.{$this->effectiveGuard()}.provider"))->retrieveById($actorId)`, форматирование — через protected `formatAuditActor(?Authenticatable $user): ?string` (default `name ?? email ?? null`). Override `resolveAuditActor` целиком — для мульти-источников / soft-deleted / нестандартного lookup'а; override `formatAuditActor` — только для смены формата отображаемого имени.
 
 Invariants:
@@ -95,7 +96,7 @@ Lookup'а «по `key()`» в реестре нет — пользователь
 | `saveView(\Illuminate\Http\Request $request)` | create / update / setDefault user saved view (поле `action` в payload) |
 | `deleteUserView(\Illuminate\Http\Request $request, int $id)` | delete user saved view |
 | `export(\Illuminate\Http\Request $request)` | CSV stream / async dispatch |
-| `cellUpdate(\Illuminate\Http\Request $request, $id, string $field)` | inline cell update (PATCH `{base}/cells/{id}/{field}`) |
+| `cellUpdate(\Illuminate\Http\Request $request, $id, string $field)` | inline cell update (PATCH `{base}/cells/{id}/{field}`). Route регистрируется только если `ListResource::cellEditEnabled()` вернул `true` (default). Для read-only ресурсов переопределить на `false` — эндпоинт станет 404. |
 | `actionProgress(\Illuminate\Http\Request $request, string $progress)` | bulk-progress polling |
 | `options(\Illuminate\Http\Request $request)` | autocomplete для BelongsToField |
 
@@ -124,11 +125,18 @@ Field::make(string $name, ?string $label = null): static
 ->subline(\Closure $fn): static  // ($value, $row): ?string
 ->linkTo(\Closure $fn): static  // ($value, $row): ?string (URL)
 ->hideByDefault(bool $value = true): static
-->editable(bool $value = true): static
-->editColumn(string $column): static
-->editOptions(\Closure|array $options): static
-->editRules(array|\Closure $rules): static
-->editPolicy(string $policyClass, string $method): static
+->editableUsing(
+    ?array $policy = null,             // ['class' => PolicyClass::class, 'method' => 'name']
+    array|\Closure|null $rules = null, // array<int, mixed> или Closure(?Model): array
+    ?\Closure $transform = null,       // Closure(mixed $value, Model $model): mixed — после валидации, до update()
+    ?string $column = null,            // целевая колонка БД (default = $name)
+    array|\Closure|null $options = null, // для select-инпута: array|Closure(): array
+): static  // primary cell-edit API — устанавливает enabled=true и мерджит spec
+->editable(bool $value = true): static  // shortcut for editableUsing(...)
+->editColumn(string $column): static  // shortcut for editableUsing(column: ...)
+->editOptions(\Closure|array $options): static  // shortcut for editableUsing(options: ...)
+->editRules(array|\Closure $rules): static  // shortcut for editableUsing(rules: ...)
+->editPolicy(string $policyClass, string $method): static  // shortcut for editableUsing(policy: ...)
 ->filterable(array $operators = []): static
 ->filterOptions(\Closure|array $optionsOrFn): static
 ->onlyFilterable(bool $value = true): static
@@ -144,6 +152,28 @@ Field::make(string $name, ?string $label = null): static
 `TextField`, `TwoLineField`, `NumberField`, `MoneyField`, `DiscountedMoneyField`, `BooleanField`, `StatusField`, `BadgesField`, `ImageField`, `AvatarField`, `BelongsToField`, `BelongsToManyField`, `RelationCountField`, `RatingField`, `ProgressBarField`, `ConditionalColorField`, `JsonField`, `TagsField`, `DateField`.
 
 Расширение через подкласс — допустимо; новые конкретные подклассы добавляются в minor.
+
+##### Cell-edit pipeline
+
+`editableUsing(...)` — единая точка конфигурации inline-edit. Все 5 shortcut-методов (`editable`, `editColumn`, `editPolicy`, `editRules`, `editOptions`) мерджат в тот же internal VO `CellEditSpec`.
+
+Pipeline для `PATCH {base}/cells/{id}/{field}`:
+
+1. `policy` — `Gate::forUser($actor)->check($policy['method'], $model)` → `403` при отказе.
+2. `rules` — `Validator::make(['value' => $request->input('value')], ['value' => $rules])` → `422` при провале.
+3. `transform` — если задан, вызывается `$transform($validatedValue, $model)` после валидации, до записи. Исключение → `Log::error('tables.cell_edit.transform_failed', ...)` + `422` с message из `tables::cell_edit.transform_failed`.
+4. `$model->update([$column => $value])` внутри `DB::transaction(...)`.
+
+Пример с `transform` (нормализация перед записью):
+
+```php
+TextField::make('slug')
+    ->editableUsing(
+        policy: [ProductPolicy::class, 'edit'],
+        rules: ['required', 'string', 'max:255'],
+        transform: fn (string $value) => trim(strtolower($value)),
+    );
+```
 
 ### Form fields (для `BulkAction::schema()` / `RowAction::schema()`)
 

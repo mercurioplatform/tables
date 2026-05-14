@@ -7,11 +7,13 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Filter\Operator;
 use ReflectionFunction;
+use Throwable;
 
 abstract class Field
 {
@@ -57,18 +59,7 @@ abstract class Field
 
     protected bool $onlyFilterable = false;
 
-    protected bool $editable = false;
-
-    protected ?string $editColumn = null;
-
-    /** @var array{class: string, method: string}|null */
-    protected ?array $editPolicy = null;
-
-    /** @var array<int, mixed>|Closure|null */
-    protected array|Closure|null $editRules = null;
-
-    /** @var array<int|string, string>|Closure|null */
-    protected array|Closure|null $editOptions = null;
+    protected ?CellEditSpec $cellEditSpec = null;
 
     /** @var array<int|string, string>|null */
     private ?array $editOptionsCache = null;
@@ -204,23 +195,60 @@ abstract class Field
         return $this;
     }
 
+    /**
+     * Primary cell-edit API. Конструирует / мерджит {@see CellEditSpec}.
+     * Старые 5 методов ниже остаются как тонкие wrappers поверх этого.
+     *
+     * @param  array{class: string, method: string}|null  $policy
+     * @param  array<int, mixed>|Closure|null  $rules
+     * @param  array<int|string, string>|Closure|null  $options
+     */
+    public function editableUsing(
+        ?array $policy = null,
+        array|Closure|null $rules = null,
+        ?Closure $transform = null,
+        ?string $column = null,
+        array|Closure|null $options = null,
+    ): static {
+        $this->cellEditSpec = ($this->cellEditSpec ?? new CellEditSpec)->with(
+            enabled: true,
+            policy: $policy,
+            rules: $rules,
+            transform: $transform,
+            column: $column,
+            options: $options,
+        );
+
+        if ($options !== null) {
+            $this->editOptionsCache = null;
+        }
+
+        return $this;
+    }
+
     public function editable(bool $value = true): static
     {
-        $this->editable = $value;
+        $this->cellEditSpec = ($this->cellEditSpec ?? new CellEditSpec)->with(
+            enabled: $value,
+        );
 
         return $this;
     }
 
     public function editColumn(string $column): static
     {
-        $this->editColumn = $column;
+        $this->cellEditSpec = ($this->cellEditSpec ?? new CellEditSpec)->with(
+            column: $column,
+        );
 
         return $this;
     }
 
     public function editPolicy(string $policyClass, string $method): static
     {
-        $this->editPolicy = ['class' => $policyClass, 'method' => $method];
+        $this->cellEditSpec = ($this->cellEditSpec ?? new CellEditSpec)->with(
+            policy: ['class' => $policyClass, 'method' => $method],
+        );
 
         return $this;
     }
@@ -230,7 +258,9 @@ abstract class Field
      */
     public function editRules(array|Closure $rules): static
     {
-        $this->editRules = $rules;
+        $this->cellEditSpec = ($this->cellEditSpec ?? new CellEditSpec)->with(
+            rules: $rules,
+        );
 
         return $this;
     }
@@ -240,10 +270,26 @@ abstract class Field
      */
     public function editOptions(array|Closure $options): static
     {
-        $this->editOptions = $options;
+        $this->cellEditSpec = ($this->cellEditSpec ?? new CellEditSpec)->with(
+            options: $options,
+        );
         $this->editOptionsCache = null;
 
         return $this;
+    }
+
+    public function getCellEditSpec(): ?CellEditSpec
+    {
+        return $this->cellEditSpec;
+    }
+
+    /**
+     * Удобный helper для подклассов: переопределяют `getEditInputType()` через
+     * этот флаг вместо прямого чтения исчезнувшего свойства `$editable`.
+     */
+    protected function isCellEditEnabled(): bool
+    {
+        return $this->cellEditSpec?->enabled === true;
     }
 
     // ---- Getters ----
@@ -306,12 +352,16 @@ abstract class Field
 
     public function isEditable(): bool
     {
-        return $this->editable && $this->getEditInputType() !== null;
+        return $this->isCellEditEnabled() && $this->getEditInputType() !== null;
     }
 
     public function getEditableColumn(): string
     {
-        return $this->editColumn ?? $this->name;
+        if ($this->cellEditSpec === null) {
+            return $this->name;
+        }
+
+        return $this->cellEditSpec->column ?? $this->name;
     }
 
     /**
@@ -319,7 +369,7 @@ abstract class Field
      */
     public function getEditPolicy(): ?array
     {
-        return $this->editPolicy;
+        return $this->cellEditSpec?->policy;
     }
 
     public function getEditInputType(): ?string
@@ -332,14 +382,25 @@ abstract class Field
      */
     public function compileEditRules(?Model $row = null): array
     {
-        if ($this->editRules instanceof Closure) {
-            $resolved = ($this->editRules)($row);
+        $rules = $this->cellEditSpec?->rules;
+
+        if ($rules instanceof Closure) {
+            try {
+                $resolved = $rules($row);
+            } catch (Throwable $e) {
+                Log::warning('tables.cell_edit.rules_closure_failed', [
+                    'field' => $this->name,
+                    'exception' => $e::class,
+                ]);
+
+                return [];
+            }
 
             return is_array($resolved) ? $resolved : [];
         }
 
-        if (is_array($this->editRules)) {
-            return $this->editRules;
+        if (is_array($rules)) {
+            return $rules;
         }
 
         return $this->defaultEditRules($row);
@@ -362,15 +423,17 @@ abstract class Field
             return $this->editOptionsCache;
         }
 
-        if ($this->editOptions instanceof Closure) {
-            $resolved = ($this->editOptions)();
+        $options = $this->cellEditSpec?->options;
+
+        if ($options instanceof Closure) {
+            $resolved = $options();
             $this->editOptionsCache = is_array($resolved) ? $resolved : [];
 
             return $this->editOptionsCache;
         }
 
-        if (is_array($this->editOptions)) {
-            $this->editOptionsCache = $this->editOptions;
+        if (is_array($options)) {
+            $this->editOptionsCache = $options;
 
             return $this->editOptionsCache;
         }

@@ -149,7 +149,7 @@ class StatusField extends Field
 
     public function getEditInputType(): ?string
     {
-        return $this->editable ? 'select' : null;
+        return $this->isCellEditEnabled() ? 'select' : null;
     }
 
     protected function defaultEditRules(?Model $row = null): array

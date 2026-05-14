@@ -53,7 +53,7 @@ class BooleanField extends Field
 
     public function getEditInputType(): ?string
     {
-        return $this->editable ? 'boolean' : null;
+        return $this->isCellEditEnabled() ? 'boolean' : null;
     }
 
     protected function defaultEditRules(?Model $row = null): array

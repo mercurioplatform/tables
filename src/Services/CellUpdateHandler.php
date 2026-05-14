@@ -88,6 +88,24 @@ class CellUpdateHandler
         $value = $validator->validated()['value'] ?? null;
         $column = $f->getEditableColumn();
 
+        $transform = $f->getCellEditSpec()?->transform;
+        if ($transform !== null) {
+            try {
+                $value = $transform($value, $model);
+            } catch (\Throwable $e) {
+                Log::error('tables.cell_edit.transform_failed', [
+                    'resource' => $resourceClass,
+                    'field' => $field,
+                    'id' => $id,
+                    'exception' => $e::class,
+                ]);
+
+                return response()->json([
+                    'message' => (string) trans('tables::cell_edit.transform_failed'),
+                ], 422);
+            }
+        }
+
         DB::transaction(fn () => $model->update([$column => $value]));
 
         $fresh = $resource->query()->whereKey($id)->first();

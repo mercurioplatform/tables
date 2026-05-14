@@ -110,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
 - [Summary slot](#summary) — KPI и funnel-cards над таблицей.
 - [Streaming export](#export) — CSV (default) + JSON + XLSX (opt-in), single endpoint, async fallback через `ExportJobDispatcher`.
 - [Localization](#localization) — ru/en из коробки, namespace `tables::*`, расширяется через `vendor:publish --tag=tables-lang`.
+- [Inline cell edit](#inline-cell-edit) — декларативный `editableUsing(...)` с policy / rules / transform / options и опциональной регистрацией route'а.
 
 ### Saved views
 
@@ -201,6 +202,29 @@ Host может добавить собственные карточки — н�
 ### Export
 
 Стрим в нескольких форматах на текущее состояние списка (search + view + chips + qb + sort + visible columns) через единый endpoint `?format=csv|json|xlsx`. CSV/JSON встроены, XLSX — opt-in (`composer require openspout/openspout`). Лимит — `config('tables.export.sync_limit')`; выше — `ExportJobDispatcher` (опционально) или HTTP 413. UI рендерит dropdown форматов автоматически, если зарегистрировано больше одного writer'а. Подробности и кастомный writer — [docs/export.md](docs/export.md).
+
+### Inline cell edit
+
+Поле объявляется редактируемым через `editableUsing(...)` — один primary-метод, мерджащий policy / validation rules / опциональный `transform` / целевую колонку БД / опции для select-инпута. Старые shortcut-методы (`editable`, `editColumn`, `editPolicy`, `editRules`, `editOptions`) остаются и совместимы.
+
+```php
+TextField::make('title')
+    ->editableUsing(
+        policy: [ProductPolicy::class, 'edit'],
+        rules: ['required', 'string', 'max:255'],
+        transform: fn (string $value) => trim($value),
+    ),
+
+BelongsToField::make('category')
+    ->editableUsing(
+        policy: [ProductPolicy::class, 'updateCategory'],
+        options: fn () => Category::orderBy('title')->pluck('title', 'id')->all(),
+    ),
+```
+
+Pipeline на `PATCH {base}/cells/{id}/{field}`: `policy` → `rules` → `transform` → `update()` внутри транзакции. Любой Throwable из `transform` логируется как `tables.cell_edit.transform_failed` и возвращает `422` с translation-ключом `tables::cell_edit.transform_failed`.
+
+Если ресурс read-only — переопределите `ListResource::cellEditEnabled(): false`, и route не будет регистрироваться вовсе (404).
 
 ### Localization
 

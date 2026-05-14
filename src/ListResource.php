@@ -297,6 +297,18 @@ abstract class ListResource
         return false;
     }
 
+    /**
+     * Если `false` — auto-registered route `PATCH {base}/cells/{id}/{field}`
+     * не регистрируется в `Route::tablesPage()`/`Route::tablesResource()`,
+     * и cellUpdate-эндпоинт становится недоступен (404). Полезно для
+     * read-only ресурсов, где `editableUsing(...)` не используется ни на
+     * одном поле.
+     */
+    public function cellEditEnabled(): bool
+    {
+        return true;
+    }
+
     /** @var array<int, ?string> */
     private array $resolvedAuditActors = [];
 

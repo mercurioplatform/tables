@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Field::editableUsing(policy?, rules?, transform?, column?, options?)` — единая
+  декларативная точка конфигурации inline cell-edit. Все 5 старых методов
+  (`editable`, `editColumn`, `editPolicy`, `editRules`, `editOptions`) сохранены
+  как тонкие wrappers и работают как раньше.
+- Параметр `transform` — `Closure(mixed $value, Model $model): mixed`,
+  вызывается в `CellUpdateHandler` после валидации, до `update()`. Любой
+  Throwable из transform логируется (`tables.cell_edit.transform_failed`)
+  и возвращает `422` с translation-ключом `tables::cell_edit.transform_failed`
+  (поставляется в ru/en).
+- `ListResource::cellEditEnabled(): bool` (default `true`). Если переопределить
+  в `false`, route `PATCH {base}/cells/{id}/{field}` не регистрируется через
+  `Route::tablesPage(...)` (boot-time probe). Любая ошибка резолва Resource'а
+  при probe трактуется как fallback `true` с записью
+  `Log::warning('tables.routing.cell_edit_probe_failed', ...)`.
+- `Field::getCellEditSpec(): ?CellEditSpec` — публичный геттер для внутренних
+  сервисов и host-расширений; внутреннее представление настроек cell-edit.
+
 - `RowAction::sharedAuthz()` — opt-in флаг для row-actions, чья policy/ability
   не зависит от состояния конкретной модели. При установленном флаге
   `resolveRowActions()` выполняет один `Gate::check` на класс модели и

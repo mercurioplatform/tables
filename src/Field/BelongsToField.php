@@ -73,8 +73,9 @@ class BelongsToField extends Field
 
     public function getEditableColumn(): string
     {
-        if ($this->editColumn !== null) {
-            return $this->editColumn;
+        $spec = $this->getCellEditSpec();
+        if ($spec !== null && $spec->column !== null) {
+            return $spec->column;
         }
 
         return $this->foreignKey ?? ($this->name.'_id');
@@ -82,7 +83,7 @@ class BelongsToField extends Field
 
     public function getEditInputType(): ?string
     {
-        return $this->editable ? 'select' : null;
+        return $this->isCellEditEnabled() ? 'select' : null;
     }
 
     protected function defaultEditRules(?Model $row = null): array

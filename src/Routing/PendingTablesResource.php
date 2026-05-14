@@ -4,7 +4,9 @@ namespace Mercurio\Tables\Routing;
 
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Http\GenericTablesController;
+use Mercurio\Tables\ListResource;
 
 /**
  * @internal Implementation detail of mercurioplatform/tables. Not covered by SemVer.
@@ -39,7 +41,7 @@ class PendingTablesResource
 
     private Route $exportRoute;
 
-    private Route $cellUpdateRoute;
+    private ?Route $cellUpdateRoute = null;
 
     private Route $actionLogRoute;
 
@@ -47,7 +49,7 @@ class PendingTablesResource
 
     private Route $actionProgressRoute;
 
-    public function __construct(Router $router, string $path, string $controller)
+    public function __construct(Router $router, string $path, string $controller, bool $registerCellUpdate = true)
     {
         $normalized = ltrim($path, '/');
         $optionsSuffix = (string) config('tables.route_options_suffix', '/options');
@@ -115,10 +117,12 @@ class PendingTablesResource
             [$controller, 'export'],
         );
 
-        $this->cellUpdateRoute = $router->patch(
-            $base.$cellEditSuffix.'/{id}/{field}',
-            [$controller, 'cellUpdate'],
-        )->where(['id' => '[0-9]+', 'field' => '[a-z_][a-zA-Z0-9_]*']);
+        if ($registerCellUpdate) {
+            $this->cellUpdateRoute = $router->patch(
+                $base.$cellEditSuffix.'/{id}/{field}',
+                [$controller, 'cellUpdate'],
+            )->where(['id' => '[0-9]+', 'field' => '[a-z_][a-zA-Z0-9_]*']);
+        }
 
         $this->actionLogRoute = $router->get(
             $base.'/action-log',
@@ -138,13 +142,42 @@ class PendingTablesResource
 
     public static function page(Router $router, string $path, string $resourceClass): self
     {
-        $instance = new self($router, $path, GenericTablesController::class);
+        $instance = new self(
+            $router,
+            $path,
+            GenericTablesController::class,
+            self::probeCellEditEnabled($resourceClass),
+        );
 
         foreach ($instance->routes() as $route) {
             $route->defaults('resource', $resourceClass);
         }
 
         return $instance;
+    }
+
+    /**
+     * Boot-time probe ресурса на cellEditEnabled(). Любая ошибка
+     * (DI, конструктор, IO) трактуется как fallback `true`, чтобы не
+     * ронять регистрацию роутов и сохранить поведение «по умолчанию».
+     */
+    private static function probeCellEditEnabled(string $resourceClass): bool
+    {
+        try {
+            $resource = app($resourceClass);
+            if (! $resource instanceof ListResource) {
+                return true;
+            }
+
+            return $resource->cellEditEnabled();
+        } catch (\Throwable $e) {
+            Log::warning('tables.routing.cell_edit_probe_failed', [
+                'resource' => $resourceClass,
+                'exception' => $e::class,
+            ]);
+
+            return true;
+        }
     }
 
     public function name(string $base): self
@@ -162,7 +195,7 @@ class PendingTablesResource
         $this->prefsRoute->name($base.'.save_prefs');
         $this->prefsResetRoute->name($base.'.reset_prefs');
         $this->exportRoute->name($base.'.export');
-        $this->cellUpdateRoute->name($base.'.cell_update');
+        $this->cellUpdateRoute?->name($base.'.cell_update');
         $this->actionLogRoute->name($base.'.action_log');
         $this->actionLogUndoRoute->name($base.'.action_log_undo');
         $this->actionProgressRoute->name($base.'.action_progress');
@@ -193,7 +226,7 @@ class PendingTablesResource
     /** @return array<int, Route> */
     private function routes(): array
     {
-        return [
+        return array_values(array_filter([
             $this->indexRoute,
             $this->bulkActionRoute,
             $this->optionsRoute,
@@ -211,6 +244,6 @@ class PendingTablesResource
             $this->actionLogRoute,
             $this->actionLogUndoRoute,
             $this->actionProgressRoute,
-        ];
+        ]));
     }
 }
