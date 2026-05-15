@@ -1,9 +1,7 @@
 import $ from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
-
-const URL_ATTR = 'data-tables-action-log-url';
-const TRIGGER_ATTR = 'data-tables-action-log-trigger';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 function loadInto($body, url) {
     $body.addClass('is-loading');
@@ -26,33 +24,33 @@ function loadInto($body, url) {
         });
 }
 
-$(document).on('show.bs.offcanvas', '[data-tables-action-log]', function () {
+$(document).on('show.bs.offcanvas', sel(ATTRS.ACTION_LOG), function () {
     const $offcanvas = $(this);
     const id = $offcanvas.attr('id');
-    const $trigger = $('[' + TRIGGER_ATTR + '="' + id + '"]').first();
-    const url = $trigger.attr(URL_ATTR);
+    const $trigger = $(sel(ATTRS.ACTION_LOG_TRIGGER, id)).first();
+    const url = $trigger.attr(ATTRS.ACTION_LOG_URL);
     if (!url) {
         return;
     }
-    const $body = $offcanvas.find('[data-tables-action-log-body]');
+    const $body = $offcanvas.find(sel(ATTRS.ACTION_LOG_BODY));
     loadInto($body, url);
 });
 
-$(document).on('click', '[data-tables-action-log-body] a[href]', function (e) {
+$(document).on('click', sel(ATTRS.ACTION_LOG_BODY) + ' a[href]', function (e) {
     const href = $(this).attr('href');
     if (!href || href === '#' || href.startsWith('javascript:')) {
         return;
     }
     e.preventDefault();
-    const $body = $(this).closest('[data-tables-action-log-body]');
+    const $body = $(this).closest(sel(ATTRS.ACTION_LOG_BODY));
     loadInto($body, href);
 });
 
-$(document).on('submit', '[data-tables-action-log-undo]', function (e) {
+$(document).on('submit', sel(ATTRS.ACTION_LOG_UNDO), function (e) {
     e.preventDefault();
     const $form = $(this);
-    const $offcanvas = $form.closest('[data-tables-action-log]');
-    const $body = $offcanvas.find('[data-tables-action-log-body]');
+    const $offcanvas = $form.closest(sel(ATTRS.ACTION_LOG));
+    const $body = $offcanvas.find(sel(ATTRS.ACTION_LOG_BODY));
     const url = $form.attr('action');
     const csrf = $form.find('input[name="_token"]').val();
     const $btn = $form.find('button[type="submit"]');
@@ -67,13 +65,13 @@ $(document).on('submit', '[data-tables-action-log-undo]', function (e) {
     })
         .done((resp) => {
             const trigger = $offcanvas.attr('id');
-            const $trig = $('[' + TRIGGER_ATTR + '="' + trigger + '"]').first();
-            const reloadUrl = $trig.attr(URL_ATTR);
+            const $trig = $(sel(ATTRS.ACTION_LOG_TRIGGER, trigger)).first();
+            const reloadUrl = $trig.attr(ATTRS.ACTION_LOG_URL);
             if (reloadUrl) {
                 loadInto($body, reloadUrl);
             }
             const msg = (resp && resp.message) || tablesT('action_log.undo_default_success');
-            $(document).trigger('tables:flash', [{ status: msg }]);
+            $(document).trigger(EVENTS.FLASH, [{ status: msg }]);
         })
         .fail((xhr) => {
             const msg =

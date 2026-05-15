@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -9,7 +10,7 @@ function buildSearchParams() {
 }
 
 function syncSearchInputToParams($el, params) {
-    const $form = $el.closest('[data-tables-page]').find('form[data-tables-search-form]').first();
+    const $form = $el.closest(sel(ATTRS.PAGE)).find('form' + sel(ATTRS.SEARCH_FORM)).first();
     if ($form.length === 0) return;
     const $input = $form.find('input[name="q"]');
     if ($input.length === 0) return;
@@ -31,11 +32,11 @@ function clearFieldKeys(params, field) {
 
 function dispatchNavigate(url) {
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, { detail: { url } }));
 }
 
 function closePopover($el) {
-    const $toggle = $el.closest('[data-tables-chip]').find('[data-bs-toggle="dropdown"]');
+    const $toggle = $el.closest(sel(ATTRS.CHIP)).find('[data-bs-toggle="dropdown"]');
     if ($toggle.length === 0) return;
     const Dropdown = window.bootstrap?.Dropdown;
     if (Dropdown) {
@@ -49,10 +50,10 @@ function closePopover($el) {
     $toggle.closest('.dropdown').find('.dropdown-menu').removeClass('show');
 }
 
-$(document).on('click', '[data-tables-filter-apply]', function (e) {
+$(document).on('click', sel(ATTRS.FILTER_APPLY), function (e) {
     e.preventDefault();
     e.stopPropagation();
-    const $form = $(this).closest('[data-tables-filter-popover-form]');
+    const $form = $(this).closest(sel(ATTRS.FILTER_POPOVER_FORM));
     if ($form.length === 0) return;
     const field = $form.data('field');
     const op = $form.find('select[name="op"]').val();
@@ -62,8 +63,8 @@ $(document).on('click', '[data-tables-filter-apply]', function (e) {
     syncSearchInputToParams($(this), params);
     clearFieldKeys(params, field);
 
-    const $value = $form.find('[data-tables-filter-popover-value]');
-    const popoverType = $form.closest('[data-tables-chip]').data('popover-type');
+    const $value = $form.find(sel(ATTRS.FILTER_POPOVER_VALUE));
+    const popoverType = $form.closest(sel(ATTRS.CHIP)).data('popover-type');
 
     let appended = false;
 
@@ -78,7 +79,7 @@ $(document).on('click', '[data-tables-filter-apply]', function (e) {
             appended = true;
         });
     } else if (popoverType === 'autocomplete') {
-        const values = $form.find('[data-tables-autocomplete-selected-list] input[name="value[]"]').map((_, el) => el.value).get();
+        const values = $form.find(sel(ATTRS.AUTOCOMPLETE_SELECTED_LIST) + ' input[name="value[]"]').map((_, el) => el.value).get();
         if (values.length === 0) {
             return;
         }
@@ -132,20 +133,20 @@ $(document).on('click', '[data-tables-filter-apply]', function (e) {
     closePopover($form);
 });
 
-$(document).on('keydown', '[data-tables-filter-popover-form] input', function (e) {
+$(document).on('keydown', sel(ATTRS.FILTER_POPOVER_FORM) + ' input', function (e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    const $apply = $(this).closest('[data-tables-filter-popover-form]').find('[data-tables-filter-apply]').first();
+    const $apply = $(this).closest(sel(ATTRS.FILTER_POPOVER_FORM)).find(sel(ATTRS.FILTER_APPLY)).first();
     if ($apply.length > 0) {
         $apply.trigger('click');
     }
 });
 
-$(document).on('change', '[data-tables-filter-popover-form] select[name="op"]', function () {
+$(document).on('change', sel(ATTRS.FILTER_POPOVER_FORM) + ' select[name="op"]', function () {
     const $select = $(this);
     const $form = $select.closest('form');
     const op = $select.val();
-    const $popover = $form.closest('[data-tables-chip]');
+    const $popover = $form.closest(sel(ATTRS.CHIP));
     if ($popover.data('popover-type') !== 'range') return;
 
     const usesRange = RANGE_OPS.includes(op);
@@ -161,11 +162,11 @@ $(document).on('change', '[data-tables-filter-popover-form] select[name="op"]', 
     }
 });
 
-$(document).on('shown.bs.dropdown', '[data-tables-chip]', function () {
+$(document).on('shown.bs.dropdown', sel(ATTRS.CHIP), function () {
     $(this).find('select[name="op"]').trigger('change');
 });
 
-$(document).on('click', '[data-tables-chip-remove], [data-tables-filter-clear]', function (e) {
+$(document).on('click', sel(ATTRS.CHIP_REMOVE) + ', ' + sel(ATTRS.FILTER_CLEAR), function (e) {
     e.preventDefault();
     const field = $(this).data('field');
     if (!field) return;

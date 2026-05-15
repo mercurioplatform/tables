@@ -1,3 +1,6 @@
+import { logger } from './logger.js';
+
+const log = logger.scope('i18n');
 const missingReported = new Set();
 
 function tablesT(key, params) {
@@ -9,8 +12,7 @@ function tablesT(key, params) {
     if (typeof value !== 'string' || value === '') {
         if (!missingReported.has(key)) {
             missingReported.add(key);
-            // eslint-disable-next-line no-console
-            console.error('tables.i18n missing key', key);
+            log.error('missing key', key);
         }
         value = key;
     }

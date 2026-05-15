@@ -2,8 +2,11 @@ import jQuery from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesConfirm } from './confirm.js';
 import { tablesT } from './i18n.js';
+import { logger } from './logger.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
+const log = logger.scope('bulk_progress');
 
 const selections = new Map();
 
@@ -17,18 +20,18 @@ function getSet(resourceKey) {
 }
 
 function findScope(resourceKey) {
-    return $('[data-tables-bulk-scope="' + resourceKey + '"]');
+    return $(sel(ATTRS.BULK_SCOPE, resourceKey));
 }
 
 function findForm(resourceKey) {
-    return $('[data-tables-bulk-form="' + resourceKey + '"]');
+    return $(sel(ATTRS.BULK_FORM, resourceKey));
 }
 
 function updateBar(resourceKey) {
     const $form = findForm(resourceKey);
     if ($form.length === 0) return;
     const set = getSet(resourceKey);
-    $form.find('[data-tables-bulk-count]').text(set.size);
+    $form.find(sel(ATTRS.BULK_COUNT)).text(set.size);
     if (set.size > 0) {
         $form.removeAttr('hidden');
     } else {
@@ -39,8 +42,8 @@ function updateBar(resourceKey) {
 function updateHeader(resourceKey) {
     const $scope = findScope(resourceKey);
     if ($scope.length === 0) return;
-    const $rows = $scope.find('[data-tables-row-checkbox]');
-    const $all = $scope.find('[data-tables-select-all]');
+    const $rows = $scope.find(sel(ATTRS.ROW_CHECKBOX));
+    const $all = $scope.find(sel(ATTRS.SELECT_ALL));
     const total = $rows.length;
     const checked = $rows.filter(':checked').length;
     if ($all.length === 0) return;
@@ -48,15 +51,15 @@ function updateHeader(resourceKey) {
     $all.prop('indeterminate', checked > 0 && checked < total);
 }
 
-$(document).on('change', '[data-tables-bulk-scope] [data-tables-row-checkbox]', function () {
+$(document).on('change', sel(ATTRS.BULK_SCOPE) + ' ' + sel(ATTRS.ROW_CHECKBOX), function () {
     const $cb = $(this);
-    const $scope = $cb.closest('[data-tables-bulk-scope]');
-    const resourceKey = $scope.attr('data-tables-bulk-scope');
+    const $scope = $cb.closest(sel(ATTRS.BULK_SCOPE));
+    const resourceKey = $scope.attr(ATTRS.BULK_SCOPE);
     if (!resourceKey) return;
-    const id = $cb.attr('data-tables-row-id');
+    const id = $cb.attr(ATTRS.ROW_ID);
     if (!id) return;
     const set = getSet(resourceKey);
-    const $row = $cb.closest('[data-tables-row]');
+    const $row = $cb.closest(sel(ATTRS.ROW));
     if ($(this).prop('checked')) {
         set.add(String(id));
         $row.addClass('is-selected');
@@ -68,18 +71,18 @@ $(document).on('change', '[data-tables-bulk-scope] [data-tables-row-checkbox]', 
     updateHeader(resourceKey);
 });
 
-$(document).on('change', '[data-tables-bulk-scope] [data-tables-select-all]', function () {
+$(document).on('change', sel(ATTRS.BULK_SCOPE) + ' ' + sel(ATTRS.SELECT_ALL), function () {
     const $all = $(this);
     const checked = $(this).prop('checked');
-    const $scope = $all.closest('[data-tables-bulk-scope]');
-    const resourceKey = $scope.attr('data-tables-bulk-scope');
+    const $scope = $all.closest(sel(ATTRS.BULK_SCOPE));
+    const resourceKey = $scope.attr(ATTRS.BULK_SCOPE);
     if (!resourceKey) return;
     const set = getSet(resourceKey);
-    $scope.find('[data-tables-row-checkbox]').each(function () {
-        const id = $(this).attr('data-tables-row-id');
+    $scope.find(sel(ATTRS.ROW_CHECKBOX)).each(function () {
+        const id = $(this).attr(ATTRS.ROW_ID);
         if (!id) return;
         $(this).prop('checked', checked);
-        const $row = $(this).closest('[data-tables-row]');
+        const $row = $(this).closest(sel(ATTRS.ROW));
         if (checked) {
             set.add(String(id));
             $row.addClass('is-selected');
@@ -92,37 +95,37 @@ $(document).on('change', '[data-tables-bulk-scope] [data-tables-select-all]', fu
     updateHeader(resourceKey);
 });
 
-$(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-clear]', function (e) {
+$(document).on('click', sel(ATTRS.BULK_FORM) + ' ' + sel(ATTRS.BULK_CLEAR), function (e) {
     e.preventDefault();
-    const $form = $(this).closest('[data-tables-bulk-form]');
-    const resourceKey = $form.attr('data-tables-bulk-form');
+    const $form = $(this).closest(sel(ATTRS.BULK_FORM));
+    const resourceKey = $form.attr(ATTRS.BULK_FORM);
     if (!resourceKey) return;
     const set = getSet(resourceKey);
     set.clear();
     const $scope = findScope(resourceKey);
-    $scope.find('[data-tables-row-checkbox]').each(function () {
+    $scope.find(sel(ATTRS.ROW_CHECKBOX)).each(function () {
         $(this).prop('checked', false);
-        $(this).closest('[data-tables-row]').removeClass('is-selected');
+        $(this).closest(sel(ATTRS.ROW)).removeClass('is-selected');
     });
-    const $all = $scope.find('[data-tables-select-all]');
+    const $all = $scope.find(sel(ATTRS.SELECT_ALL));
     if ($all.length > 0) {
         $all.prop({ checked: false, indeterminate: false });
     }
     updateBar(resourceKey);
 });
 
-$(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-action]', function () {
+$(document).on('click', sel(ATTRS.BULK_FORM) + ' ' + sel(ATTRS.BULK_ACTION), function () {
     const $btn = $(this);
-    const $form = $btn.closest('[data-tables-bulk-form]');
-    $form.data('pendingAction', $btn.attr('data-tables-bulk-action') || '');
-    $form.data('pendingConfirm', $btn.attr('data-tables-bulk-confirm') || '');
-    $form.data('pendingQueued', $btn.attr('data-tables-bulk-queued') === '1' ? '1' : '');
+    const $form = $btn.closest(sel(ATTRS.BULK_FORM));
+    $form.data('pendingAction', $btn.attr(ATTRS.BULK_ACTION) || '');
+    $form.data('pendingConfirm', $btn.attr(ATTRS.BULK_CONFIRM) || '');
+    $form.data('pendingQueued', $btn.attr(ATTRS.BULK_QUEUED) === '1' ? '1' : '');
     $form.data('pendingLabel', $btn.attr('data-action-label') || $btn.text().trim());
 });
 
 function fillFormHidden($form, set) {
-    $form.find('[data-tables-bulk-action-input]').val($form.data('pendingAction') || '');
-    $form.find('[data-tables-bulk-ids-input]').val([...set].join(','));
+    $form.find(sel(ATTRS.BULK_ACTION_INPUT)).val($form.data('pendingAction') || '');
+    $form.find(sel(ATTRS.BULK_IDS_INPUT)).val([...set].join(','));
 }
 
 export function submitBulkAjax($form, resourceKey) {
@@ -151,11 +154,11 @@ export function submitBulkAjax($form, resourceKey) {
                 const set = getSet(resourceKey);
                 set.clear();
                 const $scope = findScope(resourceKey);
-                $scope.find('[data-tables-row-checkbox]').each(function () {
+                $scope.find(sel(ATTRS.ROW_CHECKBOX)).each(function () {
                     $(this).prop('checked', false);
-                    $(this).closest('[data-tables-row]').removeClass('is-selected');
+                    $(this).closest(sel(ATTRS.ROW)).removeClass('is-selected');
                 });
-                const $all = $scope.find('[data-tables-select-all]');
+                const $all = $scope.find(sel(ATTRS.SELECT_ALL));
                 if ($all.length > 0) {
                     $all.prop({ checked: false, indeterminate: false });
                 }
@@ -169,8 +172,7 @@ export function submitBulkAjax($form, resourceKey) {
             const message = (xhr && xhr.responseJSON && xhr.responseJSON.message)
                 ? xhr.responseJSON.message
                 : tablesT('bulk.queued_dispatch_failed', { status: xhr ? xhr.status : '?' });
-            // eslint-disable-next-line no-console
-            console.error('[tables.bulk_progress]', xhr ? xhr.status : null, message);
+            log.error(xhr ? xhr.status : null, message);
             if (window.TablesProgress && typeof window.TablesProgress.errorToast === 'function') {
                 window.TablesProgress.errorToast(message);
             } else {
@@ -179,9 +181,9 @@ export function submitBulkAjax($form, resourceKey) {
         });
 }
 
-$(document).on('submit', '[data-tables-bulk-form]', async function (e) {
+$(document).on('submit', sel(ATTRS.BULK_FORM), async function (e) {
     const $form = $(this);
-    const resourceKey = $form.attr('data-tables-bulk-form');
+    const resourceKey = $form.attr(ATTRS.BULK_FORM);
     if (!resourceKey) return;
     const set = getSet(resourceKey);
     if (set.size === 0) {
@@ -222,22 +224,22 @@ $(document).on('submit', '[data-tables-bulk-form]', async function (e) {
     fillFormHidden($form, set);
 });
 
-$(document).on('tables:rendered', '[data-tables-root]', function () {
+$(document).on(EVENTS.RENDERED, sel(ATTRS.ROOT), function () {
     const $root = $(this);
-    const $scope = $root.find('[data-tables-bulk-scope]').first();
+    const $scope = $root.find(sel(ATTRS.BULK_SCOPE)).first();
     if ($scope.length === 0) return;
-    const resourceKey = $scope.attr('data-tables-bulk-scope');
+    const resourceKey = $scope.attr(ATTRS.BULK_SCOPE);
     if (!resourceKey) return;
     const set = getSet(resourceKey);
     if (set.size === 0) {
         updateHeader(resourceKey);
         return;
     }
-    $scope.find('[data-tables-row-checkbox]').each(function () {
-        const id = $(this).attr('data-tables-row-id');
+    $scope.find(sel(ATTRS.ROW_CHECKBOX)).each(function () {
+        const id = $(this).attr(ATTRS.ROW_ID);
         if (id && set.has(String(id))) {
             $(this).prop('checked', true);
-            $(this).closest('[data-tables-row]').addClass('is-selected');
+            $(this).closest(sel(ATTRS.ROW)).addClass('is-selected');
         }
     });
     updateHeader(resourceKey);

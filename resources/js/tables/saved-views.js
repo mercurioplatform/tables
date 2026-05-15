@@ -1,6 +1,8 @@
 import jQuery from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
+import { logger } from './logger.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -9,7 +11,7 @@ const STATE_WHITELIST = ['q', 'f', 'qb', 'sort', 'dir', 'columns', 'density', 'p
 
 function dispatchNavigate(url) {
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, { detail: { url } }));
 }
 
 function setNestedValue(obj, keys, value) {
@@ -75,10 +77,10 @@ function fillStateInput($modal) {
     } catch (e) {
         encoded = btoa(json);
     }
-    $modal.find('[data-tables-save-view-state]').val(encoded);
+    $modal.find(sel(ATTRS.SAVE_VIEW_STATE)).val(encoded);
 }
 
-$(document).on('click', '[data-tables-save-view-trigger]', function () {
+$(document).on('click', sel(ATTRS.SAVE_VIEW_TRIGGER), function () {
     const target = $(this).attr('data-bs-target');
     if (!target) return;
     const $modal = $(target);
@@ -87,19 +89,19 @@ $(document).on('click', '[data-tables-save-view-trigger]', function () {
 });
 
 $(document).on('show.bs.modal', '.modal', function () {
-    const $form = $(this).find('form[data-tables-save-view-form]');
+    const $form = $(this).find('form' + sel(ATTRS.SAVE_VIEW_FORM));
     if ($form.length > 0) {
         fillStateInput($(this));
     }
 });
 
-$(document).on('submit', 'form[data-tables-save-view-form]', function (e) {
+$(document).on('submit', 'form' + sel(ATTRS.SAVE_VIEW_FORM), function (e) {
     e.preventDefault();
     const $form = $(this);
     const $modal = $form.closest('.modal');
 
     $form.find('.is-invalid').removeClass('is-invalid');
-    $form.find('[data-tables-save-view-error]').text('');
+    $form.find(sel(ATTRS.SAVE_VIEW_ERROR)).text('');
 
     tablesAjax({
         url: $form.attr('action'),
@@ -120,23 +122,23 @@ $(document).on('submit', 'form[data-tables-save-view-form]', function (e) {
         const data = jqXHR.responseJSON || {};
         const errors = data.errors || {};
         Object.keys(errors).forEach((field) => {
-            const $err = $form.find('[data-tables-save-view-error="' + field + '"]');
+            const $err = $form.find(sel(ATTRS.SAVE_VIEW_ERROR, field));
             const $input = $form.find('[name="' + field + '"]');
             $input.addClass('is-invalid');
             const msg = Array.isArray(errors[field]) ? errors[field][0] : String(errors[field]);
             $err.text(msg);
         });
         if (!Object.keys(errors).length) {
-            console.error('[tables] save-view failed', jqXHR.status, jqXHR.statusText);
+            logger.error('save-view failed', jqXHR.status, jqXHR.statusText);
         }
     });
 });
 
-$(document).on('click', '[data-tables-user-view-delete]', function (e) {
+$(document).on('click', sel(ATTRS.USER_VIEW_DELETE), function (e) {
     e.preventDefault();
     e.stopPropagation();
     const $btn = $(this);
-    const id = $btn.attr('data-tables-user-view-id');
+    const id = $btn.attr(ATTRS.USER_VIEW_ID);
     if (!id) return;
     if (!window.confirm(tablesT('saved_views.delete_view_confirm'))) return;
 
@@ -151,6 +153,6 @@ $(document).on('click', '[data-tables-user-view-delete]', function (e) {
     }).done(function () {
         dispatchNavigate(window.location.href);
     }).fail(function (jqXHR) {
-        console.error('[tables] delete user-view failed', jqXHR.status, jqXHR.statusText);
+        logger.error('delete user-view failed', jqXHR.status, jqXHR.statusText);
     });
 });

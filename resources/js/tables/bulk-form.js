@@ -3,36 +3,37 @@ import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
 import { cloneSharedTemplate } from './shared-templates.js';
 import { showOffcanvas, hideOffcanvas } from './offcanvas.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
 const OFFCANVAS_ID = 'tables-bulk-action-offcanvas';
 
 function navigateReload($form) {
-    const $page = $form.closest('[data-tables-page]');
+    const $page = $form.closest(sel(ATTRS.PAGE));
     if ($page.length === 0) return;
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', {
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, {
         detail: { url: window.location.href, push: false },
     }));
 }
 
 function readSelectedIds($scope) {
     const ids = [];
-    $scope.find('[data-tables-row-checkbox]:checked').each(function () {
-        const id = $(this).attr('data-tables-row-id');
+    $scope.find(sel(ATTRS.ROW_CHECKBOX) + ':checked').each(function () {
+        const id = $(this).attr(ATTRS.ROW_ID);
         if (id) ids.push(String(id));
     });
     return ids;
 }
 
 function clearSelection($page) {
-    $page.find('[data-tables-bulk-form] [data-tables-bulk-clear]').trigger('click');
+    $page.find(sel(ATTRS.BULK_FORM) + ' ' + sel(ATTRS.BULK_CLEAR)).trigger('click');
 }
 
 function clearFieldErrors($form) {
     $form.find('.is-invalid').removeClass('is-invalid');
-    $form.find('.invalid-feedback[data-tables-bulk-action-error]').remove();
+    $form.find('.invalid-feedback' + sel(ATTRS.BULK_ACTION_ERROR)).remove();
 }
 
 function renderFieldErrors($form, errors) {
@@ -46,7 +47,7 @@ function renderFieldErrors($form, errors) {
         $field.addClass('is-invalid');
         const $feedback = cloneSharedTemplate('invalid-feedback', $form);
         if (!$feedback) return;
-        $feedback.attr('data-tables-bulk-action-error', '').text(messages.join(' '));
+        $feedback.attr(ATTRS.BULK_ACTION_ERROR, '').text(messages.join(' '));
         if ($field.next('.invalid-feedback').length > 0) {
             $field.next('.invalid-feedback').replaceWith($feedback);
         } else {
@@ -55,15 +56,15 @@ function renderFieldErrors($form, errors) {
     });
 }
 
-$(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
+$(document).on('click', sel(ATTRS.BULK_ACTION_FORM_BUTTON), function (e) {
     e.preventDefault();
     const $btn = $(this);
     const formUrl = $btn.attr('data-form-url');
     const label = $btn.attr('data-action-label') || '';
     const reloadAfter = $btn.attr('data-reload-after') !== '0';
 
-    const $page = $btn.closest('[data-tables-page]');
-    const $scope = $page.find('[data-tables-bulk-scope]').first();
+    const $page = $btn.closest(sel(ATTRS.PAGE));
+    const $scope = $page.find(sel(ATTRS.BULK_SCOPE)).first();
     const ids = readSelectedIds($scope);
 
     if (ids.length === 0) {
@@ -76,12 +77,12 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
 
     const $oc = $(oc);
     $oc.find('.offcanvas-title').text(label);
-    const $body = $oc.find('[data-tables-bulk-action-body]');
+    const $body = $oc.find(sel(ATTRS.BULK_ACTION_BODY));
     $body.attr('data-reload-after', reloadAfter ? '1' : '0');
     $body.addClass('is-loading').empty();
     const $spinner = cloneSharedTemplate('loading-spinner', $btn);
     if ($spinner) {
-        $spinner.find('[data-tables-loading-text]').text(tablesT('bulk.form.loading'));
+        $spinner.find(sel(ATTRS.LOADING_TEXT)).text(tablesT('bulk.form.loading'));
         $body.append($spinner);
     }
 
@@ -107,16 +108,16 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
     });
 });
 
-$(document).on('submit', 'form[data-tables-bulk-action-submit]', function (e) {
+$(document).on('submit', 'form' + sel(ATTRS.BULK_ACTION_SUBMIT), function (e) {
     e.preventDefault();
     const $form = $(this);
     const url = $form.attr('action');
     if (!url) return;
 
-    const $page = $form.closest('[data-tables-page]').length
-        ? $form.closest('[data-tables-page]')
-        : $(document).find('[data-tables-page]').first();
-    const $scope = $page.find('[data-tables-bulk-scope]').first();
+    const $page = $form.closest(sel(ATTRS.PAGE)).length
+        ? $form.closest(sel(ATTRS.PAGE))
+        : $(document).find(sel(ATTRS.PAGE)).first();
+    const $scope = $page.find(sel(ATTRS.BULK_SCOPE)).first();
     const ids = readSelectedIds($scope);
 
     if (ids.length === 0) {
@@ -130,7 +131,7 @@ $(document).on('submit', 'form[data-tables-bulk-action-submit]', function (e) {
     $submit.prop('disabled', true);
     clearFieldErrors($form);
 
-    const reloadAfter = $form.closest('[data-tables-bulk-action-body]').attr('data-reload-after') !== '0';
+    const reloadAfter = $form.closest(sel(ATTRS.BULK_ACTION_BODY)).attr('data-reload-after') !== '0';
 
     tablesAjax({
         url: url,

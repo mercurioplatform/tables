@@ -1,12 +1,13 @@
 import jQuery from 'jquery';
 import { tablesT } from './i18n.js';
+import { ATTRS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
-$(document).on('click', '[data-tables-export]', function (e) {
+$(document).on('click', sel(ATTRS.EXPORT), function (e) {
     const $btn = $(this);
-    const $page = $btn.closest('[data-tables-page]');
-    const total = parseInt($page.attr('data-tables-total') || '0', 10);
+    const $page = $btn.closest(sel(ATTRS.PAGE));
+    const total = parseInt($page.attr(ATTRS.TOTAL) || '0', 10);
     const threshold = parseInt($btn.attr('data-confirm-above') || '5000', 10);
 
     if (total > 0 && total > threshold) {

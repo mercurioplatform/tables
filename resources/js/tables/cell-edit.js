@@ -1,6 +1,8 @@
 import jQuery from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
+import { logger } from './logger.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -10,8 +12,8 @@ const POPOVER_SELECTOR = '.' + POPOVER_CLASS;
 function cloneCellEditTemplate(name, $cell) {
     // Page-scoped lookup: при двух tables-pages на одной странице глобальный
     // document.querySelector взял бы template первой page для ячейки второй.
-    const $page = $cell.closest('[data-tables-page]');
-    const tpl = $page.find('template[data-tables-cell-edit-template="' + name + '"]').get(0);
+    const $page = $cell.closest(sel(ATTRS.PAGE));
+    const tpl = $page.find('template' + sel(ATTRS.CELL_EDIT_TEMPLATE, name)).get(0);
     if (!tpl) {
         return null;
     }
@@ -20,7 +22,7 @@ function cloneCellEditTemplate(name, $cell) {
 }
 
 function getUrlTemplate($cell) {
-    const $page = $cell.closest('[data-tables-page]');
+    const $page = $cell.closest(sel(ATTRS.PAGE));
     return $page.attr('data-cell-update-url-template') || '';
 }
 
@@ -45,7 +47,7 @@ function closePopover() {
 
 function clearFieldErrors($pop) {
     $pop.find('.is-invalid').removeClass('is-invalid');
-    $pop.find('[data-tables-cell-edit-error]').remove();
+    $pop.find(sel(ATTRS.CELL_EDIT_ERROR)).remove();
 }
 
 function renderFieldErrors($pop, errors) {
@@ -55,7 +57,7 @@ function renderFieldErrors($pop, errors) {
     const messages = errors.value
         || (errors[Object.keys(errors)[0]] || []);
     const list = Array.isArray(messages) ? messages : [messages];
-    const $input = $pop.find('[data-tables-cell-edit-input]').first();
+    const $input = $pop.find(sel(ATTRS.CELL_EDIT_INPUT)).first();
     if ($input.length > 0) {
         $input.addClass('is-invalid');
     }
@@ -64,7 +66,7 @@ function renderFieldErrors($pop, errors) {
     const $feedback = cloneCellEditTemplate('invalid-feedback', $owner);
     if (!$feedback) return;
     $feedback.text(list.join(' '));
-    $pop.find('[data-tables-cell-edit-form]').append($feedback);
+    $pop.find(sel(ATTRS.CELL_EDIT_FORM)).append($feedback);
 }
 
 function readOptions($cell) {
@@ -73,7 +75,7 @@ function readOptions($cell) {
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-        console.error('[tables] cell-edit: failed to parse data-options', e);
+        logger.error('cell-edit: failed to parse data-options', e);
         return [];
     }
 }
@@ -141,12 +143,12 @@ function buildBooleanInput($cell) {
 }
 
 function readBooleanValue($pop) {
-    const checked = $pop.find('[data-tables-cell-edit-input] input[type="radio"]:checked').first();
+    const checked = $pop.find(sel(ATTRS.CELL_EDIT_INPUT) + ' input[type="radio"]:checked').first();
     return checked.length > 0 ? checked.val() : '';
 }
 
 function readSimpleValue($pop) {
-    const $input = $pop.find('[data-tables-cell-edit-input]').first();
+    const $input = $pop.find(sel(ATTRS.CELL_EDIT_INPUT)).first();
     if ($input.length === 0) return '';
     const tag = ($input.prop('tagName') || '').toLowerCase();
     if (tag === 'select' || tag === 'input' || tag === 'textarea') {
@@ -174,7 +176,7 @@ function buildPopover($cell) {
     const $pop = cloneCellEditTemplate('popover', $cell);
     if (!$pop || !$input) return null;
 
-    $pop.find('[data-tables-cell-edit-form]').prepend($input);
+    $pop.find(sel(ATTRS.CELL_EDIT_FORM)).prepend($input);
     return { $pop, $input, inputType };
 }
 
@@ -191,7 +193,7 @@ function openPopover($cell) {
     const id = $cell.attr('data-row-id');
     const field = $cell.attr('data-field');
     if (!id || !field) {
-        console.error('[tables] cell-edit: missing data-row-id/data-field');
+        logger.error('cell-edit: missing data-row-id/data-field');
         return;
     }
 
@@ -209,14 +211,14 @@ function openPopover($cell) {
 
     const $focus = built.inputType === 'boolean'
         ? $pop.find('input[type="radio"]:checked').first()
-        : $pop.find('[data-tables-cell-edit-input]').first();
+        : $pop.find(sel(ATTRS.CELL_EDIT_INPUT)).first();
     if ($focus.length > 0) {
         try { $focus.trigger('focus'); } catch (e) { /* ignore */ }
     }
 
     $(document).on('mousedown.tablesCellEdit', function (e) {
         if ($(e.target).closest(POPOVER_SELECTOR).length > 0) return;
-        if ($(e.target).closest('[data-tables-cell-edit]').length > 0) return;
+        if ($(e.target).closest(sel(ATTRS.CELL_EDIT)).length > 0) return;
         closePopover();
     });
     $(document).on('keydown.tablesCellEdit', function (e) {
@@ -242,7 +244,7 @@ function submitFromPopover($pop) {
     }
 
     const value = readValue($pop, inputType);
-    const $save = $pop.find('[data-tables-cell-edit-save]');
+    const $save = $pop.find(sel(ATTRS.CELL_EDIT_SAVE));
     $save.prop('disabled', true);
     clearFieldErrors($pop);
 
@@ -252,9 +254,9 @@ function submitFromPopover($pop) {
         data: { value: value },
         headers: { Accept: 'text/html, application/json' },
     }).done(function (html) {
-        const $page = $owner.closest('[data-tables-page]');
+        const $page = $owner.closest(sel(ATTRS.PAGE));
         const rowId = String(id);
-        const $oldRow = $page.find('tr[data-tables-row="' + rowId + '"]').first();
+        const $oldRow = $page.find('tr' + sel(ATTRS.ROW, rowId)).first();
         if ($oldRow.length === 0) {
             window.location.reload();
             return;
@@ -268,7 +270,7 @@ function submitFromPopover($pop) {
         $oldRow.replaceWith($newRow);
         closePopover();
         // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-        document.dispatchEvent(new CustomEvent('tables:rendered', {
+        document.dispatchEvent(new CustomEvent(EVENTS.RENDERED, {
             detail: { scope: $page.get(0), kind: 'cell-edit' },
         }));
     }).fail(function (jqXHR) {
@@ -308,25 +310,25 @@ function submitFromPopover($pop) {
     });
 }
 
-$(document).on('click', '[data-tables-cell-edit]', function (e) {
+$(document).on('click', sel(ATTRS.CELL_EDIT), function (e) {
     if ($(e.target).closest('a, button').length > 0) return;
     e.preventDefault();
     openPopover($(this));
 });
 
-$(document).on('keydown', '[data-tables-cell-edit]', function (e) {
+$(document).on('keydown', sel(ATTRS.CELL_EDIT), function (e) {
     if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openPopover($(this));
     }
 });
 
-$(document).on('click', '[data-tables-cell-edit-cancel]', function (e) {
+$(document).on('click', sel(ATTRS.CELL_EDIT_CANCEL), function (e) {
     e.preventDefault();
     closePopover();
 });
 
-$(document).on('submit', 'form[data-tables-cell-edit-form]', function (e) {
+$(document).on('submit', 'form' + sel(ATTRS.CELL_EDIT_FORM), function (e) {
     e.preventDefault();
     const $pop = $(this).closest(POPOVER_SELECTOR);
     submitFromPopover($pop);

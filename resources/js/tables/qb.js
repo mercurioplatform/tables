@@ -11,6 +11,7 @@
 import jQuery from 'jquery';
 import { tablesT } from './i18n.js';
 import { hideOffcanvas } from './offcanvas.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -66,11 +67,11 @@ function emptyGroup() {
 }
 
 function getRoot($el) {
-    return $el.closest('[data-tables-qb-root]');
+    return $el.closest(sel(ATTRS.QB_ROOT));
 }
 
 function getState($root) {
-    const raw = $root.attr('data-tables-qb-state') || '';
+    const raw = $root.attr(ATTRS.QB_STATE) || '';
     if (raw === '' || raw === '{}' || raw === '[]') {
         return emptyGroup();
     }
@@ -89,11 +90,11 @@ function getState($root) {
 }
 
 function setState($root, ast) {
-    $root.attr('data-tables-qb-state', JSON.stringify(ast));
+    $root.attr(ATTRS.QB_STATE, JSON.stringify(ast));
 }
 
 function getSchema($root) {
-    const raw = $root.attr('data-tables-qb-schema') || '{"fields":[]}';
+    const raw = $root.attr(ATTRS.QB_SCHEMA) || '{"fields":[]}';
     try {
         return JSON.parse(raw);
     } catch (e) {
@@ -420,7 +421,7 @@ function renderAutocomplete(fieldMeta, mode, value, path) {
 // ---- Form ↔ State sync ----
 
 function readFormValues($root, state) {
-    $root.find('[data-tables-qb-cond]').each(function () {
+    $root.find(sel(ATTRS.QB_COND)).each(function () {
         const $cond = $(this);
         const path = String($cond.attr('data-path') || '').split('.').filter((s) => s !== '').map(Number);
         const node = getNodeAt(state, path);
@@ -434,9 +435,9 @@ function readFormValues($root, state) {
             return;
         }
 
-        const $autocomplete = $valueWrap.find('[data-tables-autocomplete]').first();
+        const $autocomplete = $valueWrap.find(sel(ATTRS.AUTOCOMPLETE)).first();
         if ($autocomplete.length > 0) {
-            const values = $autocomplete.find('[data-tables-autocomplete-selected-list] input[name="value[]"]').map((_, el) => $(el).val()).get();
+            const values = $autocomplete.find(sel(ATTRS.AUTOCOMPLETE_SELECTED_LIST) + ' input[name="value[]"]').map((_, el) => $(el).val()).get();
             if (mode === 'multiple') {
                 node.value = values;
             } else {
@@ -492,7 +493,7 @@ function applyState($root) {
     hideOffcanvas($root.closest('.offcanvas'));
 
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, { detail: { url: buildUrl(params) } }));
 }
 
 function resetState($root) {
@@ -506,7 +507,7 @@ function resetState($root) {
     hideOffcanvas($root.closest('.offcanvas'));
 
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, { detail: { url: buildUrl(params) } }));
 }
 
 function clearFromOutside() {
@@ -514,7 +515,7 @@ function clearFromOutside() {
     params.delete('qb');
     params.delete('page');
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, { detail: { url: buildUrl(params) } }));
 }
 
 // ---- Event handlers (delegated) ----
@@ -526,16 +527,16 @@ function pathFrom($el) {
 }
 
 $(document).on('show.bs.offcanvas', '.offcanvas', function () {
-    const $root = $(this).find('[data-tables-qb-root]').first();
+    const $root = $(this).find(sel(ATTRS.QB_ROOT)).first();
     if ($root.length === 0) return;
-    const raw = $root.attr('data-tables-qb-state') || '';
+    const raw = $root.attr(ATTRS.QB_STATE) || '';
     if (raw === '') {
         setState($root, emptyGroup());
     }
     renderTree($root);
 });
 
-$(document).on('change', '[data-tables-qb-root] .qb-field', function () {
+$(document).on('change', sel(ATTRS.QB_ROOT) + ' .qb-field', function () {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
     const path = pathFrom($(this));
@@ -558,7 +559,7 @@ $(document).on('change', '[data-tables-qb-root] .qb-field', function () {
     renderTree($root);
 });
 
-$(document).on('change', '[data-tables-qb-root] .qb-operator', function () {
+$(document).on('change', sel(ATTRS.QB_ROOT) + ' .qb-operator', function () {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
     const path = pathFrom($(this));
@@ -574,7 +575,7 @@ $(document).on('change', '[data-tables-qb-root] .qb-operator', function () {
     renderTree($root);
 });
 
-$(document).on('input change', '[data-tables-qb-root] .qb-value-input', function () {
+$(document).on('input change', sel(ATTRS.QB_ROOT) + ' .qb-value-input', function () {
     // Только синхронизация state из form без re-render. Финальный
     // readFormValues сработает на apply.
     const $root = getRoot($(this));
@@ -584,7 +585,7 @@ $(document).on('input change', '[data-tables-qb-root] .qb-value-input', function
     setState($root, state);
 });
 
-$(document).on('click', '[data-tables-qb-root] [data-tables-qb-cond] .qb-not-toggle', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' ' + sel(ATTRS.QB_COND) + ' .qb-not-toggle', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -598,7 +599,7 @@ $(document).on('click', '[data-tables-qb-root] [data-tables-qb-cond] .qb-not-tog
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] [data-tables-qb-group] > .tables-qb-group__header .qb-not-toggle', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' ' + sel(ATTRS.QB_GROUP) + ' > .tables-qb-group__header .qb-not-toggle', function (e) {
     e.preventDefault();
     e.stopPropagation();
     const $root = getRoot($(this));
@@ -613,7 +614,7 @@ $(document).on('click', '[data-tables-qb-root] [data-tables-qb-group] > .tables-
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] .qb-op-and', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' .qb-op-and', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -627,7 +628,7 @@ $(document).on('click', '[data-tables-qb-root] .qb-op-and', function (e) {
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] .qb-op-or', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' .qb-op-or', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -641,7 +642,7 @@ $(document).on('click', '[data-tables-qb-root] .qb-op-or', function (e) {
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] .qb-add-cond', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' .qb-add-cond', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -654,7 +655,7 @@ $(document).on('click', '[data-tables-qb-root] .qb-add-cond', function (e) {
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] .qb-add-group', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' .qb-add-group', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -666,7 +667,7 @@ $(document).on('click', '[data-tables-qb-root] .qb-add-group', function (e) {
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] .qb-delete', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' .qb-delete', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -678,7 +679,7 @@ $(document).on('click', '[data-tables-qb-root] .qb-delete', function (e) {
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-root] .qb-delete-group', function (e) {
+$(document).on('click', sel(ATTRS.QB_ROOT) + ' .qb-delete-group', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
@@ -690,23 +691,23 @@ $(document).on('click', '[data-tables-qb-root] .qb-delete-group', function (e) {
     renderTree($root);
 });
 
-$(document).on('click', '[data-tables-qb-apply]', function (e) {
+$(document).on('click', sel(ATTRS.QB_APPLY), function (e) {
     e.preventDefault();
     const $oc = $(this).closest('.offcanvas');
-    const $root = $oc.find('[data-tables-qb-root]').first();
+    const $root = $oc.find(sel(ATTRS.QB_ROOT)).first();
     if ($root.length === 0) return;
     applyState($root);
 });
 
-$(document).on('click', '[data-tables-qb-reset]', function (e) {
+$(document).on('click', sel(ATTRS.QB_RESET), function (e) {
     e.preventDefault();
     const $oc = $(this).closest('.offcanvas');
-    const $root = $oc.find('[data-tables-qb-root]').first();
+    const $root = $oc.find(sel(ATTRS.QB_ROOT)).first();
     if ($root.length === 0) return;
     resetState($root);
 });
 
-$(document).on('click', '[data-tables-qb-clear]', function (e) {
+$(document).on('click', sel(ATTRS.QB_CLEAR), function (e) {
     e.preventDefault();
     clearFromOutside();
 });
@@ -715,9 +716,9 @@ $(document).on('click', '[data-tables-qb-clear]', function (e) {
 // (data-attrs уходят со старым root в never-replaced offcanvas; а в
 // замещённом filter-bar — новые data-tables-qb-state уже свежие).
 // Public DOM event listener — keep native addEventListener (symmetric to native dispatchEvent above).
-document.addEventListener('tables:rendered', function () {
+document.addEventListener(EVENTS.RENDERED, function () {
     $('.offcanvas.show').each(function () {
-        if ($(this).find('[data-tables-qb-root]').length > 0) {
+        if ($(this).find(sel(ATTRS.QB_ROOT)).length > 0) {
             const inst = window.bootstrap?.Offcanvas?.getInstance(this);
             if (inst) inst.hide();
         }

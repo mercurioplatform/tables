@@ -8,6 +8,7 @@
 import jQuery from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
+import { ATTRS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -24,15 +25,15 @@ function escapeHtml(value) {
 }
 
 function getRoot($el) {
-    return $el.closest('[data-tables-autocomplete]');
+    return $el.closest(sel(ATTRS.AUTOCOMPLETE));
 }
 
 function getSelectedValues($root) {
-    return $root.find('[data-tables-autocomplete-selected-list] input[name="value[]"]').map((_, el) => $(el).val()).get();
+    return $root.find(sel(ATTRS.AUTOCOMPLETE_SELECTED_LIST) + ' input[name="value[]"]').map((_, el) => $(el).val()).get();
 }
 
 function isMultiple($root) {
-    return $root.attr('data-tables-autocomplete-multiple') === '1';
+    return $root.attr(ATTRS.AUTOCOMPLETE_MULTIPLE) === '1';
 }
 
 function buildChipHtml(value, label) {
@@ -46,7 +47,7 @@ function buildChipHtml(value, label) {
 }
 
 function renderResults($root, items, activeValues) {
-    const $results = $root.find('[data-tables-autocomplete-results]');
+    const $results = $root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS));
     $results.empty();
 
     if (!items || items.length === 0) {
@@ -93,11 +94,11 @@ function setActiveByDelta($results, delta) {
 }
 
 function fetchOptions($root, term) {
-    const url = $root.attr('data-tables-autocomplete-url');
-    const field = $root.attr('data-tables-autocomplete-field');
+    const url = $root.attr(ATTRS.AUTOCOMPLETE_URL);
+    const field = $root.attr(ATTRS.AUTOCOMPLETE_FIELD);
     if (!url || !field) return $.Deferred().reject().promise();
 
-    const $input = $root.find('[data-tables-autocomplete-input]');
+    const $input = $root.find(sel(ATTRS.AUTOCOMPLETE_INPUT));
     const reqId = (Number($input.data('reqId') || 0)) + 1;
     $input.data('reqId', reqId);
     $root.addClass('is-loading');
@@ -132,17 +133,17 @@ function fetchOptions($root, term) {
 }
 
 function debounceFetch($root) {
-    const delay = Number($root.attr('data-tables-autocomplete-debounce')) || 250;
-    const $input = $root.find('[data-tables-autocomplete-input]');
+    const delay = Number($root.attr(ATTRS.AUTOCOMPLETE_DEBOUNCE)) || 250;
+    const $input = $root.find(sel(ATTRS.AUTOCOMPLETE_INPUT));
     const existing = $input.data('debounceTimer');
     if (existing) {
         clearTimeout(existing);
     }
     const timer = setTimeout(function () {
-        const minChars = Number($root.attr('data-tables-autocomplete-min-chars')) || 0;
+        const minChars = Number($root.attr(ATTRS.AUTOCOMPLETE_MIN_CHARS)) || 0;
         const value = String($input.val() || '');
         if (value.length < minChars) {
-            $root.find('[data-tables-autocomplete-results]').empty().prop('hidden', true);
+            $root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS)).empty().prop('hidden', true);
             return;
         }
         fetchOptions($root, value);
@@ -152,7 +153,7 @@ function debounceFetch($root) {
 
 function selectItem($root, value, label) {
     const multiple = isMultiple($root);
-    const $list = $root.find('[data-tables-autocomplete-selected-list]');
+    const $list = $root.find(sel(ATTRS.AUTOCOMPLETE_SELECTED_LIST));
     const valueStr = String(value);
 
     if (!multiple) {
@@ -166,13 +167,13 @@ function selectItem($root, value, label) {
 
     $list.append(buildChipHtml(value, label));
 
-    const $input = $root.find('[data-tables-autocomplete-input]');
+    const $input = $root.find(sel(ATTRS.AUTOCOMPLETE_INPUT));
     $input.val('');
 
     if (!multiple) {
-        $root.find('[data-tables-autocomplete-results]').empty().prop('hidden', true);
+        $root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS)).empty().prop('hidden', true);
     } else {
-        $root.find('[data-tables-autocomplete-results] li.tables-filter-popover__result').filter(function () {
+        $root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS) + ' li.tables-filter-popover__result').filter(function () {
             return $(this).attr('data-value') === valueStr;
         }).addClass('is-selected');
     }
@@ -182,34 +183,34 @@ function removeChip($root, $chip) {
     $chip.remove();
 }
 
-$(document).on('focus', '[data-tables-autocomplete-input]', function () {
+$(document).on('focus', sel(ATTRS.AUTOCOMPLETE_INPUT), function () {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
-    const minChars = Number($root.attr('data-tables-autocomplete-min-chars')) || 0;
+    const minChars = Number($root.attr(ATTRS.AUTOCOMPLETE_MIN_CHARS)) || 0;
     const value = String($(this).val() || '');
     if (minChars === 0 || value.length >= minChars) {
         fetchOptions($root, value);
     }
 });
 
-$(document).on('blur', '[data-tables-autocomplete-input]', function () {
+$(document).on('blur', sel(ATTRS.AUTOCOMPLETE_INPUT), function () {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
     setTimeout(function () {
-        $root.find('[data-tables-autocomplete-results]').prop('hidden', true);
+        $root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS)).prop('hidden', true);
     }, BLUR_CLOSE_DELAY);
 });
 
-$(document).on('input', '[data-tables-autocomplete-input]', function () {
+$(document).on('input', sel(ATTRS.AUTOCOMPLETE_INPUT), function () {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
     debounceFetch($root);
 });
 
-$(document).on('keydown', '[data-tables-autocomplete-input]', function (e) {
+$(document).on('keydown', sel(ATTRS.AUTOCOMPLETE_INPUT), function (e) {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
-    const $results = $root.find('[data-tables-autocomplete-results]');
+    const $results = $root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS));
 
     if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -232,21 +233,21 @@ $(document).on('keydown', '[data-tables-autocomplete-input]', function (e) {
     }
 });
 
-$(document).on('mousedown', '[data-tables-autocomplete-results] li.tables-filter-popover__result', function (e) {
+$(document).on('mousedown', sel(ATTRS.AUTOCOMPLETE_RESULTS) + ' li.tables-filter-popover__result', function (e) {
     e.preventDefault();
     const $root = getRoot($(this));
     if ($root.length === 0) return;
     selectItem($root, $(this).attr('data-value'), $(this).attr('data-label'));
 });
 
-$(document).on('mouseenter', '[data-tables-autocomplete-results] li.tables-filter-popover__result', function () {
+$(document).on('mouseenter', sel(ATTRS.AUTOCOMPLETE_RESULTS) + ' li.tables-filter-popover__result', function () {
     const $root = getRoot($(this));
     if ($root.length === 0) return;
-    clearActiveItem($root.find('[data-tables-autocomplete-results]'));
+    clearActiveItem($root.find(sel(ATTRS.AUTOCOMPLETE_RESULTS)));
     $(this).addClass('is-active');
 });
 
-$(document).on('click', '[data-tables-autocomplete-chip-remove]', function (e) {
+$(document).on('click', sel(ATTRS.AUTOCOMPLETE_CHIP_REMOVE), function (e) {
     e.preventDefault();
     e.stopPropagation();
     const $chip = $(this).closest('.tables-filter-popover__chip');
@@ -254,9 +255,9 @@ $(document).on('click', '[data-tables-autocomplete-chip-remove]', function (e) {
     removeChip($root, $chip);
 });
 
-$(document).on('shown.bs.dropdown', '[data-tables-chip]', function () {
-    const $root = $(this).find('[data-tables-autocomplete]');
+$(document).on('shown.bs.dropdown', sel(ATTRS.CHIP), function () {
+    const $root = $(this).find(sel(ATTRS.AUTOCOMPLETE));
     if ($root.length === 0) return;
-    const $input = $root.find('[data-tables-autocomplete-input]');
+    const $input = $root.find(sel(ATTRS.AUTOCOMPLETE_INPUT));
     setTimeout(function () { $input.trigger('focus'); }, 30);
 });

@@ -1,10 +1,13 @@
 import $ from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
+import { logger } from './logger.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
+const log = logger.scope('progress');
 const STORAGE_KEY = 'tables.progress.active';
-const TRAY_SELECTOR = '[data-tables-progress-tray]';
-const TOASTS_SELECTOR = '[data-tables-progress-toasts]';
+const TRAY_SELECTOR = sel(ATTRS.PROGRESS_TRAY);
+const TOASTS_SELECTOR = sel(ATTRS.PROGRESS_TOASTS);
 const STORAGE_LIMIT = 5;
 
 const activePolls = new Map();
@@ -87,8 +90,8 @@ function updateCard($card, data) {
     const total = Math.max(1, data.total | 0);
     const processed = Math.max(0, data.processed | 0);
     const pct = Math.min(100, Math.round((processed / total) * 100));
-    $card.find('[data-tables-progress-fill]').css('width', pct + '%');
-    $card.find('[data-tables-progress-counter]').text(processed + ' / ' + (data.total | 0));
+    $card.find(sel(ATTRS.PROGRESS_FILL)).css('width', pct + '%');
+    $card.find(sel(ATTRS.PROGRESS_COUNTER)).text(processed + ' / ' + (data.total | 0));
     if (data.status === 'failed') {
         $card.addClass('is-failed');
     }
@@ -183,7 +186,7 @@ function pollOnce(progressId, opts, $card, $tray) {
         forgetProgress(progressId);
         $card.addClass('is-failed');
         $card.find('.spinner-border').remove();
-        $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
+        $card.find(sel(ATTRS.PROGRESS_DISMISS)).removeAttr('hidden');
         showToast({
             title: opts.actionLabel,
             body: tablesT('bulk.progress.stuck_body'),
@@ -206,7 +209,7 @@ function pollOnce(progressId, opts, $card, $tray) {
                 stopPoll(progressId);
                 forgetProgress(progressId);
                 $card.find('.spinner-border').remove();
-                $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
+                $card.find(sel(ATTRS.PROGRESS_DISMISS)).removeAttr('hidden');
                 const ids = data.affected_ids_preview || [];
                 const ctaUrl = buildAffectedFilterUrl(opts.indexUrl, ids);
                 showToast({
@@ -231,7 +234,7 @@ function pollOnce(progressId, opts, $card, $tray) {
                 forgetProgress(progressId);
                 $card.addClass('is-failed');
                 $card.find('.spinner-border').remove();
-                $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
+                $card.find(sel(ATTRS.PROGRESS_DISMISS)).removeAttr('hidden');
                 showToast({
                     title: opts.actionLabel,
                     body: data.error_message || tablesT('bulk.progress.failure_body'),
@@ -258,7 +261,7 @@ function pollOnce(progressId, opts, $card, $tray) {
                 forgetProgress(progressId);
                 $card.addClass('is-failed');
                 $card.find('.spinner-border').remove();
-                $card.find('[data-tables-progress-dismiss]').removeAttr('hidden');
+                $card.find(sel(ATTRS.PROGRESS_DISMISS)).removeAttr('hidden');
                 showToast({
                     title: opts.actionLabel,
                     body: tablesT('bulk.progress.poll_failed', { status: xhr.status }),
@@ -282,13 +285,13 @@ function pollOnce(progressId, opts, $card, $tray) {
 
 export function enqueueProgress(opts) {
     if (!opts || !opts.progressId || !opts.progressUrl) {
-        console.error('[tables.progress] enqueueProgress: progressId and progressUrl required');
+        log.error('enqueueProgress: progressId and progressUrl required');
         return;
     }
 
     const $tray = ensureTray();
     if (!$tray) {
-        console.error('[tables.progress] tray not mounted');
+        log.error('tray not mounted');
         return;
     }
 
@@ -296,7 +299,7 @@ export function enqueueProgress(opts) {
         return;
     }
 
-    const $existing = $('[data-tables-progress-card="' + opts.progressId + '"]');
+    const $existing = $(sel(ATTRS.PROGRESS_CARD, opts.progressId));
     let $card;
     if ($existing.length > 0) {
         $card = $existing.first();
@@ -346,7 +349,7 @@ $(function () {
     });
 });
 
-$(document).on('click', '[data-tables-progress-dismiss]', function () {
-    const $card = $(this).closest('[data-tables-progress-card]');
+$(document).on('click', sel(ATTRS.PROGRESS_DISMISS), function () {
+    const $card = $(this).closest(sel(ATTRS.PROGRESS_CARD));
     $card.remove();
 });

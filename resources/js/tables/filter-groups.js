@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -24,13 +25,13 @@ function writeStorage(resourceKey, state) {
 }
 
 function applyState($bar) {
-    const resourceKey = $bar.attr('data-tables-filter-bar');
+    const resourceKey = $bar.attr(ATTRS.FILTER_BAR);
     if (!resourceKey) return;
     const state = readStorage(resourceKey);
 
-    $bar.find('[data-tables-filter-group]').each(function () {
+    $bar.find(sel(ATTRS.FILTER_GROUP)).each(function () {
         const $group = $(this);
-        const key = $group.attr('data-tables-filter-group') || '';
+        const key = $group.attr(ATTRS.FILTER_GROUP) || '';
         const hasActive = $group.hasClass('tables-filter-group--has-active');
         const $body = $group.find('.tables-filter-group__body').first();
         const $toggle = $group.find('.tables-filter-group__toggle').first();
@@ -55,7 +56,7 @@ function applyState($bar) {
 }
 
 function initAll() {
-    $('[data-tables-filter-bar-grouped="1"]').each(function () {
+    $(sel(ATTRS.FILTER_BAR_GROUPED, '1')).each(function () {
         applyState($(this));
     });
 }
@@ -69,12 +70,12 @@ function onCollapseEvent(e) {
     if (!$target.hasClass('tables-filter-group__body')) {
         return;
     }
-    const $group = $target.closest('[data-tables-filter-group]');
+    const $group = $target.closest(sel(ATTRS.FILTER_GROUP));
     if ($group.length === 0) return;
-    const $bar = $target.closest('[data-tables-filter-bar]');
+    const $bar = $target.closest(sel(ATTRS.FILTER_BAR));
     if ($bar.length === 0) return;
-    const resourceKey = $bar.attr('data-tables-filter-bar');
-    const key = $group.attr('data-tables-filter-group') || '';
+    const resourceKey = $bar.attr(ATTRS.FILTER_BAR);
+    const key = $group.attr(ATTRS.FILTER_GROUP) || '';
     if (!resourceKey) return;
     const state = readStorage(resourceKey);
     state[key] = e.type === 'shown.bs.collapse' ? 'open' : 'closed';
@@ -85,4 +86,4 @@ document.addEventListener('shown.bs.collapse', onCollapseEvent);
 document.addEventListener('hidden.bs.collapse', onCollapseEvent);
 
 $(initAll);
-$(document).on('tables:rendered', initAll);
+$(document).on(EVENTS.RENDERED, initAll);

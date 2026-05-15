@@ -2,6 +2,7 @@ import jQuery from 'jquery';
 import { tablesAjax } from './ajax.js';
 import { tablesConfirm } from './confirm.js';
 import { tablesT } from './i18n.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
@@ -9,7 +10,7 @@ const PREFS_QUERY_KEYS = ['columns', 'density', 'per_page'];
 
 function dispatchNavigate(url) {
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, { detail: { url } }));
 }
 
 function buildCleanedUrl() {
@@ -22,7 +23,7 @@ function buildCleanedUrl() {
 }
 
 function findTriggerForForm($form) {
-    return $form.closest('.ap-prefs-popover').find('[data-tables-prefs-trigger]').first();
+    return $form.closest('.ap-prefs-popover').find(sel(ATTRS.PREFS_TRIGGER)).first();
 }
 
 function hidePopover($trigger) {
@@ -33,12 +34,12 @@ function hidePopover($trigger) {
 }
 
 function showError($form, message) {
-    const $err = $form.find('[data-tables-prefs-error]');
+    const $err = $form.find(sel(ATTRS.PREFS_ERROR));
     $err.text(message).removeClass('d-none');
 }
 
 function clearError($form) {
-    $form.find('[data-tables-prefs-error]').text('').addClass('d-none');
+    $form.find(sel(ATTRS.PREFS_ERROR)).text('').addClass('d-none');
 }
 
 function serializePrefsForm($form) {
@@ -54,28 +55,28 @@ function serializePrefsForm($form) {
     return params.toString();
 }
 
-$(document).on('click', '[data-tables-prefs-form]', function (e) {
+$(document).on('click', sel(ATTRS.PREFS_FORM), function (e) {
     e.stopPropagation();
 });
 
-$(document).on('click', '[data-tables-prefs-cancel]', function (e) {
+$(document).on('click', sel(ATTRS.PREFS_CANCEL), function (e) {
     e.preventDefault();
     e.stopPropagation();
-    const $form = $(this).closest('[data-tables-prefs-form]');
+    const $form = $(this).closest(sel(ATTRS.PREFS_FORM));
     const $trigger = findTriggerForForm($form);
     if ($trigger.length === 0) return;
     hidePopover($trigger);
 });
 
-$(document).on('click', '[data-tables-prefs-submit]', function (e) {
+$(document).on('click', sel(ATTRS.PREFS_SUBMIT), function (e) {
     e.preventDefault();
     e.stopPropagation();
-    const $form = $(this).closest('[data-tables-prefs-form]');
+    const $form = $(this).closest(sel(ATTRS.PREFS_FORM));
     const $trigger = findTriggerForForm($form);
     if ($trigger.length === 0) return;
 
     clearError($form);
-    const $submit = $form.find('[data-tables-prefs-submit]');
+    const $submit = $form.find(sel(ATTRS.PREFS_SUBMIT));
     $submit.prop('disabled', true);
 
     const saveUrl = $trigger.attr('data-save-url') || '';
@@ -111,10 +112,10 @@ $(document).on('click', '[data-tables-prefs-submit]', function (e) {
     });
 });
 
-$(document).on('click', '[data-tables-prefs-reset]', function (e) {
+$(document).on('click', sel(ATTRS.PREFS_RESET), function (e) {
     e.preventDefault();
     e.stopPropagation();
-    const $form = $(this).closest('[data-tables-prefs-form]');
+    const $form = $(this).closest(sel(ATTRS.PREFS_FORM));
     const $trigger = findTriggerForForm($form);
     if ($trigger.length === 0) return;
 

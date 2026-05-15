@@ -4,6 +4,7 @@ import { submitBulkAjax } from './bulk.js';
 import { tablesT } from './i18n.js';
 import { cloneSharedTemplate } from './shared-templates.js';
 import { showOffcanvas } from './offcanvas.js';
+import { ATTRS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 const OFFCANVAS_ID = 'tables-confirm-preview-offcanvas';
@@ -26,13 +27,13 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
 
     const $oc = $(oc);
     $oc.find('.offcanvas-title').text(label || '');
-    const $body = $oc.find('[data-tables-confirm-preview-body]');
-    const $submit = $oc.find('[data-tables-confirm-preview-submit]');
+    const $body = $oc.find(sel(ATTRS.CONFIRM_PREVIEW_BODY));
+    const $submit = $oc.find(sel(ATTRS.CONFIRM_PREVIEW_SUBMIT));
 
     $body.empty();
     const $spinner = cloneSharedTemplate('loading-spinner', $body);
     if ($spinner) {
-        $spinner.find('[data-tables-loading-text]').text(tablesT('confirm.preview.loading'));
+        $spinner.find(sel(ATTRS.LOADING_TEXT)).text(tablesT('confirm.preview.loading'));
         $body.append($spinner);
     }
     $submit
@@ -91,20 +92,20 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
 }
 
 // Bulk: перехват click на submit-кнопке action'а с data-tables-bulk-preview-url.
-$(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-preview-url]', function (e) {
+$(document).on('click', sel(ATTRS.BULK_FORM) + ' ' + sel(ATTRS.BULK_PREVIEW_URL), function (e) {
     const $btn = $(this);
-    const $form = $btn.closest('[data-tables-bulk-form]');
-    const url = $btn.attr('data-tables-bulk-preview-url');
+    const $form = $btn.closest(sel(ATTRS.BULK_FORM));
+    const url = $btn.attr(ATTRS.BULK_PREVIEW_URL);
     const label = $btn.attr('data-action-label') || $btn.text().trim();
-    const action = $btn.attr('data-tables-bulk-action') || '';
-    const isQueued = $btn.attr('data-tables-bulk-queued') === '1';
-    const resourceKey = $form.attr('data-tables-bulk-form') || '';
+    const action = $btn.attr(ATTRS.BULK_ACTION) || '';
+    const isQueued = $btn.attr(ATTRS.BULK_QUEUED) === '1';
+    const resourceKey = $form.attr(ATTRS.BULK_FORM) || '';
 
-    const $page = $form.closest('[data-tables-page]');
-    const $scope = $page.find('[data-tables-bulk-scope]').first();
+    const $page = $form.closest(sel(ATTRS.PAGE));
+    const $scope = $page.find(sel(ATTRS.BULK_SCOPE)).first();
     const ids = [];
-    $scope.find('[data-tables-row-checkbox]:checked').each(function () {
-        const id = $(this).attr('data-tables-row-id');
+    $scope.find(sel(ATTRS.ROW_CHECKBOX) + ':checked').each(function () {
+        const id = $(this).attr(ATTRS.ROW_ID);
         if (id) ids.push(String(id));
     });
 
@@ -120,8 +121,8 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-preview-url]'
         url: previewUrl,
         label,
         onConfirm: () => {
-            $form.find('[data-tables-bulk-action-input]').val(action);
-            $form.find('[data-tables-bulk-ids-input]').val(ids.join(','));
+            $form.find(sel(ATTRS.BULK_ACTION_INPUT)).val(action);
+            $form.find(sel(ATTRS.BULK_IDS_INPUT)).val(ids.join(','));
 
             if (isQueued && resourceKey) {
                 $form.data('pendingAction', action);
@@ -147,10 +148,10 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-preview-url]'
 // stopImmediatePropagation подавляет row-action-confirm-handler в row-actions.js
 // (его селектор `[data-tables-row-action-confirm]:not([data-tables-row-preview-url])` уже
 // исключает preview-actions, но stopImmediatePropagation добавляет страховку при изменении порядка).
-$(document).on('click', '[data-tables-row-preview-url]', function (e) {
+$(document).on('click', sel(ATTRS.ROW_PREVIEW_URL), function (e) {
     const $btn = $(this);
     const $form = $btn.closest('form');
-    const url = $btn.attr('data-tables-row-preview-url');
+    const url = $btn.attr(ATTRS.ROW_PREVIEW_URL);
     const label = $btn.attr('data-action-label') || $btn.attr('aria-label') || '';
 
     e.preventDefault();

@@ -4,23 +4,24 @@ import { tablesConfirm } from './confirm.js';
 import { tablesT } from './i18n.js';
 import { cloneSharedTemplate } from './shared-templates.js';
 import { showOffcanvas, hideOffcanvas } from './offcanvas.js';
+import { ATTRS, EVENTS, sel } from './data-attrs.js';
 
 const $ = jQuery;
 
 const OFFCANVAS_ID = 'tables-row-action-offcanvas';
 
 function navigateReload($form) {
-    const $page = $form.closest('[data-tables-page]');
+    const $page = $form.closest(sel(ATTRS.PAGE));
     if ($page.length === 0) return;
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
-    document.dispatchEvent(new CustomEvent('tables:navigate', {
+    document.dispatchEvent(new CustomEvent(EVENTS.NAVIGATE, {
         detail: { url: window.location.href, push: false },
     }));
 }
 
 function clearFieldErrors($form) {
     $form.find('.is-invalid').removeClass('is-invalid');
-    $form.find('.invalid-feedback[data-tables-row-action-error]').remove();
+    $form.find('.invalid-feedback' + sel(ATTRS.ROW_ACTION_ERROR)).remove();
 }
 
 function renderFieldErrors($form, errors) {
@@ -34,7 +35,7 @@ function renderFieldErrors($form, errors) {
         $field.addClass('is-invalid');
         const $feedback = cloneSharedTemplate('invalid-feedback', $form);
         if (!$feedback) return;
-        $feedback.attr('data-tables-row-action-error', '').text(messages.join(' '));
+        $feedback.attr(ATTRS.ROW_ACTION_ERROR, '').text(messages.join(' '));
         if ($field.next('.invalid-feedback').length > 0) {
             $field.next('.invalid-feedback').replaceWith($feedback);
         } else {
@@ -43,7 +44,7 @@ function renderFieldErrors($form, errors) {
     });
 }
 
-$(document).on('click', '[data-tables-row-action-confirm]:not([data-tables-row-preview-url])', async function (e) {
+$(document).on('click', sel(ATTRS.ROW_ACTION_CONFIRM) + ':not(' + sel(ATTRS.ROW_PREVIEW_URL) + ')', async function (e) {
     e.preventDefault();
     e.stopImmediatePropagation();
     const $btn = $(this);
@@ -63,7 +64,7 @@ $(document).on('click', '[data-tables-row-action-confirm]:not([data-tables-row-p
     }
 });
 
-$(document).on('click', '[data-tables-row-action-form-button]', function (e) {
+$(document).on('click', sel(ATTRS.ROW_ACTION_FORM_BUTTON), function (e) {
     e.preventDefault();
     const $btn = $(this);
     const formUrl = $btn.attr('data-form-url');
@@ -76,13 +77,13 @@ $(document).on('click', '[data-tables-row-action-form-button]', function (e) {
 
     const $oc = $(oc);
     $oc.find('.offcanvas-title').text(label);
-    const $body = $oc.find('[data-tables-row-action-body]');
+    const $body = $oc.find(sel(ATTRS.ROW_ACTION_BODY));
     $body.attr('data-submit-url', submitUrl);
     $body.attr('data-reload-after', reloadAfter ? '1' : '0');
     $body.addClass('is-loading').empty();
     const $spinner = cloneSharedTemplate('loading-spinner', $btn);
     if ($spinner) {
-        $spinner.find('[data-tables-loading-text]').text(tablesT('row_actions.loading'));
+        $spinner.find(sel(ATTRS.LOADING_TEXT)).text(tablesT('row_actions.loading'));
         $body.append($spinner);
     }
 
@@ -107,7 +108,7 @@ $(document).on('click', '[data-tables-row-action-form-button]', function (e) {
     });
 });
 
-$(document).on('submit', 'form[data-tables-row-action-submit]', function (e) {
+$(document).on('submit', 'form' + sel(ATTRS.ROW_ACTION_SUBMIT), function (e) {
     e.preventDefault();
     const $form = $(this);
     const url = $form.attr('action');
@@ -117,7 +118,7 @@ $(document).on('submit', 'form[data-tables-row-action-submit]', function (e) {
     $submit.prop('disabled', true);
     clearFieldErrors($form);
 
-    const reloadAfter = $form.closest('[data-tables-row-action-body]').attr('data-reload-after') !== '0';
+    const reloadAfter = $form.closest(sel(ATTRS.ROW_ACTION_BODY)).attr('data-reload-after') !== '0';
 
     tablesAjax({
         url: url,
