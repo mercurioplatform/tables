@@ -85,4 +85,8 @@
     @if ($table->hasAnyEditableFields())
         <x-tables.cell-edit-templates/>
     @endif
+
+    @if ($table->hasRowActionForms() || $table->hasBulkActionForms() || $table->hasConfirmPreviews())
+        <x-tables.shared-feedback-templates/>
+    @endif
 </div>

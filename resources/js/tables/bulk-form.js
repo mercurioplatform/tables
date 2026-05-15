@@ -1,5 +1,6 @@
 import jQuery from 'jquery';
 import { tablesT } from './i18n.js';
+import { cloneSharedTemplate } from './shared-templates.js';
 
 const $ = jQuery;
 
@@ -54,8 +55,9 @@ function renderFieldErrors($form, errors) {
         const $field = $form.find('[name="' + name + '"]').first();
         if ($field.length === 0) return;
         $field.addClass('is-invalid');
-        const $feedback = $('<div class="invalid-feedback" data-tables-bulk-action-error></div>')
-            .text(messages.join(' '));
+        const $feedback = cloneSharedTemplate('invalid-feedback', $form);
+        if (!$feedback) return;
+        $feedback.attr('data-tables-bulk-action-error', '').text(messages.join(' '));
         if ($field.next('.invalid-feedback').length > 0) {
             $field.next('.invalid-feedback').replaceWith($feedback);
         } else {
@@ -95,11 +97,12 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
     $oc.find('.offcanvas-title').text(label);
     const $body = $oc.find('[data-tables-bulk-action-body]');
     $body.attr('data-reload-after', reloadAfter ? '1' : '0');
-    $body.addClass('is-loading').html(
-        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">' +
-            tablesT('bulk.form.loading') +
-            '</span></div></div>'
-    );
+    $body.addClass('is-loading').empty();
+    const $spinner = cloneSharedTemplate('loading-spinner', $btn);
+    if ($spinner) {
+        $spinner.find('[data-tables-loading-text]').text(tablesT('bulk.form.loading'));
+        $body.append($spinner);
+    }
 
     const instance = bootstrap.Offcanvas.getOrCreateInstance(oc);
     instance.show();
@@ -116,9 +119,12 @@ $(document).on('click', '[data-tables-bulk-action-form-button]', function (e) {
         const message = jqXHR.status === 401 || jqXHR.status === 419
             ? tablesT('bulk.session_expired')
             : tablesT('bulk.form.load_failed');
-        $body.removeClass('is-loading').html(
-            '<div class="alert alert-danger m-0">' + message + '</div>'
-        );
+        $body.removeClass('is-loading').empty();
+        const $alert = cloneSharedTemplate('alert-danger', $btn);
+        if ($alert) {
+            $alert.text(message);
+            $body.append($alert);
+        }
     });
 });
 

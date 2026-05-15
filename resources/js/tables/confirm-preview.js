@@ -1,6 +1,7 @@
 import jQuery from 'jquery';
 import { submitBulkAjax } from './bulk.js';
 import { tablesT } from './i18n.js';
+import { cloneSharedTemplate } from './shared-templates.js';
 
 const $ = jQuery;
 const OFFCANVAS_ID = 'tables-confirm-preview-offcanvas';
@@ -36,11 +37,12 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
     const $body = $oc.find('[data-tables-confirm-preview-body]');
     const $submit = $oc.find('[data-tables-confirm-preview-submit]');
 
-    $body.html(
-        '<div class="d-flex justify-content-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">' +
-            tablesT('confirm.preview.loading') +
-            '</span></div></div>'
-    );
+    $body.empty();
+    const $spinner = cloneSharedTemplate('loading-spinner', $body);
+    if ($spinner) {
+        $spinner.find('[data-tables-loading-text]').text(tablesT('confirm.preview.loading'));
+        $body.append($spinner);
+    }
     $submit
         .prop('disabled', true)
         .removeClass(SUBMIT_VARIANT_CLASSES)
@@ -71,7 +73,12 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
             const msg = jqXHR.status === 401 || jqXHR.status === 419
                 ? tablesT('confirm.preview.session_expired')
                 : tablesT('confirm.preview.load_failed');
-            $body.html('<div class="alert alert-danger m-0">' + msg + '</div>');
+            $body.empty();
+            const $alert = cloneSharedTemplate('alert-danger', $body);
+            if ($alert) {
+                $alert.text(msg);
+                $body.append($alert);
+            }
         });
 
     function handleConfirm() {
