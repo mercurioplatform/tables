@@ -494,6 +494,7 @@ function applyState($root) {
         if (inst) inst.hide();
     }
 
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
 }
 
@@ -511,6 +512,7 @@ function resetState($root) {
         if (inst) inst.hide();
     }
 
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
 }
 
@@ -518,6 +520,7 @@ function clearFromOutside() {
     const params = new URLSearchParams(window.location.search);
     params.delete('qb');
     params.delete('page');
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
 }
 
@@ -718,6 +721,7 @@ $(document).on('click', '[data-tables-qb-clear]', function (e) {
 // При AJAX-перерисовке таблицы — если offcanvas открыт, закрываем
 // (data-attrs уходят со старым root в never-replaced offcanvas; а в
 // замещённом filter-bar — новые data-tables-qb-state уже свежие).
+// Public DOM event listener — keep native addEventListener (symmetric to native dispatchEvent above).
 document.addEventListener('tables:rendered', function () {
     $('.offcanvas.show').each(function () {
         if ($(this).find('[data-tables-qb-root]').length > 0) {

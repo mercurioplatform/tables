@@ -48,8 +48,8 @@ function updateHeader(resourceKey) {
     const checked = $rows.filter(':checked').length;
     const allEl = $all.get(0);
     if (!allEl) return;
-    allEl.checked = total > 0 && checked === total;
-    allEl.indeterminate = checked > 0 && checked < total;
+    $(allEl).prop('checked', total > 0 && checked === total);
+    $(allEl).prop('indeterminate', checked > 0 && checked < total);
 }
 
 $(document).on('change', '[data-tables-bulk-scope] [data-tables-row-checkbox]', function () {
@@ -61,7 +61,7 @@ $(document).on('change', '[data-tables-bulk-scope] [data-tables-row-checkbox]', 
     if (!id) return;
     const set = getSet(resourceKey);
     const $row = $cb.closest('[data-tables-row]');
-    if (this.checked) {
+    if ($(this).prop('checked')) {
         set.add(String(id));
         $row.addClass('is-selected');
     } else {
@@ -74,7 +74,7 @@ $(document).on('change', '[data-tables-bulk-scope] [data-tables-row-checkbox]', 
 
 $(document).on('change', '[data-tables-bulk-scope] [data-tables-select-all]', function () {
     const $all = $(this);
-    const checked = this.checked;
+    const checked = $(this).prop('checked');
     const $scope = $all.closest('[data-tables-bulk-scope]');
     const resourceKey = $scope.attr('data-tables-bulk-scope');
     if (!resourceKey) return;
@@ -82,7 +82,7 @@ $(document).on('change', '[data-tables-bulk-scope] [data-tables-select-all]', fu
     $scope.find('[data-tables-row-checkbox]').each(function () {
         const id = $(this).attr('data-tables-row-id');
         if (!id) return;
-        this.checked = checked;
+        $(this).prop('checked', checked);
         const $row = $(this).closest('[data-tables-row]');
         if (checked) {
             set.add(String(id));
@@ -105,14 +105,13 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-clear]', func
     set.clear();
     const $scope = findScope(resourceKey);
     $scope.find('[data-tables-row-checkbox]').each(function () {
-        this.checked = false;
+        $(this).prop('checked', false);
         $(this).closest('[data-tables-row]').removeClass('is-selected');
     });
     const $all = $scope.find('[data-tables-select-all]');
     const allEl = $all.get(0);
     if (allEl) {
-        allEl.checked = false;
-        allEl.indeterminate = false;
+        $(allEl).prop({ checked: false, indeterminate: false });
     }
     updateBar(resourceKey);
 });
@@ -158,14 +157,13 @@ export function submitBulkAjax($form, resourceKey) {
                 set.clear();
                 const $scope = findScope(resourceKey);
                 $scope.find('[data-tables-row-checkbox]').each(function () {
-                    this.checked = false;
+                    $(this).prop('checked', false);
                     $(this).closest('[data-tables-row]').removeClass('is-selected');
                 });
                 const $all = $scope.find('[data-tables-select-all]');
                 const allEl = $all.get(0);
                 if (allEl) {
-                    allEl.checked = false;
-                    allEl.indeterminate = false;
+                    $(allEl).prop({ checked: false, indeterminate: false });
                 }
                 updateBar(resourceKey);
                 updateHeader(resourceKey);
@@ -244,7 +242,7 @@ $(document).on('tables:rendered', '[data-tables-root]', function () {
     $scope.find('[data-tables-row-checkbox]').each(function () {
         const id = $(this).attr('data-tables-row-id');
         if (id && set.has(String(id))) {
-            this.checked = true;
+            $(this).prop('checked', true);
             $(this).closest('[data-tables-row]').addClass('is-selected');
         }
     });

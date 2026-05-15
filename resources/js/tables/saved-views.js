@@ -7,6 +7,7 @@ const $ = jQuery;
 const STATE_WHITELIST = ['q', 'f', 'qb', 'sort', 'dir', 'columns', 'density', 'per_page'];
 
 function dispatchNavigate(url) {
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
 }
 

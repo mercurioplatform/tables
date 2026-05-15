@@ -11,6 +11,7 @@ function getCsrfToken() {
 }
 
 function dispatchNavigate(url) {
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
 }
 
@@ -45,6 +46,7 @@ function clearError($form) {
 
 function serializePrefsForm($form) {
     const params = new URLSearchParams();
+    // Inside jQuery .each callback, 'this' is the raw <input> — .value is the short idiomatic read.
     $form.find('input[name="columns[]"]:checked').each(function () {
         params.append('columns[]', this.value);
     });

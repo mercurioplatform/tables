@@ -252,6 +252,7 @@ function submitFromPopover($pop) {
         }
         $oldRow.replaceWith($newRow);
         closePopover();
+        // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
         document.dispatchEvent(new CustomEvent('tables:rendered', {
             detail: { scope: $page.get(0), kind: 'cell-edit' },
         }));

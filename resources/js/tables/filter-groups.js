@@ -63,17 +63,18 @@ function initAll() {
 // BS5 events are dispatched via native CustomEvent with literal type
 // 'shown.bs.collapse' / 'hidden.bs.collapse'. jQuery namespaced .on() does not
 // match these because it splits on '.' and listens to 'shown' / 'hidden' only.
-// Use addEventListener instead.
+// addEventListener stays native; the guards/lookups inside are on jQuery.
 function onCollapseEvent(e) {
-    const target = e.target;
-    if (!target || !target.classList || !target.classList.contains('tables-filter-group__body')) {
+    const $target = $(e.target);
+    if (!$target.hasClass('tables-filter-group__body')) {
         return;
     }
-    const group = target.closest('[data-tables-filter-group]');
-    const bar = target.closest('[data-tables-filter-bar]');
-    if (!group || !bar) return;
-    const resourceKey = bar.getAttribute('data-tables-filter-bar');
-    const key = group.getAttribute('data-tables-filter-group') || '';
+    const $group = $target.closest('[data-tables-filter-group]');
+    if ($group.length === 0) return;
+    const $bar = $target.closest('[data-tables-filter-bar]');
+    if ($bar.length === 0) return;
+    const resourceKey = $bar.attr('data-tables-filter-bar');
+    const key = $group.attr('data-tables-filter-group') || '';
     if (!resourceKey) return;
     const state = readStorage(resourceKey);
     state[key] = e.type === 'shown.bs.collapse' ? 'open' : 'closed';

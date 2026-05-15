@@ -59,7 +59,7 @@ function requestPartial(url, $page, options) {
 
     xhr.done(function (html) {
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const newRoot = doc.querySelector('[data-tables-root]');
+        const newRoot = $(doc).find('[data-tables-root]').get(0);
         if (!newRoot) {
             console.error('[tables] response has no [data-tables-root]');
             return;
@@ -67,7 +67,7 @@ function requestPartial(url, $page, options) {
         const oldRoot = $root.get(0);
         oldRoot.replaceWith(newRoot);
 
-        const newFilterBar = doc.querySelector('[data-tables-filter-bar]');
+        const newFilterBar = $(doc).find('[data-tables-filter-bar]').get(0);
         if (newFilterBar) {
             const $oldFilterBar = $page.find('[data-tables-filter-bar]').first();
             if ($oldFilterBar.length > 0) {
@@ -75,7 +75,7 @@ function requestPartial(url, $page, options) {
             }
         }
 
-        const newSavedViews = doc.querySelector('[data-tables-saved-views]');
+        const newSavedViews = $(doc).find('[data-tables-saved-views]').get(0);
         if (newSavedViews) {
             const $oldSavedViews = $page.find('[data-tables-saved-views]').first();
             if ($oldSavedViews.length > 0) {
@@ -83,7 +83,7 @@ function requestPartial(url, $page, options) {
             }
         }
 
-        const newSummary = doc.querySelector('[data-tables-summary]');
+        const newSummary = $(doc).find('[data-tables-summary]').get(0);
         if (newSummary) {
             const $oldSummary = $page.find('[data-tables-summary]').first();
             if ($oldSummary.length > 0) {
@@ -93,24 +93,20 @@ function requestPartial(url, $page, options) {
 
         // Subtitle update (Tables/3.1) — subtitle живёт в shell снаружи [data-tables-page],
         // поэтому ищем его глобально в документе.
-        const newSubtitle = doc.querySelector('[data-tables-subtitle]');
-        const oldSubtitleEl = document.querySelector('[data-tables-subtitle]');
-        if (newSubtitle && oldSubtitleEl) {
+        const newSubtitle = $(doc).find('[data-tables-subtitle]').get(0);
+        const $oldSubtitle = $('[data-tables-subtitle]').first();
+        if (newSubtitle && $oldSubtitle.length > 0) {
             const text = newSubtitle.textContent || '';
-            oldSubtitleEl.textContent = text;
-            if (text.trim() === '') {
-                oldSubtitleEl.classList.add('d-none');
-            } else {
-                oldSubtitleEl.classList.remove('d-none');
-            }
+            $oldSubtitle.text(text).toggleClass('d-none', text.trim() === '');
         }
 
         // Public total-changed event (Tables/3.1)
-        const newTotalAttr = newRoot.getAttribute('data-tables-total');
+        const newTotalAttr = $(newRoot).attr('data-tables-total');
         if (newTotalAttr !== null && newTotalAttr !== undefined) {
             const total = parseInt(newTotalAttr, 10);
             if (!Number.isNaN(total)) {
                 $page.attr('data-tables-total', String(total));
+                // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
                 document.dispatchEvent(new CustomEvent('tables:total-changed', {
                     detail: {
                         resource: $page.attr('data-tables-page'),
@@ -123,6 +119,7 @@ function requestPartial(url, $page, options) {
 
         syncSavedViews($page, url);
         $(newRoot).trigger('tables:rendered');
+        // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
         document.dispatchEvent(new CustomEvent('tables:rendered', { detail: { url } }));
         if (push) {
             window.history.pushState(
@@ -192,6 +189,7 @@ $(document).on('click', '[data-tables-root] .pagination a[href]', function (e) {
     requestPartial($a.attr('href'), $page);
 });
 
+// Public DOM event listener — keep native addEventListener (symmetric to native dispatchEvent above).
 document.addEventListener('tables:navigate', function (e) {
     const url = e?.detail?.url;
     if (!url) return;

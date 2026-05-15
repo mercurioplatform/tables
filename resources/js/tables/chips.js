@@ -23,12 +23,14 @@ function syncSearchInputToParams($el, params) {
 
 function clearFieldKeys(params, field) {
     const prefix = 'f[' + field + ']';
+    // URLSearchParams.keys() returns an iterator — Array.from is the standard idiom.
     Array.from(params.keys())
         .filter((k) => k.startsWith(prefix))
         .forEach((k) => params.delete(k));
 }
 
 function dispatchNavigate(url) {
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
 }
 
@@ -66,6 +68,7 @@ $(document).on('click', '[data-tables-filter-apply]', function (e) {
     let appended = false;
 
     if (popoverType === 'select') {
+        // jQuery .map((_, el) => ...) passes raw DOM — el.value is the idiomatic short read.
         const checked = $value.find('input[type="checkbox"]:checked').map((_, el) => el.value).get();
         if (checked.length === 0) {
             return;

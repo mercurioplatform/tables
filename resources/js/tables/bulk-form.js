@@ -6,6 +6,7 @@ const $ = jQuery;
 const OFFCANVAS_ID = 'tables-bulk-action-offcanvas';
 
 function getOffcanvasEl() {
+    // Raw HTMLElement required by bootstrap.Offcanvas.getOrCreateInstance() — keep native.
     return document.getElementById(OFFCANVAS_ID);
 }
 
@@ -20,6 +21,7 @@ function getCsrfToken() {
 function navigateReload($form) {
     const $page = $form.closest('[data-tables-page]');
     if ($page.length === 0) return;
+    // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', {
         detail: { url: window.location.href, push: false },
     }));

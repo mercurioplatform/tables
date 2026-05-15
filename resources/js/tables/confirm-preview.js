@@ -6,6 +6,7 @@ const $ = jQuery;
 const OFFCANVAS_ID = 'tables-confirm-preview-offcanvas';
 
 function getOffcanvasEl() {
+    // Raw HTMLElement required by bootstrap.Offcanvas.getOrCreateInstance() — keep native.
     return document.getElementById(OFFCANVAS_ID);
 }
 
