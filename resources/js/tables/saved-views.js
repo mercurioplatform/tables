@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
 
 const $ = jQuery;
@@ -9,10 +10,6 @@ const STATE_WHITELIST = ['q', 'f', 'qb', 'sort', 'dir', 'columns', 'density', 'p
 function dispatchNavigate(url) {
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url } }));
-}
-
-function getCsrfToken() {
-    return $('meta[name="csrf-token"]').attr('content') || '';
 }
 
 function setNestedValue(obj, keys, value) {
@@ -104,11 +101,13 @@ $(document).on('submit', 'form[data-tables-save-view-form]', function (e) {
     $form.find('.is-invalid').removeClass('is-invalid');
     $form.find('[data-tables-save-view-error]').text('');
 
-    $.ajax({
+    tablesAjax({
         url: $form.attr('action'),
         type: 'POST',
         data: $form.serialize(),
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        partial: false,
+        csrf: false,
+        headers: { Accept: 'application/json' },
     }).done(function () {
         const Modal = window.bootstrap?.Modal;
         if (Modal && $modal.length > 0) {
@@ -144,14 +143,11 @@ $(document).on('click', '[data-tables-user-view-delete]', function (e) {
     const path = window.location.pathname.replace(/\/$/, '');
     const url = path + '/user-views/' + encodeURIComponent(id);
 
-    $.ajax({
+    tablesAjax({
         url: url,
         type: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-        },
+        partial: false,
+        headers: { Accept: 'application/json' },
     }).done(function () {
         dispatchNavigate(window.location.href);
     }).fail(function (jqXHR) {

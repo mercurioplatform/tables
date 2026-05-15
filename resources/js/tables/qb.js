@@ -10,6 +10,7 @@
 
 import jQuery from 'jquery';
 import { tablesT } from './i18n.js';
+import { hideOffcanvas } from './offcanvas.js';
 
 const $ = jQuery;
 
@@ -488,11 +489,7 @@ function applyState($root) {
     }
     params.delete('page');
 
-    const $oc = $root.closest('.offcanvas');
-    if ($oc.length > 0 && window.bootstrap && window.bootstrap.Offcanvas) {
-        const inst = window.bootstrap.Offcanvas.getInstance($oc.get(0));
-        if (inst) inst.hide();
-    }
+    hideOffcanvas($root.closest('.offcanvas'));
 
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));
@@ -506,11 +503,7 @@ function resetState($root) {
     params.delete('qb');
     params.delete('page');
 
-    const $oc = $root.closest('.offcanvas');
-    if ($oc.length > 0 && window.bootstrap && window.bootstrap.Offcanvas) {
-        const inst = window.bootstrap.Offcanvas.getInstance($oc.get(0));
-        if (inst) inst.hide();
-    }
+    hideOffcanvas($root.closest('.offcanvas'));
 
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
     document.dispatchEvent(new CustomEvent('tables:navigate', { detail: { url: buildUrl(params) } }));

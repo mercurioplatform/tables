@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
 
 const STORAGE_KEY = 'tables.progress.active';
@@ -192,10 +193,11 @@ function pollOnce(progressId, opts, $card, $tray) {
         return;
     }
 
-    $.ajax({
+    tablesAjax({
         url: opts.progressUrl,
         method: 'GET',
         dataType: 'json',
+        partial: false,
     })
         .done((data) => {
             updateCard($card, data);
@@ -280,15 +282,13 @@ function pollOnce(progressId, opts, $card, $tray) {
 
 export function enqueueProgress(opts) {
     if (!opts || !opts.progressId || !opts.progressUrl) {
-        // eslint-disable-next-line no-console
-        console.warn('[tables.progress] enqueueProgress: progressId and progressUrl required');
+        console.error('[tables.progress] enqueueProgress: progressId and progressUrl required');
         return;
     }
 
     const $tray = ensureTray();
     if (!$tray) {
-        // eslint-disable-next-line no-console
-        console.warn('[tables.progress] tray not mounted');
+        console.error('[tables.progress] tray not mounted');
         return;
     }
 

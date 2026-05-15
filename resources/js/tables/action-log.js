@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
 
 const URL_ATTR = 'data-tables-action-log-url';
@@ -6,10 +7,9 @@ const TRIGGER_ATTR = 'data-tables-action-log-trigger';
 
 function loadInto($body, url) {
     $body.addClass('is-loading');
-    $.ajax({
+    tablesAjax({
         url,
         method: 'GET',
-        headers: { 'X-Tables-Partial': '1' },
     })
         .done((html) => {
             $body.html(html);
@@ -59,14 +59,11 @@ $(document).on('submit', '[data-tables-action-log-undo]', function (e) {
 
     $btn.prop('disabled', true);
 
-    $.ajax({
+    tablesAjax({
         url,
         method: 'POST',
-        headers: {
-            'X-Tables-Partial': '1',
-            'X-CSRF-TOKEN': csrf,
-            Accept: 'application/json',
-        },
+        csrf: csrf,
+        headers: { Accept: 'application/json' },
     })
         .done((resp) => {
             const trigger = $offcanvas.attr('id');

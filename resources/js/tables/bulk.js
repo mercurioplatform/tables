@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesConfirm } from './confirm.js';
 import { tablesT } from './i18n.js';
 
@@ -16,15 +17,11 @@ function getSet(resourceKey) {
 }
 
 function findScope(resourceKey) {
-    return $('[data-tables-bulk-scope]').filter(function () {
-        return $(this).attr('data-tables-bulk-scope') === resourceKey;
-    });
+    return $('[data-tables-bulk-scope="' + resourceKey + '"]');
 }
 
 function findForm(resourceKey) {
-    return $('[data-tables-bulk-form]').filter(function () {
-        return $(this).attr('data-tables-bulk-form') === resourceKey;
-    });
+    return $('[data-tables-bulk-form="' + resourceKey + '"]');
 }
 
 function updateBar(resourceKey) {
@@ -46,10 +43,9 @@ function updateHeader(resourceKey) {
     const $all = $scope.find('[data-tables-select-all]');
     const total = $rows.length;
     const checked = $rows.filter(':checked').length;
-    const allEl = $all.get(0);
-    if (!allEl) return;
-    $(allEl).prop('checked', total > 0 && checked === total);
-    $(allEl).prop('indeterminate', checked > 0 && checked < total);
+    if ($all.length === 0) return;
+    $all.prop('checked', total > 0 && checked === total);
+    $all.prop('indeterminate', checked > 0 && checked < total);
 }
 
 $(document).on('change', '[data-tables-bulk-scope] [data-tables-row-checkbox]', function () {
@@ -109,9 +105,8 @@ $(document).on('click', '[data-tables-bulk-form] [data-tables-bulk-clear]', func
         $(this).closest('[data-tables-row]').removeClass('is-selected');
     });
     const $all = $scope.find('[data-tables-select-all]');
-    const allEl = $all.get(0);
-    if (allEl) {
-        $(allEl).prop({ checked: false, indeterminate: false });
+    if ($all.length > 0) {
+        $all.prop({ checked: false, indeterminate: false });
     }
     updateBar(resourceKey);
 });
@@ -135,11 +130,11 @@ export function submitBulkAjax($form, resourceKey) {
     const formData = $form.serialize();
     const actionLabel = $form.data('pendingLabel') || tablesT('bulk.queued_default_label');
 
-    $.ajax({
+    tablesAjax({
         url,
         method: 'POST',
         data: formData,
-        headers: { 'X-Tables-Partial': '1' },
+        csrf: false,
         dataType: 'json',
     })
         .done((data) => {
@@ -161,9 +156,8 @@ export function submitBulkAjax($form, resourceKey) {
                     $(this).closest('[data-tables-row]').removeClass('is-selected');
                 });
                 const $all = $scope.find('[data-tables-select-all]');
-                const allEl = $all.get(0);
-                if (allEl) {
-                    $(allEl).prop({ checked: false, indeterminate: false });
+                if ($all.length > 0) {
+                    $all.prop({ checked: false, indeterminate: false });
                 }
                 updateBar(resourceKey);
                 updateHeader(resourceKey);

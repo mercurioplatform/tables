@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
 
 const $ = jQuery;
@@ -12,15 +13,10 @@ function cloneCellEditTemplate(name, $cell) {
     const $page = $cell.closest('[data-tables-page]');
     const tpl = $page.find('template[data-tables-cell-edit-template="' + name + '"]').get(0);
     if (!tpl) {
-        console.warn('[tables] cell-edit: template "' + name + '" not found in page');
         return null;
     }
     // template.content / cloneNode — нативный template-API без jQuery-аналога; keep-as-is.
     return $(tpl.content.firstElementChild.cloneNode(true));
-}
-
-function getCsrfToken() {
-    return $('meta[name="csrf-token"]').attr('content') || '';
 }
 
 function getUrlTemplate($cell) {
@@ -77,7 +73,7 @@ function readOptions($cell) {
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-        console.warn('[tables] cell-edit: failed to parse data-options', e);
+        console.error('[tables] cell-edit: failed to parse data-options', e);
         return [];
     }
 }
@@ -195,7 +191,7 @@ function openPopover($cell) {
     const id = $cell.attr('data-row-id');
     const field = $cell.attr('data-field');
     if (!id || !field) {
-        console.warn('[tables] cell-edit: missing data-row-id/data-field');
+        console.error('[tables] cell-edit: missing data-row-id/data-field');
         return;
     }
 
@@ -250,15 +246,11 @@ function submitFromPopover($pop) {
     $save.prop('disabled', true);
     clearFieldErrors($pop);
 
-    $.ajax({
+    tablesAjax({
         url: url,
         method: 'PATCH',
         data: { value: value },
-        headers: {
-            'X-CSRF-TOKEN': getCsrfToken(),
-            'X-Tables-Partial': '1',
-            'Accept': 'text/html, application/json',
-        },
+        headers: { Accept: 'text/html, application/json' },
     }).done(function (html) {
         const $page = $owner.closest('[data-tables-page]');
         const rowId = String(id);

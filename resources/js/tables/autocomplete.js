@@ -6,6 +6,7 @@
  * ============================================================ */
 
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesT } from './i18n.js';
 
 const $ = jQuery;
@@ -107,12 +108,13 @@ function fetchOptions($root, term) {
         data.selected = selected;
     }
 
-    return $.ajax({
+    return tablesAjax({
         url,
         method: 'GET',
         data,
         dataType: 'json',
         cache: false,
+        partial: false,
     })
         .always(function () {
             // race-protect: if a newer request started, ignore this one

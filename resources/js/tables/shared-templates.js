@@ -8,7 +8,6 @@ export function cloneSharedTemplate(name, $scope) {
     const $page = $scope.closest('[data-tables-page]');
     const tpl = $page.find('template[data-tables-shared-template="' + name + '"]').get(0);
     if (!tpl) {
-        console.warn('[tables] shared-template "' + name + '" not found in page');
         return null;
     }
     // template.content / cloneNode — нативный template-API без jQuery-аналога; keep-as-is.

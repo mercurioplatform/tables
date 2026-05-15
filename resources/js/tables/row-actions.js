@@ -1,20 +1,13 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesConfirm } from './confirm.js';
 import { tablesT } from './i18n.js';
 import { cloneSharedTemplate } from './shared-templates.js';
+import { showOffcanvas, hideOffcanvas } from './offcanvas.js';
 
 const $ = jQuery;
 
 const OFFCANVAS_ID = 'tables-row-action-offcanvas';
-
-function getOffcanvasEl() {
-    // Raw HTMLElement required by bootstrap.Offcanvas.getOrCreateInstance() — keep native.
-    return document.getElementById(OFFCANVAS_ID);
-}
-
-function getBootstrap() {
-    return window.bootstrap;
-}
 
 function navigateReload($form) {
     const $page = $form.closest('[data-tables-page]');
@@ -50,10 +43,6 @@ function renderFieldErrors($form, errors) {
     });
 }
 
-function getCsrfToken() {
-    return $('meta[name="csrf-token"]').attr('content') || '';
-}
-
 $(document).on('click', '[data-tables-row-action-confirm]:not([data-tables-row-preview-url])', async function (e) {
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -82,16 +71,8 @@ $(document).on('click', '[data-tables-row-action-form-button]', function (e) {
     const label = $btn.attr('data-action-label') || '';
     const reloadAfter = $btn.attr('data-reload-after') !== '0';
 
-    const oc = getOffcanvasEl();
-    if (!oc) {
-        console.warn('[tables] row-action offcanvas not found on the page');
-        return;
-    }
-    const bootstrap = getBootstrap();
-    if (!bootstrap || !bootstrap.Offcanvas) {
-        console.warn('[tables] bootstrap.Offcanvas is not available');
-        return;
-    }
+    const oc = document.getElementById(OFFCANVAS_ID);
+    if (!oc) return;
 
     const $oc = $(oc);
     $oc.find('.offcanvas-title').text(label);
@@ -105,13 +86,11 @@ $(document).on('click', '[data-tables-row-action-form-button]', function (e) {
         $body.append($spinner);
     }
 
-    const instance = bootstrap.Offcanvas.getOrCreateInstance(oc);
-    instance.show();
+    if (!showOffcanvas(oc)) return;
 
-    $.ajax({
+    tablesAjax({
         url: formUrl,
         method: 'GET',
-        headers: { 'X-Tables-Partial': '1' },
         dataType: 'html',
     }).done(function (html) {
         $body.removeClass('is-loading').html(html);
@@ -140,23 +119,14 @@ $(document).on('submit', 'form[data-tables-row-action-submit]', function (e) {
 
     const reloadAfter = $form.closest('[data-tables-row-action-body]').attr('data-reload-after') !== '0';
 
-    $.ajax({
+    tablesAjax({
         url: url,
         method: 'POST',
         data: $form.serialize(),
-        headers: {
-            'X-Tables-Partial': '1',
-            'X-CSRF-TOKEN': getCsrfToken(),
-            'Accept': 'application/json',
-        },
+        headers: { Accept: 'application/json' },
         dataType: 'json',
     }).done(function (data) {
-        const oc = getOffcanvasEl();
-        if (oc) {
-            const bootstrap = getBootstrap();
-            const instance = bootstrap?.Offcanvas?.getInstance(oc);
-            instance?.hide();
-        }
+        hideOffcanvas(OFFCANVAS_ID);
         if (reloadAfter) {
             navigateReload($form);
             return;

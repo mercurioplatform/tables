@@ -1,19 +1,12 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { submitBulkAjax } from './bulk.js';
 import { tablesT } from './i18n.js';
 import { cloneSharedTemplate } from './shared-templates.js';
+import { showOffcanvas } from './offcanvas.js';
 
 const $ = jQuery;
 const OFFCANVAS_ID = 'tables-confirm-preview-offcanvas';
-
-function getOffcanvasEl() {
-    // Raw HTMLElement required by bootstrap.Offcanvas.getOrCreateInstance() — keep native.
-    return document.getElementById(OFFCANVAS_ID);
-}
-
-function getBootstrap() {
-    return window.bootstrap;
-}
 
 function variantToClass(variant) {
     return ({
@@ -28,9 +21,8 @@ function variantToClass(variant) {
 const SUBMIT_VARIANT_CLASSES = 'btn-danger btn-warning btn-success btn-primary btn-secondary';
 
 function openPreviewOffcanvas({ url, label, onConfirm }) {
-    const oc = getOffcanvasEl();
-    const bs = getBootstrap();
-    if (!oc || !bs?.Offcanvas) return false;
+    const oc = document.getElementById(OFFCANVAS_ID);
+    if (!oc) return false;
 
     const $oc = $(oc);
     $oc.find('.offcanvas-title').text(label || '');
@@ -49,13 +41,12 @@ function openPreviewOffcanvas({ url, label, onConfirm }) {
         .addClass('btn-primary')
         .text(tablesT('confirm.preview.confirm_default'));
 
-    const inst = bs.Offcanvas.getOrCreateInstance(oc);
-    inst.show();
+    const inst = showOffcanvas(oc);
+    if (!inst) return false;
 
-    $.ajax({
+    tablesAjax({
         url,
         method: 'GET',
-        headers: { 'X-Tables-Partial': '1' },
         dataType: 'html',
     })
         .done(function (html) {

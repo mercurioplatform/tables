@@ -1,14 +1,11 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 import { tablesConfirm } from './confirm.js';
 import { tablesT } from './i18n.js';
 
 const $ = jQuery;
 
 const PREFS_QUERY_KEYS = ['columns', 'density', 'per_page'];
-
-function getCsrfToken() {
-    return $('meta[name="csrf-token"]').attr('content') || '';
-}
 
 function dispatchNavigate(url) {
     // Public DOM event for host listeners — keep native dispatchEvent + CustomEvent.detail.
@@ -83,15 +80,12 @@ $(document).on('click', '[data-tables-prefs-submit]', function (e) {
 
     const saveUrl = $trigger.attr('data-save-url') || '';
 
-    $.ajax({
+    tablesAjax({
         url: saveUrl,
         type: 'POST',
         data: serializePrefsForm($form),
-        headers: {
-            'X-CSRF-TOKEN': getCsrfToken(),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-        },
+        partial: false,
+        headers: { Accept: 'application/json' },
     }).done(function () {
         hidePopover($trigger);
         const cleaned = buildCleanedUrl();
@@ -136,14 +130,11 @@ $(document).on('click', '[data-tables-prefs-reset]', function (e) {
 
         const resetUrl = $trigger.attr('data-reset-url') || '';
 
-        $.ajax({
+        tablesAjax({
             url: resetUrl,
             type: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': getCsrfToken(),
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-            },
+            partial: false,
+            headers: { Accept: 'application/json' },
         }).done(function () {
             hidePopover($trigger);
             const cleaned = buildCleanedUrl();

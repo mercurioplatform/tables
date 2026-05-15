@@ -1,3 +1,10 @@
+// Entry point for the tables JS bundle.
+//
+// Initialization model: each module attaches its delegated handlers to
+// $(document) / $(window) at import time (side-effect). The bundle is wired
+// once per page via the host's Vite import of resources/js/vendor/tables/;
+// no public init() call is required, and dynamically inserted DOM (AJAX,
+// portals, modals) is covered automatically by event-delegation.
 import './i18n.js';
 import './core.js';
 import './bulk.js';
@@ -14,8 +21,3 @@ import './export.js';
 import './filter-groups.js';
 import './action-log.js';
 import './progress.js';
-
-export function initTables() {
-    // No-op on E8: delegated handlers attached via module side-effect.
-    // Future iterations may use this for scoped (modal/portal) tables.
-}

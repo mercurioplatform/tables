@@ -1,4 +1,5 @@
 import jQuery from 'jquery';
+import { tablesAjax } from './ajax.js';
 
 const $ = jQuery;
 
@@ -18,9 +19,7 @@ function syncSavedViews($page, url) {
 
     let activated = false;
     if (view !== null && view !== '') {
-        const $match = $links.filter(function () {
-            return $(this).attr('data-tables-saved-view-key') === view;
-        });
+        const $match = $links.filter('[data-tables-saved-view-key="' + view + '"]');
         if ($match.length > 0) {
             $match.first().addClass('is-active');
             activated = true;
@@ -48,10 +47,9 @@ function requestPartial(url, $page, options) {
 
     $root.addClass('is-loading');
 
-    const xhr = $.ajax({
+    const xhr = tablesAjax({
         url: url,
         method: 'GET',
-        headers: { 'X-Tables-Partial': '1' },
         dataType: 'html',
     });
 
@@ -206,9 +204,7 @@ window.addEventListener('popstate', function (e) {
         return;
     }
     const key = state.tablesPage;
-    const $page = $('[data-tables-page]').filter(function () {
-        return $(this).attr('data-tables-page') === key;
-    }).first();
+    const $page = $('[data-tables-page="' + key + '"]').first();
     if ($page.length === 0) {
         window.location.reload();
         return;
