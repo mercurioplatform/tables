@@ -6,6 +6,19 @@ const $ = jQuery;
 const POPOVER_CLASS = 'tables-cell-popover';
 const POPOVER_SELECTOR = '.' + POPOVER_CLASS;
 
+function cloneCellEditTemplate(name, $cell) {
+    // Page-scoped lookup: при двух tables-pages на одной странице глобальный
+    // document.querySelector взял бы template первой page для ячейки второй.
+    const $page = $cell.closest('[data-tables-page]');
+    const tpl = $page.find('template[data-tables-cell-edit-template="' + name + '"]').get(0);
+    if (!tpl) {
+        console.warn('[tables] cell-edit: template "' + name + '" not found in page');
+        return null;
+    }
+    // template.content / cloneNode — нативный template-API без jQuery-аналога; keep-as-is.
+    return $(tpl.content.firstElementChild.cloneNode(true));
+}
+
 function getCsrfToken() {
     return $('meta[name="csrf-token"]').attr('content') || '';
 }
@@ -50,8 +63,11 @@ function renderFieldErrors($pop, errors) {
     if ($input.length > 0) {
         $input.addClass('is-invalid');
     }
-    const $feedback = $('<div class="invalid-feedback d-block" data-tables-cell-edit-error></div>')
-        .text(list.join(' '));
+    const $owner = $pop.data('tables-cell-owner');
+    if (!$owner || $owner.length === 0) return;
+    const $feedback = cloneCellEditTemplate('invalid-feedback', $owner);
+    if (!$feedback) return;
+    $feedback.text(list.join(' '));
     $pop.find('[data-tables-cell-edit-form]').append($feedback);
 }
 
@@ -67,22 +83,26 @@ function readOptions($cell) {
 }
 
 function buildSelectInput($cell) {
+    const $select = cloneCellEditTemplate('input-select', $cell);
+    if (!$select) return null;
     const options = readOptions($cell);
     const current = $cell.attr('data-current-value') || '';
-    const $select = $('<select class="form-select form-select-sm" data-tables-cell-edit-input></select>');
-    options.forEach(function (opt) {
+    for (const opt of options) {
+        const $opt = cloneCellEditTemplate('input-select-option', $cell);
+        if (!$opt) return null;
         const value = String(opt.value);
-        const $opt = $('<option></option>').attr('value', value).text(opt.label);
+        $opt.attr('value', value).text(opt.label);
         if (value === current) {
             $opt.prop('selected', true);
         }
         $select.append($opt);
-    });
+    }
     return $select;
 }
 
 function buildNumberInput($cell) {
-    const $input = $('<input type="number" class="form-control form-control-sm" data-tables-cell-edit-input>');
+    const $input = cloneCellEditTemplate('input-number', $cell);
+    if (!$input) return null;
     const current = $cell.attr('data-current-value');
     if (current !== undefined && current !== null && current !== '') {
         $input.val(current);
@@ -97,25 +117,30 @@ function buildNumberInput($cell) {
 }
 
 function buildBooleanInput($cell) {
+    const $wrap = cloneCellEditTemplate('input-boolean', $cell);
+    if (!$wrap) return null;
+
     const current = ($cell.attr('data-current-value') || '').toString();
     const trueLabel = $cell.attr('data-true-label') || tablesT('cell.true_default');
     const falseLabel = $cell.attr('data-false-label') || tablesT('cell.false_default');
     const truthy = current === '1' || current === 'true';
-    const $wrap = $('<div class="d-flex flex-column gap-1" data-tables-cell-edit-input></div>');
     const name = 'cell-edit-bool-' + Math.random().toString(36).slice(2);
-    [
+
+    const opts = [
         { val: '1', label: trueLabel, checked: truthy },
         { val: '0', label: falseLabel, checked: !truthy },
-    ].forEach(function (opt) {
-        const $row = $('<div class="form-check"></div>');
+    ];
+    for (const opt of opts) {
+        const $row = cloneCellEditTemplate('input-boolean-row', $cell);
+        if (!$row) return null;
         const id = name + '-' + opt.val;
-        const $input = $('<input type="radio" class="form-check-input">')
-            .attr({ name: name, id: id, value: opt.val });
-        if (opt.checked) $input.prop('checked', true);
-        const $label = $('<label class="form-check-label"></label>').attr('for', id).text(opt.label);
-        $row.append($input).append($label);
+        $row.find('input[type="radio"]')
+            .attr({ name: name, id: id, value: opt.val })
+            .prop('checked', opt.checked);
+        $row.find('label').attr('for', id).text(opt.label);
         $wrap.append($row);
-    });
+    }
+
     return $wrap;
 }
 
@@ -145,18 +170,15 @@ function buildPopover($cell) {
     if (inputType === 'select') $input = buildSelectInput($cell);
     else if (inputType === 'number') $input = buildNumberInput($cell);
     else if (inputType === 'boolean') $input = buildBooleanInput($cell);
-    else $input = $('<input type="text" class="form-control form-control-sm" data-tables-cell-edit-input>')
-        .val($cell.attr('data-current-value') || '');
+    else {
+        $input = cloneCellEditTemplate('input-text', $cell);
+        if ($input) $input.val($cell.attr('data-current-value') || '');
+    }
 
-    const $form = $('<form data-tables-cell-edit-form></form>').append($input);
-    const $actions = $('<div class="d-flex justify-content-end gap-2 mt-2"></div>');
-    $actions.append('<button type="button" class="btn btn-sm btn-link" data-tables-cell-edit-cancel></button>');
-    $actions.find('[data-tables-cell-edit-cancel]').text(tablesT('cell.cancel'));
-    $actions.append('<button type="submit" class="btn btn-sm btn-primary" data-tables-cell-edit-save></button>');
-    $actions.find('[data-tables-cell-edit-save]').text(tablesT('cell.save'));
-    $form.append($actions);
+    const $pop = cloneCellEditTemplate('popover', $cell);
+    if (!$pop || !$input) return null;
 
-    const $pop = $('<div class="' + POPOVER_CLASS + '" role="dialog"></div>').append($form);
+    $pop.find('[data-tables-cell-edit-form]').prepend($input);
     return { $pop, $input, inputType };
 }
 
@@ -178,6 +200,7 @@ function openPopover($cell) {
     }
 
     const built = buildPopover($cell);
+    if (!built) return;
     const $pop = built.$pop;
     $pop.data('tables-cell-owner', $cell);
     $pop.data('tables-cell-id', id);

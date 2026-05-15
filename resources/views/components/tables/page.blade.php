@@ -81,4 +81,8 @@
     @if ($table->hasConfirmPreviews())
         <x-tables.confirm-preview-offcanvas :table="$table"/>
     @endif
+
+    @if ($table->hasAnyEditableFields())
+        <x-tables.cell-edit-templates/>
+    @endif
 </div>
