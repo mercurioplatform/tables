@@ -7,7 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-05-16
+
 ### Added
+
+- **AJAX wrapper `resources/js/tables/ajax.js`.** Введён `tablesAjax(options)`
+  поверх `$.ajax`: авто `X-Requested-With: XMLHttpRequest`, CSRF-токен из
+  `<meta name="csrf-token">`, единая retry-политика. Все consumer-модули
+  (`action-log`, `bulk-form`, `bulk`, `cell-edit`, `confirm-preview`, `prefs`,
+  `progress`, `row-actions`, `saved-views`) переведены — ручная сборка
+  `jqXHR`-options удалена. Единая точка для будущих перехватчиков
+  (`X-Tables-Partial`, кастомные заголовки).
+
+- **Bootstrap Offcanvas helper `resources/js/tables/offcanvas.js`.**
+  `showOffcanvas(target)` / `hideOffcanvas(target)` — принимают DOM-узел,
+  id-строку или jQuery-объект через `target.jquery` duck-typing. Заменил
+  повторяющийся `bootstrap.Offcanvas.getOrCreateInstance(el).show()` dance
+  в `bulk-form.js`, `row-actions.js`, `confirm-preview.js`, `qb.js`. No-op,
+  если `window.bootstrap` недоступен (host-страница вне admin-контекста).
+
+- **Логгер `resources/js/tables/logger.js`.** Единый API
+  `error(msg, ...args)` / `warn(msg, ...args)` + `logger.scope(name)` для
+  scoped-префиксов: `[tables]` для базового логгера, `[tables.<scope>]` для
+  подмодулей (используется в `bulk` → `bulk_progress`, `progress` → `progress`).
+
+- **Константы `resources/js/tables/data-attrs.js`.** Около 80 констант
+  `ATTRS.*` (имена `data-tables-*` атрибутов без `data-` префикса),
+  `EVENTS.{rendered,navigate,totalChanged,flash}` (имена custom-событий с
+  префиксом `tables:`), билдер селекторов `sel(name, value?)` с экранированием
+  кавычек. Опечатки в именах атрибутов больше не компилируются молча.
 
 - **ESLint flat config (ESLint 9) для JS-кода пакета.** В корне `tables/`
   появился `package.json` (private, только devDeps: `eslint`, `@eslint/js`,
@@ -19,6 +47,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `package-lock.json` не коммитится (по аналогии с `composer.lock`).
 
 ### Changed
+
+- **Удалён no-op экспорт `initTables()` из `resources/js/tables/index.js`.**
+  Модуль side-effect-only — host-страницы расширяют поведение через
+  document-listener `tables:navigate`. Поиск по `mercurioplatform/*` не
+  нашёл call-site'ов внешнего `initTables()`.
+
+- **jQuery-идиомы причёсаны.** Combined selectors
+  (`$('.foo[data-bar="baz"]')`) вместо `.filter(fn)` с attribute-equality;
+  `.length`-check вместо `.get(0) + null-check + $()-rewrap`; error-only
+  logging policy по handlers/services (happy-path `console.log`/`console.info`
+  удалены). Затронуты модули `resources/js/tables/*` без изменения
+  публичного DOM-контракта.
+
+- **Console-логи унифицированы через `logger.js`.** Прямые
+  `console.error('[tables...] ...')` в `i18n.js`, `core.js`, `bulk.js`
+  (scope `bulk_progress`), `cell-edit.js`, `saved-views.js`, `progress.js`
+  (scope `progress`) заменены на `logger.error` / scoped `log.error`.
+
+- **Имена `data-tables-*` атрибутов и custom-событий централизованы.** 16
+  consumer-модулей переведены: все `[data-tables-*]` селекторы,
+  `.attr('data-tables-*')` геттеры/сеттеры и строки custom-событий
+  (`tables:rendered`, `tables:navigate`, `tables:total-changed`,
+  `tables:flash`) теперь идут через `ATTRS`/`EVENTS`/`sel()` из
+  `data-attrs.js`. HTML-литералы строковой/template-сборки и внутренние
+  `data-path` селекторы `qb.js` — out-of-scope (ушли вместе с декомпозицией
+  `qb.js` в этом же релизе).
 
 - **Прогон ESLint по `resources/js/tables/**/*.js`.** Закрыты 2 baseline-ошибки
   без изменения публичного поведения: `qb/render.js` (`let header` →
@@ -385,4 +439,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Mercurio\Tables\Http\GenericTablesController`.
 - `Mercurio\Tables\Support\{Pluralizer, UserViewHref}`.
 
-[Unreleased]: https://github.com/mercurioplatform/tables/commits/main
+[Unreleased]: https://github.com/mercurioplatform/tables/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/mercurioplatform/tables/compare/v1.0.0...v1.1.0
