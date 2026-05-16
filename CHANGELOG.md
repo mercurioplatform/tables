@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Source-абстракция (фаза 3): `ArraySource` + in-memory эвалюаторы.**
+
+  - **`Mercurio\Tables\Source\ArraySource`** — второй полноценный Source-драйвер
+    пакета поверх `Illuminate\Support\Collection`. Конструктор:
+    `new ArraySource(Collection|iterable $rows, ?Capabilities $caps = null, string $primaryKey = 'id', ?ListResource $resource = null)`.
+    Capabilities по умолчанию: `filter / sort / search / count / stream = true`,
+    `cursor = false`, `mutate = false` (read-only). Immutable: `withQuery()`
+    возвращает новый instance с пре-фильтрованной/sorted коллекцией через
+    `->values()`. Под капотом — search через `mb_stripos`, chip-фильтры
+    через `BuiltinFilterEvaluator`, `?qb=` AST через `AtomEvaluator`, sort
+    через `Collection::sortBy(callable, SORT_NATURAL | SORT_FLAG_CASE)`.
+    `page()` собирает делегат `LengthAwarePaginator` вручную — Blade-пагинатор
+    `tables::pagination-bs5` работает без правок. `update()` бросает
+    `LogicException` как final guard (mutate-stack уже отрезан UI-gating'ом
+    из Phase 2 и серверными `mutate=false → 422`).
+
+  - **`Mercurio\Tables\Filter\Qb\AtomEvaluator`** — in-memory эвалюатор AST из
+    Query Builder'а (`AtomCondition` / `AtomGroup` → `bool`). Семантически
+    эквивалентен `QueryBuilderApplier` (Eloquent), но работает над in-memory
+    row. Reused в Phase 5/6 (HttpSource client-side fallback, FileSource).
+    Field-aware `filterUsing` / `filterScope` (Builder-only) на in-memory row
+    применить нельзя — atom'ы всегда идут через built-in operator semantics;
+    ArraySource при detection кастомизации пишет WARN
+    `tables.array_source.field_filter_customization_skipped`.
+
+  - **`Mercurio\Tables\Filter\BuiltinFilterEvaluator`** — in-memory зеркало
+    `BuiltinFilterApplier`. `matches(mixed $value, Operator $op, mixed $expected): bool`
+    по всем 18 операторам enum `Operator`. Разница vs SQL `LIKE`:
+    `Contains` / `StartsWith` / `EndsWith` сравнивают строки как **буквальный
+    substring**, SQL-метасимволы (`%`, `_`) трактуются буквально.
+
+  - **`Mercurio\Tables\Source\Support\RowValueExtractor`** — единое извлечение
+    значения row по `field`-имени для in-memory эвалюаторов и для
+    сортировки / search-substring в `ArraySource`. Поддерживает
+    `array<string, mixed>`, `Eloquent\Model` (`getAttribute()` с accessor'ами),
+    `Arrayable`, `ArrayAccess`, `object` (public props) и dotted-path
+    (`order.customer.email`) с рекурсивным null-safe спуском.
+
+  - **`SavedViewCountsCalculator` — поддержка non-Eloquent sources.** Ранее
+    counts работали только на `EloquentSource` (SQL UNION subqueries через
+    `getBuilder()->toSql()`). Добавлен универсальный путь
+    `countsForGenericSource()`: для каждой view собирается `Query`
+    (`conditions` + опциональный `sourceClosure`), вызывается
+    `$source->withQuery($svQuery)->count()`. `view->scope` (string или
+    Closure) и `view->countWith()` — Eloquent-only API, на non-Eloquent
+    source'ах пропускаются с WARN `tables.saved_view.scope_unsupported_on_non_eloquent`
+    и `tables.saved_view.count_callback_unsupported_on_non_eloquent`. SQL
+    UNION-ветка для `EloquentSource` без regressions.
+
+  - **`docs/sources.md`** — новый раздел `ArraySource`: use-cases, пример
+    `Resource::source()`, таблица capabilities, список ограничений (read-only,
+    sort по реляционным полям только через eager-load / RowValueExtractor,
+    exact substring без LIKE-метасимволов, find — линейный scan, no-counts
+    через `view->scope`).
+
 - **Source-абстракция (фаза 1).** Контракт `Mercurio\Tables\Source\Source`
   с реализацией `EloquentSource` — единый адаптер источников данных для
   Resource-ов. Внутренний pipeline (`TableBuilder` → `FilterPipeline` →

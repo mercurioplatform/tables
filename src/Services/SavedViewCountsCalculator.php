@@ -9,6 +9,9 @@ use Mercurio\Tables\Filter\BuiltinFilterApplier;
 use Mercurio\Tables\Filter\FilterApplier;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Source\EloquentSource;
+use Mercurio\Tables\Source\Query;
+use Mercurio\Tables\Source\Source;
+use Mercurio\Tables\View\SavedView;
 
 final class SavedViewCountsCalculator
 {
@@ -23,18 +26,26 @@ final class SavedViewCountsCalculator
         }
 
         $source = $resource->resolveSource();
-        if (! $source instanceof EloquentSource) {
-            // Phase 1: подсчёт saved-view counts реализован SQL-объединением
-            // (UNION subqueries), это работает только для EloquentSource.
-            // Не-Eloquent Source-драйверы получат counts в более поздних фазах.
-            Log::debug('tables.saved_views.counts_unsupported', [
-                'resource' => $resource->key(),
-                'source' => $source::class,
-            ]);
 
-            return [];
+        if ($source instanceof EloquentSource) {
+            return $this->countsForEloquent($resource, $source, $views);
         }
 
+        return $this->countsForGenericSource($resource, $source, $views);
+    }
+
+    /**
+     * Single SQL-roundtrip через UNION subqueries — работает только для
+     * EloquentSource (требует `getBuilder()->toSql()` + `getBindings()`).
+     *
+     * @param  array<int, SavedView>  $views
+     * @return array<string, int>
+     */
+    private function countsForEloquent(
+        ListResource $resource,
+        EloquentSource $source,
+        array $views,
+    ): array {
         $base = $source->getBuilder();
         $fieldMap = null;
 
@@ -91,6 +102,71 @@ final class SavedViewCountsCalculator
         foreach ($aliasMap as $alias => $viewKey) {
             $result[$viewKey] = (int) ($row[$alias] ?? 0);
         }
+
+        return $result;
+    }
+
+    /**
+     * Универсальный путь для не-Eloquent Source-драйверов (ArraySource в Phase 3,
+     * HttpSource в Phase 5, FileSource в Phase 6). N+1 проходов по
+     * `$source->withQuery($svQuery)->count()` — приемлемо для in-memory
+     * use-case (справочники <10K rows, <20 saved views).
+     *
+     * `view->scope` (`string` model-scope **или** `Closure(Builder)`) и
+     * `view->countQueryCallback` — Eloquent-only API; на non-Eloquent
+     * source'ах оба варианта пропускаются с WARN.
+     *
+     * @param  array<int, SavedView>  $views
+     * @return array<string, int>
+     */
+    private function countsForGenericSource(
+        ListResource $resource,
+        Source $source,
+        array $views,
+    ): array {
+        $result = [];
+        $warnedScope = [];
+        $warnedCountCallback = [];
+
+        foreach ($views as $view) {
+            if ($view->scope !== null && ! isset($warnedScope[$view->key])) {
+                Log::warning('tables.saved_view.scope_unsupported_on_non_eloquent', [
+                    'resource' => $resource->key(),
+                    'view' => $view->key,
+                    'source' => $source::class,
+                    'reason' => 'SavedView::scope accepts Eloquent\\Builder; not applicable on non-Eloquent source. Use SavedView::conditions() or SavedView::sourceClosure() instead.',
+                ]);
+                $warnedScope[$view->key] = true;
+            }
+
+            if ($view->getCountQueryCallback() !== null && ! isset($warnedCountCallback[$view->key])) {
+                Log::warning('tables.saved_view.count_callback_unsupported_on_non_eloquent', [
+                    'resource' => $resource->key(),
+                    'view' => $view->key,
+                    'source' => $source::class,
+                    'reason' => 'SavedView::countWith() callback receives Eloquent\\Builder; not applicable on non-Eloquent source.',
+                ]);
+                $warnedCountCallback[$view->key] = true;
+            }
+
+            $svQuery = new Query;
+            $svQuery->savedViewKey = $view->key;
+            $svQuery->conditions = $view->conditions;
+
+            $applied = $source->withQuery($svQuery);
+            if ($view->sourceClosure !== null) {
+                $applied = ($view->sourceClosure)($applied);
+            }
+
+            $count = $applied->count();
+            $result[$view->key] = $count ?? 0;
+        }
+
+        Log::debug('tables.saved_view.counts_generic_source', [
+            'resource' => $resource->key(),
+            'source' => $source::class,
+            'view_count' => count($views),
+        ]);
 
         return $result;
     }
