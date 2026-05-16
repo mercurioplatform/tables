@@ -2,9 +2,8 @@
 
 namespace Mercurio\Tables\Table;
 
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterPipeline;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
@@ -12,11 +11,12 @@ use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\ResourceTable;
 use Mercurio\Tables\Services\SavedViewCountsCalculator;
+use Mercurio\Tables\Source\Source;
 
 /**
  * @internal
  *
- * Composes query + fields + savedViews + prefs + paginator into a finished ResourceTable.
+ * Composes Source + fields + savedViews + prefs + Page into a finished ResourceTable.
  * Invoke via `app(TableBuilder::class)->build($resource, $request)`.
  */
 final class TableBuilder
@@ -29,14 +29,15 @@ final class TableBuilder
 
     public function build(ListResource $resource, Request $request): ResourceTable
     {
-        $query = $resource->query();
+        $source = $resource->resolveSource();
         $fields = $resource->fieldsMemo();
         $savedViews = $resource->savedViewsMemo();
         $savedViewCounts = $savedViews === []
             ? []
             : $this->savedViewCounts->counts($resource);
 
-        $applied = $this->filterPipeline->apply($query, $request, $resource, $fields, $savedViews);
+        $applied = $this->filterPipeline->build($request, $resource, $fields, $savedViews);
+        $query = $applied['query'];
 
         $sort = SortResolver::resolve(
             $request->query('sort'),
@@ -45,7 +46,8 @@ final class TableBuilder
             $resource->defaultSort(),
         );
         if ($sort !== null) {
-            $query->orderBy($sort['column'], $sort['direction']);
+            $query->sortField = $sort['column'];
+            $query->sortDirection = $sort['direction'];
         }
 
         $prefs = $this->prefsResolver->resolve($resource, $request);
@@ -53,9 +55,21 @@ final class TableBuilder
         $effectiveDensity = $prefs->density ?? $resource->density();
         $effectiveColumns = $prefs->columns;
 
-        $paginator = $query
-            ->paginate($effectivePerPage)
-            ->withQueryString();
+        $page = (int) $request->query('page', 1);
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        $appliedSource = $source->withQuery($query);
+        $resultPage = $appliedSource->page($page, $effectivePerPage);
+
+        Log::debug('tables.table_builder.built', [
+            'resource' => $resource->key(),
+            'page' => $resultPage->currentPage(),
+            'per_page' => $resultPage->perPage(),
+            'total' => $resultPage->total(),
+            'is_cursor' => $resultPage->isCursor(),
+        ]);
 
         $qbRoot = $applied['qbRoot'];
         $qbVo = $qbRoot !== null
@@ -68,7 +82,8 @@ final class TableBuilder
 
         return new ResourceTable(
             key: $resource->key(),
-            paginator: $paginator,
+            page: $resultPage,
+            capabilities: $appliedSource->capabilities(),
             fields: $fields,
             savedViews: $savedViews,
             bulkActions: $resource->resolveBulkActions(),
@@ -89,15 +104,16 @@ final class TableBuilder
     }
 
     /**
-     * @return array{builder: Builder<Model>, total: int, columns: array<int, Field>, queryParams: array<string, mixed>}
+     * @return array{source: Source, total: int, columns: array<int, Field>, queryParams: array<string, mixed>}
      */
     public function buildForExport(ListResource $resource, Request $request): array
     {
-        $query = $resource->query();
+        $source = $resource->resolveSource();
         $fields = $resource->fieldsMemo();
         $savedViews = $resource->savedViewsMemo();
 
-        $this->filterPipeline->apply($query, $request, $resource, $fields, $savedViews);
+        $applied = $this->filterPipeline->build($request, $resource, $fields, $savedViews);
+        $appliedSource = $source->withQuery($applied['query']);
 
         $prefs = $this->prefsResolver->resolve($resource, $request);
         $effectiveColumnNames = $prefs->columns ?? array_values(array_map(
@@ -119,10 +135,10 @@ final class TableBuilder
             }
         }
 
-        $total = (int) (clone $query)->toBase()->getCountForPagination();
+        $total = $appliedSource->count() ?? 0;
 
         return [
-            'builder' => $query,
+            'source' => $appliedSource,
             'total' => $total,
             'columns' => $columns,
             'queryParams' => (array) $request->query(),

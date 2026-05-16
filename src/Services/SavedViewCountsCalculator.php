@@ -3,7 +3,9 @@
 namespace Mercurio\Tables\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Source\EloquentSource;
 
 final class SavedViewCountsCalculator
 {
@@ -17,7 +19,20 @@ final class SavedViewCountsCalculator
             return [];
         }
 
-        $base = $resource->query();
+        $source = $resource->resolveSource();
+        if (! $source instanceof EloquentSource) {
+            // Phase 1: подсчёт saved-view counts реализован SQL-объединением
+            // (UNION subqueries), это работает только для EloquentSource.
+            // Не-Eloquent Source-драйверы получат counts в более поздних фазах.
+            Log::debug('tables.saved_views.counts_unsupported', [
+                'resource' => $resource->key(),
+                'source' => $source::class,
+            ]);
+
+            return [];
+        }
+
+        $base = $source->getBuilder();
 
         $selects = [];
         $bindings = [];

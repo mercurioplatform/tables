@@ -2,31 +2,31 @@
 
 namespace Mercurio\Tables\Filter;
 
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\Qb\AtomCondition;
 use Mercurio\Tables\Filter\Qb\AtomGroup;
-use Mercurio\Tables\Filter\Qb\QueryBuilderApplier;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
 use Mercurio\Tables\Filter\Qb\QueryBuilderParser;
 use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Source\EloquentSource;
+use Mercurio\Tables\Source\Query;
 use Mercurio\Tables\View\SavedView;
 
 /**
  * @internal
  *
- * Composes search + saved-view + chip-filters + qb-AST for a single request.
- * Stateless service: all state lives in the arguments passed in.
+ * Парсит request-параметры (q, view, f, qb) и собирает neutral {@see Query} VO.
+ * Не мутирует Eloquent\Builder — применение Query к источнику делает сам
+ * Source-драйвер (см. {@see EloquentSource::withQuery()}).
  */
 final class FilterPipeline
 {
     /**
-     * @param  Builder<Model>  $query
      * @param  array<int, Field>  $fields
      * @param  array<int, SavedView>  $savedViews
      * @return array{
+     *     query: Query,
      *     search: string|null,
      *     currentView: string|null,
      *     conditions: array<int, FilterCondition>,
@@ -34,22 +34,20 @@ final class FilterPipeline
      *     qbRoot: AtomCondition|AtomGroup|null,
      * }
      */
-    public function apply(
-        Builder $query,
+    public function build(
         Request $request,
         ListResource $resource,
         array $fields,
         array $savedViews,
     ): array {
+        $query = new Query;
+        $query->searchableColumns = $resource->searchable();
+
         $search = $this->normalizeSearch($request->query('q'));
-        if ($search !== null) {
-            $this->applySearch($query, $search, $resource->searchable());
-        }
+        $query->search = $search;
 
         $currentView = $this->resolveCurrentView($request->query('view'), $savedViews);
-        if ($currentView !== null) {
-            $this->findView($currentView, $savedViews)?->apply($query);
-        }
+        $query->savedViewKey = $currentView;
 
         $rawFilters = $request->input('f', []);
         $conditions = is_array($rawFilters)
@@ -58,12 +56,11 @@ final class FilterPipeline
 
         $activeFilters = [];
         foreach ($conditions as $cond) {
-            $field = $this->fieldByName($cond->field, $fields);
-            if ($field !== null) {
-                FilterApplier::apply($query, $field, $cond);
+            if ($this->fieldByName($cond->field, $fields) !== null) {
                 $activeFilters[$cond->field] = $cond;
             }
         }
+        $query->conditions = $conditions;
 
         $rawQb = $request->query('qb');
         $qbRoot = is_string($rawQb) && $rawQb !== ''
@@ -72,13 +69,10 @@ final class FilterPipeline
         if ($qbRoot !== null) {
             $qbRoot = QueryBuilderNormalizer::normalize($qbRoot);
         }
-        if ($qbRoot !== null) {
-            $query->where(function (Builder $sub) use ($qbRoot, $resource): void {
-                QueryBuilderApplier::apply($sub, $qbRoot, $resource);
-            });
-        }
+        $query->qbRoot = $qbRoot;
 
         return [
+            'query' => $query,
             'search' => $search,
             'currentView' => $currentView,
             'conditions' => $conditions,
@@ -101,32 +95,6 @@ final class FilterPipeline
         return mb_substr($trimmed, 0, 200);
     }
 
-    /**
-     * @param  Builder<Model>  $query
-     * @param  array<int, string>  $columns
-     */
-    private function applySearch(Builder $query, string $term, array $columns): void
-    {
-        if ($columns === []) {
-            return;
-        }
-
-        $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%';
-
-        $query->where(function (Builder $inner) use ($columns, $like): void {
-            foreach ($columns as $column) {
-                if (str_contains($column, '.')) {
-                    [$relation, $relCol] = explode('.', $column, 2);
-                    $inner->orWhereHas($relation, function (Builder $q) use ($relCol, $like): void {
-                        $q->where($relCol, 'LIKE', $like);
-                    });
-                } else {
-                    $inner->orWhere($column, 'LIKE', $like);
-                }
-            }
-        });
-    }
-
     /** @param  array<int, SavedView>  $savedViews */
     private function resolveCurrentView(mixed $raw, array $savedViews): ?string
     {
@@ -137,18 +105,6 @@ final class FilterPipeline
         foreach ($savedViews as $view) {
             if ($view->key === $raw) {
                 return $raw;
-            }
-        }
-
-        return null;
-    }
-
-    /** @param  array<int, SavedView>  $savedViews */
-    private function findView(string $key, array $savedViews): ?SavedView
-    {
-        foreach ($savedViews as $view) {
-            if ($view->key === $key) {
-                return $view;
             }
         }
 
