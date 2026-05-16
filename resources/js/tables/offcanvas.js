@@ -6,10 +6,6 @@
 // before refactor; this is intentional (host pages may load tables.js outside
 // admin context where Bootstrap is not bundled).
 
-import jQuery from 'jquery';
-
-const $ = jQuery;
-
 function resolveEl(target) {
     if (!target) return null;
     if (typeof target === 'string') return document.getElementById(target);

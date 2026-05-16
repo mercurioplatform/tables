@@ -22,7 +22,7 @@ export function renderGroup(group, path, schema, isRoot) {
     const invertedClass = group.not ? ' is-inverted' : '';
     const rootClass = isRoot ? ' tables-qb-group--root' : '';
 
-    let header = `
+    const header = `
         <div class="tables-qb-group__header d-flex align-items-center gap-2 mb-2">
             <div class="btn-group btn-group-sm tables-qb-op-toggle" role="group" aria-label="${escapeHtml(tablesT('qb.group.and_or_aria'))}">
                 <button type="button" class="btn btn-outline-secondary qb-op-and ${opAndActive}" data-path="${pathAttr(path)}">${escapeHtml(tablesT('qb.group.and_short'))}</button>
