@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Source-абстракция (фаза 1).** Контракт `Mercurio\Tables\Source\Source`
+  с реализацией `EloquentSource` — единый адаптер источников данных для
+  Resource-ов. Внутренний pipeline (`TableBuilder` → `FilterPipeline` →
+  `SortResolver` → `Source::withQuery` → `Source::page`) больше не ходит
+  через `Eloquent\Builder` напрямую. Подготовительный шаг для подключения
+  не-Eloquent источников (ArraySource / SqlSource / HttpSource / FileSource)
+  в следующих фазах. Capabilities-декларация (`filter` / `sort` / `search` /
+  `count` / `cursor` / `mutate` / `stream`) позволяет источникам корректно
+  заявлять, какие операции они поддерживают.
+
+- **VO `Page` вместо `LengthAwarePaginator`.** `ResourceTable::$page` —
+  унифицированный результат пагинации с двумя режимами: **offset** (с
+  делегатом `LengthAwarePaginator` для рендера) и **cursor** (next/prev
+  cursors, без `total`). Blade-пагинатор `tables::pagination-bs5`
+  ветвится через `@if ($paginator->isCursor())` и поддерживает оба
+  режима из коробки. Новые translation keys
+  `tables::shell.pagination.previous` / `tables::shell.pagination.next`.
+
+- **`ListResource::source(): ?Source`** — primary contract для Resource-ов
+  на новых не-Eloquent источниках. `ListResource::resolveSource()` —
+  единая точка резолва для внутреннего pipeline.
+
+- **`Source::stream($chunkSize): Generator`** на месте `chunkById` —
+  стрим выборки для экспорта. Для `EloquentSource` реализован через
+  `lazyById($chunkSize)` (память O(chunkSize)).
+
+### Changed
+
+- **`ListResource::query(): ?Builder` — DEPRECATED.** Старый контракт
+  продолжает работать v2-сессии через `EloquentSource`-shim (с
+  `E_USER_DEPRECATED` и info-логом `tables.list_resource.query_shim_used`).
+  Подклассы Resource-ов из host-приложений менять не требуется. Удаление
+  shim'а — версия 3.
+
+- **`ListResource::exportState(): array{source: Source, …}`** — было
+  `array{builder: Builder, …}`. Хосты, читающие `$state['builder']`,
+  должны перейти на `$state['source']` (или, как временный путь, на
+  `$state['source']->getBuilder()` для `EloquentSource`).
+
+- **`ResourceTable::$paginator` — DEPRECATED proxy.** Чтение
+  `$table->paginator` продолжает возвращать LengthAwarePaginator-compatible
+  объект через `__get`, но первое обращение пишет DEBUG-лог
+  `tables.resource_table.paginator_legacy_access`. Замените на
+  `$table->page`. Удаление proxy — версия 3.
+
+- **`Row/Bulk/Cell-edit` handlers + `ActionLogHandler` undo-probe** —
+  переехали на `Source::find()` / `Source::update()` / `Source::probe()`.
+  `ResourceTable::$capabilities` пробрасывается в shell — UI-gating в
+  Phase 2.
+
 ## [1.2.0] — 2026-05-16
 
 ### Added

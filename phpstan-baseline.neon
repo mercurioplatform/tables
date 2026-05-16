@@ -379,18 +379,6 @@ parameters:
 			path: src/ListResource.php
 
 		-
-			message: '#^Method Mercurio\\Tables\\ListResource\:\:exportState\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/ListResource.php
-
-		-
-			message: '#^Method Mercurio\\Tables\\ListResource\:\:query\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/ListResource.php
-
-		-
 			message: '#^Method Mercurio\\Tables\\Models\\ActionLog\:\:scopeForResource\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
 			identifier: missingType.generics
 			count: 1
@@ -533,12 +521,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: src/Prefs/UserPrefsResolver.php
-
-		-
-			message: '#^Method Mercurio\\Tables\\ResourceTable\:\:__construct\(\) has parameter \$paginator with generic class Illuminate\\Pagination\\LengthAwarePaginator but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/ResourceTable.php
 
 		-
 			message: '#^Method Mercurio\\Tables\\ResourceTable\:\:rows\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
