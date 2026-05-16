@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **ESLint flat config (ESLint 9) для JS-кода пакета.** В корне `tables/`
+  появился `package.json` (private, только devDeps: `eslint`, `@eslint/js`,
+  `globals`) и `eslint.config.js` с правилами `no-unused-vars`, `prefer-const`,
+  `no-var`, `no-empty` (allowEmptyCatch), `eqeqeq` с `null: 'ignore'` (idiomatic
+  `== null` остаётся). Команды: `npm install && npm run lint` /
+  `npm run lint:fix`. Требует Node ≥ 18.18. Runtime-зависимости (jQuery,
+  Bootstrap) по-прежнему поставляет host-приложение через Vite;
+  `package-lock.json` не коммитится (по аналогии с `composer.lock`).
+
 ### Changed
+
+- **Прогон ESLint по `resources/js/tables/**/*.js`.** Закрыты 2 baseline-ошибки
+  без изменения публичного поведения: `qb/render.js` (`let header` →
+  `const header`, автофикс `prefer-const`); `offcanvas.js` (удалены мёртвые
+  `import jQuery from 'jquery'` и `const $ = jQuery` — оба идентификатора в
+  файле не использовались после миграции на `target.jquery` duck-typing).
 
 - **JS-модули `resources/js/tables/qb.js` и `progress.js` декомпозированы.**
   `qb.js` (726 → 250 строк) разбит на `qb/serialization.js` (utf8 base64,

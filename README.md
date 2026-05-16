@@ -289,6 +289,17 @@ composer phpstan     # только статика
 
 Тесты в пакет не вкладываются; регрессии проверяются на host-приложении.
 
+### JS dev-tooling (ESLint)
+
+```bash
+cd packages/tables
+npm install          # Node ≥ 18.18
+npm run lint         # eslint resources/js/tables
+npm run lint:fix     # eslint resources/js/tables --fix
+```
+
+`tables/package.json` существует только для dev-инструментов: runtime-зависимости (jQuery, Bootstrap) поставляет host-приложение через Vite. `package-lock.json` не коммитится — по аналогии с `composer.lock` (конвенция library-package'а), чтобы host-приложение свободно резолвило версии своих зависимостей.
+
 ## License
 
 MIT © Timur Turdyev
