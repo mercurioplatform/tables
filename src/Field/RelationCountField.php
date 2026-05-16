@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use Mercurio\Tables\Support\Pluralizer;
 
@@ -46,7 +45,7 @@ class RelationCountField extends NumberField
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if (($value === null || (int) $value === 0) && $this->emptyAsDash) {
             return new HtmlString('<span class="u-mute">—</span>');

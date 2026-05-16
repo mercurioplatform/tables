@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
@@ -53,7 +52,7 @@ class DateField extends Field
         return 'date';
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null || $value === '') {
             return new HtmlString(e($this->emptyText));
@@ -66,7 +65,7 @@ class DateField extends Field
         return new HtmlString(e($output));
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         if ($value === null || $value === '') {
             return '';

@@ -101,7 +101,7 @@ class TagsField extends Field
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $items = $this->extractItems($value, $row);
         $tags = $this->normalizeItems($items);
@@ -253,7 +253,7 @@ class TagsField extends Field
         return '<span class="badge '.e($class).'">'.e($label).'</span>';
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         $items = $this->extractItems($value, $row);
         $tags = $this->normalizeItems($items);

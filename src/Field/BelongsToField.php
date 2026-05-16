@@ -127,7 +127,7 @@ class BelongsToField extends Field
         return implode(', ', array_map(fn ($l) => (string) $l, array_values($labels)));
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($row === null) {
             return new HtmlString(e($this->emptyText));
@@ -144,7 +144,7 @@ class BelongsToField extends Field
         return new HtmlString(e((string) $display));
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         if ($row === null) {
             return '';

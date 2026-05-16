@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Closure;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 class ImageField extends Field
@@ -56,7 +55,7 @@ class ImageField extends Field
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $url = $this->urlUsing !== null
             ? ($this->urlUsing)($value, $row)
@@ -95,7 +94,7 @@ class ImageField extends Field
         );
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         $url = $this->urlUsing !== null
             ? ($this->urlUsing)($value, $row)

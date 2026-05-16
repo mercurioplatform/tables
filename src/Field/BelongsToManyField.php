@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
@@ -145,7 +144,7 @@ class BelongsToManyField extends Field
         return implode(', ', array_map(fn ($l) => (string) $l, array_values($labels)));
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($row === null) {
             return new HtmlString(e($this->emptyText));
@@ -171,7 +170,7 @@ class BelongsToManyField extends Field
         return new HtmlString(e(implode(', ', $labels)));
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         if ($row === null) {
             return '';

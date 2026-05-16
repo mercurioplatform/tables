@@ -71,7 +71,7 @@ class BooleanField extends Field
         return 'boolean';
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $bool = (bool) $value;
         $label = $bool ? $this->trueLabel : $this->falseLabel;
@@ -84,7 +84,7 @@ class BooleanField extends Field
         );
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         return ((bool) $value) ? 'да' : 'нет';
     }

@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Filter\Operator;
@@ -111,7 +110,7 @@ class MoneyField extends NumberField
         return $this->operatorLabel($cond->operator).' '.$withCurrency($format($cond->value));
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {
             return new HtmlString(e($this->emptyText));
@@ -130,7 +129,7 @@ class MoneyField extends NumberField
         return new HtmlString(e($output));
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         if ($value === null || $value === '') {
             return '';

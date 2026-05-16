@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Closure;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 class ConditionalColorField extends NumberField
@@ -18,7 +17,7 @@ class ConditionalColorField extends NumberField
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $inner = parent::renderDefault($value, $row);
 

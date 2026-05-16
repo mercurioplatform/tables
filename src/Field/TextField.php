@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Field;
 
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 class TextField extends Field
@@ -22,7 +21,7 @@ class TextField extends Field
         return 'text';
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null || $value === '') {
             return new HtmlString(e($this->emptyText));

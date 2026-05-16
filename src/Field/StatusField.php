@@ -116,7 +116,7 @@ class StatusField extends Field
         return $opts;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $key = $this->resolveKey($value);
 
@@ -136,7 +136,7 @@ class StatusField extends Field
         );
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         $key = $this->resolveKey($value);
 

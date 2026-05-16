@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Closure;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 class RatingField extends Field
@@ -63,7 +62,7 @@ class RatingField extends Field
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $num = is_numeric($value) ? (float) $value : 0.0;
 

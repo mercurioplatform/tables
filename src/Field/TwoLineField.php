@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Closure;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 /**
@@ -53,7 +52,7 @@ class TwoLineField extends Field
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $mainText = $this->main !== null
             ? ($this->main)($value, $row)
@@ -81,7 +80,7 @@ class TwoLineField extends Field
         return new HtmlString($html);
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         $mainText = $this->main !== null
             ? ($this->main)($value, $row)

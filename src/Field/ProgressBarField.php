@@ -63,7 +63,7 @@ class ProgressBarField extends NumberField
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {
             return parent::renderDefault($value, $row);

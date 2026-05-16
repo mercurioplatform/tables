@@ -108,7 +108,7 @@ class NumberField extends Field
         return 'number';
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {
             return new HtmlString(e($this->emptyText));
@@ -122,7 +122,7 @@ class NumberField extends Field
         )));
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         if ($value === null || $value === '') {
             return '';

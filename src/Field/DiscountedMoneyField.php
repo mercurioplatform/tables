@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Closure;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 /**
@@ -33,7 +32,7 @@ class DiscountedMoneyField extends MoneyField
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {
             return new HtmlString(e($this->emptyText));

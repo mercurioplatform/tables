@@ -689,7 +689,7 @@ abstract class Field
 
     // ---- Render ----
 
-    public function render(mixed $value, ?Model $row = null): Htmlable
+    public function render(mixed $value, mixed $row = null): Htmlable
     {
         $main = $this->displayUsing !== null
             ? $this->wrapHtmlable(($this->displayUsing)($value, $row))
@@ -726,7 +726,7 @@ abstract class Field
      * triggers so that the editable cell does not wrap an <a> inside the
      * trigger button.
      */
-    public function renderWithoutLink(mixed $value, ?Model $row = null): Htmlable
+    public function renderWithoutLink(mixed $value, mixed $row = null): Htmlable
     {
         $main = $this->displayUsing !== null
             ? $this->wrapHtmlable(($this->displayUsing)($value, $row))
@@ -752,9 +752,9 @@ abstract class Field
         return $this->linkTo !== null;
     }
 
-    abstract protected function renderDefault(mixed $value, ?Model $row): Htmlable;
+    abstract protected function renderDefault(mixed $value, mixed $row): Htmlable;
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         if ($this->displayUsing !== null) {
             $rendered = ($this->displayUsing)($value, $row);

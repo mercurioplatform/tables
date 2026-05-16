@@ -4,7 +4,6 @@ namespace Mercurio\Tables\Field;
 
 use Closure;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 
 class AvatarField extends Field
@@ -45,7 +44,7 @@ class AvatarField extends Field
         return $this;
     }
 
-    protected function renderDefault(mixed $value, ?Model $row): Htmlable
+    protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $name = $this->nameUsing !== null
             ? (string) ($this->nameUsing)($value, $row)
@@ -79,7 +78,7 @@ class AvatarField extends Field
         return new HtmlString($html);
     }
 
-    public function exportValue(mixed $value, ?Model $row = null): string
+    public function exportValue(mixed $value, mixed $row = null): string
     {
         $name = $this->nameUsing !== null
             ? (string) ($this->nameUsing)($value, $row)
