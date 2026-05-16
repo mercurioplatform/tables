@@ -1,0 +1,18 @@
+{
+    "name": "@mercurioplatform/tables-dev",
+    "private": true,
+    "type": "module",
+    "description": "Dev tooling (ESLint) for the mercurioplatform/tables Laravel package. Runtime deps (jQuery, Bootstrap) are provided by the host application via Vite.",
+    "engines": {
+        "node": ">=18.18"
+    },
+    "scripts": {
+        "lint": "eslint resources/js/tables",
+        "lint:fix": "eslint resources/js/tables --fix"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.0.0",
+        "eslint": "^9.0.0",
+        "globals": "^15.0.0"
+    }
+}
