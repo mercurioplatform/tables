@@ -31,7 +31,7 @@
     <div id="{{ $bodyId }}" class="collapse show tables-filter-group__body">
         <div class="d-flex flex-wrap gap-2">
             @foreach ($group['fields'] as $field)
-                <x-tables.filter-chip
+                <x-tables::filter-chip
                     :field="$field"
                     :current="$activeFilters[$field->name] ?? null"
                     :resource-key="$resourceKey"

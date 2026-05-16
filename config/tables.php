@@ -72,7 +72,7 @@ return [
     | Filter Autocomplete
     |--------------------------------------------------------------------------
     |
-    | Settings for the relation autocomplete popover (Tables/2.4).
+    | Settings for the relation autocomplete popover.
     |   - autocomplete_limit:        max items returned by /options endpoint.
     |   - autocomplete_min_chars:    min input length before XHR (0 = open on focus).
     |   - autocomplete_debounce_ms:  delay before issuing XHR after input change.
@@ -86,7 +86,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Query Builder (Tables/2.5)
+    | Query Builder
     |--------------------------------------------------------------------------
     |
     | Limits and defaults for the AST-based advanced filter (`?qb=base64(json)`).
@@ -105,12 +105,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Saved Views (Tables/2.6)
+    | Saved Views
     |--------------------------------------------------------------------------
     |
     | Settings for the unified saved-views storage (system + user views).
     |   - sync_system_views:           toggles SystemViewSyncer auto-call in TablesServiceProvider::boot().
-    |   - resources:                   array of FQN ListResource classes for ResourceRegistry (optional).
+    |   - resources:                   optional array of FQN ListResource classes for ResourceRegistry.
+    |                                  Resources registered via `Route::tablesPage(...)` are auto-discovered
+    |                                  from route defaults at boot time; list a resource here only if it has
+    |                                  no `Route::tablesPage` route (CLI-only, `Route::tablesResource`,
+    |                                  external integrations).
     |   - saved_view_color_palette:    whitelist of color keys allowed in saveView endpoint.
     |   - saved_view_icons:            whitelist of Bootstrap Icons names allowed in saveView endpoint.
     |
@@ -122,7 +126,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Row Actions (Tables/2.7)
+    | Row Actions
     |--------------------------------------------------------------------------
     |
     | Path suffixes used by `Route::tablesResource()` for the row-action
@@ -138,7 +142,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Bulk Actions (Tables/2.8)
+    | Bulk Actions
     |--------------------------------------------------------------------------
     |
     | Path used by `Route::tablesResource()` for the bulk-action form GET
@@ -153,7 +157,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Cell Edit (Tables/3.9)
+    | Cell Edit
     |--------------------------------------------------------------------------
     |
     | Inline single-cell editing для editable-полей. Регистрируется
@@ -173,7 +177,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | User Table Prefs (Tables/2.9)
+    | User Table Prefs
     |--------------------------------------------------------------------------
     |
     | Per-user persisted preferences for table listing (visible columns,
@@ -195,7 +199,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Export (Tables/2.10)
+    | Export
     |--------------------------------------------------------------------------
     |
     | Streaming CSV export of the current listing state (search + view +
@@ -271,7 +275,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Summary Cards (Tables/3.15)
+    | Summary Cards
     |--------------------------------------------------------------------------
     |
     | Host-registered SummaryCard types for the `<x-tables.summary>` slot.
@@ -291,7 +295,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Shell (Tables/3.1)
+    | Shell
     |--------------------------------------------------------------------------
     |
     | Page-shell rendering settings. The engine wraps every list page in a
@@ -326,7 +330,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Action Log (Tables/3.12)
+    | Action Log
     |--------------------------------------------------------------------------
     |
     | Append-only audit log of successful bulk/row-actions. Written by the
@@ -359,7 +363,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Bulk Progress (Tables/3.13)
+    | Bulk Progress
     |--------------------------------------------------------------------------
     |
     | Async execution of opt-in BulkAction's via Laravel Queue.
@@ -395,7 +399,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Table Names (Tables/3.14)
+    | Table Names
     |--------------------------------------------------------------------------
     |
     | Имена БД-таблиц внутреннего состояния движка. Параметризованы для

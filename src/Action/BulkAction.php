@@ -458,7 +458,7 @@ final class BulkAction
      * Декларативный preview для confirm-action. Замыкание принимает (ids, payload)
      * и возвращает View|string|array — рендерится в offcanvas вместо нативного
      * window.confirm(). Применяется ТОЛЬКО при kind === 'confirm' (для kind=form
-     * preview-flow требует отдельного двухшагового submit — см. Tables/3.6.1).
+     * preview-flow требует отдельного двухшагового submit).
      *
      * Callback должен быть быстрым (< 200 ms): для больших selections используйте
      * summary вместо полного списка; явно select(...) нужные колонки, без лишних eager-load.

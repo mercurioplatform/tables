@@ -39,6 +39,6 @@
     @endif
 
     <div class="dropdown-menu tables-chip__popover" id="{{ $popoverId }}">
-        <x-tables.filter-popover :field="$field" :current="$current"/>
+        <x-tables::filter-popover :field="$field" :current="$current"/>
     </div>
 </div>

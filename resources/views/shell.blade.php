@@ -78,13 +78,13 @@
         </div>
     @endif
 
-    <x-tables.page :table="$table" :bulk-action="$bulkActionUrl"/>
+    <x-tables::page :table="$table" :bulk-action="$bulkActionUrl"/>
 
     @if ($actionLogId !== null)
-        <x-tables.action-log-offcanvas :id="$actionLogId"/>
+        <x-tables::action-log-offcanvas :id="$actionLogId"/>
     @endif
 
     @once
-        <x-tables.progress-tray/>
+        <x-tables::progress-tray/>
     @endonce
 @endsection

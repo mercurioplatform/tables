@@ -44,7 +44,7 @@
         >
 
         @foreach ($filterableFields as $field)
-            <x-tables.filter-chip
+            <x-tables::filter-chip
                 :field="$field"
                 :current="$table->activeFilters[$field->name] ?? null"
                 :resource-key="$table->key"
@@ -52,7 +52,7 @@
         @endforeach
 
         @if ($hasQb)
-            <x-tables.qb-button :table="$table"/>
+            <x-tables::qb-button :table="$table"/>
         @endif
 
         {{ $slot }}
@@ -73,7 +73,7 @@
             >
 
             @if ($hasQb)
-                <x-tables.qb-button :table="$table"/>
+                <x-tables::qb-button :table="$table"/>
             @endif
 
             {{ $slot }}
@@ -85,7 +85,7 @@
 
         <div class="tables-filter-groups" data-tables-filter-groups="{{ $table->key }}">
             @foreach ($groups as $group)
-                <x-tables.filter-group
+                <x-tables::filter-group
                     :group="$group"
                     :active-filters="$table->activeFilters"
                     :resource-key="$table->key"

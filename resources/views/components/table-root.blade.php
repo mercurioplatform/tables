@@ -62,11 +62,11 @@
             </thead>
             <tbody>
                 @forelse ($table->rows() as $row)
-                    <x-tables.row :table="$table" :row="$row"/>
+                    <x-tables::row :table="$table" :row="$row"/>
                 @empty
                     <tr>
                         <td colspan="{{ $colspan }}" class="text-center py-5">
-                            <x-tables.empty-state :table="$table" :empty-state="$table->emptyState"/>
+                            <x-tables::empty-state :table="$table" :empty-state="$table->emptyState"/>
                         </td>
                     </tr>
                 @endforelse
@@ -76,7 +76,7 @@
 
     @if ($table->paginator->hasPages())
         <div class="d-flex justify-content-end mt-3">
-            <x-tables.pagination :paginator="$table->paginator"/>
+            <x-tables::pagination :paginator="$table->paginator"/>
         </div>
     @endif
 </div>

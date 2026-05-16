@@ -11,9 +11,9 @@ Reusable list/table engine для админок на Laravel 13 + Bootstrap 5 +
 
 ## Why
 
-- **1 Resource-класс = 1 admin-страница.** `Route::tablesPage('admin/products', ProductResource::class)` — контроллер не нужен, страница, JSON-эндпоинты для bulk/row/export/prefs/log регистрируются автоматически.
-- **5 путей расширения**, не больше: подкласс `Field` → `cellView()` на ячейке → слоты `<x-tables.page>` → SCSS theme tokens → ключи `config/tables.php`. `vendor:publish --tag=tables-views` — эскейп-хатч, когда ничего из перечисленного не подошло.
-- **Без vendor lock-in.** Bootstrap 5 + jQuery + Blade-компоненты, без виртуального DOM и SPA-оверхеда. Страница рендерится сервером, AJAX подгружает только `<x-tables.table-root>`.
+- **1 Resource-класс = 1 admin-страница.** `Route::tablesPage('admin/products', ProductResource::class)` — контроллер не нужен, страница, JSON-эндпоинты для bulk/row/export/prefs/log регистрируются автоматически, ресурс попадает в `ResourceRegistry` без дублирования в конфиге.
+- **5 путей расширения**, не больше: подкласс `Field` → `cellView()` на ячейке → слоты `<x-tables::page>` → SCSS theme tokens → ключи `config/tables.php`. `vendor:publish --tag=tables-views` — эскейп-хатч, когда ничего из перечисленного не подошло.
+- **Без vendor lock-in.** Bootstrap 5 + jQuery + Blade-компоненты, без виртуального DOM и SPA-оверхеда. Страница рендерится сервером, AJAX подгружает только `<x-tables::table-root>`.
 
 ## Install
 
@@ -98,6 +98,21 @@ Route::middleware(['auth'])->group(function () {
 > ```
 
 Откройте `/admin/products` — рабочая страница со списком, поиском, сортировкой и пагинацией. Bulk/row actions, saved views, фильтры, экспорт включаются добавлением соответствующих методов в `ProductResource` (см. [Features](#features)).
+
+## Registering resources
+
+`Route::tablesPage('admin/products', ProductResource::class)` — основной путь. Макрос регистрирует 17 named routes для страницы (index, options, bulk/row actions, export, prefs, saved views, action log), и одновременно записывает FQN ресурса в `Route::defaults('resource', ...)` на каждый из них. При boot'е сервис-провайдер обходит все маршруты, собирает уникальные `defaults['resource']` и вызывает `ResourceRegistry::register()`. Это даёт два важных свойства:
+
+- **Один источник правды.** `Route::tablesPage(...)` автоматически добавляет ресурс в реестр — `config('tables.resources')` для него заполнять не нужно.
+- **Совместимо с `php artisan route:cache`.** Defaults сериализуются вместе с `RouteCollection`, поэтому enumeration работает и в проде, и в dev'е.
+
+`config('tables.resources')` остаётся как опциональный override и нужен только в исключениях:
+
+- Ресурс зарегистрирован через `Route::tablesResource(...)` (controller-based, без `defaults('resource', ...)` на роутах).
+- Ресурс используется без HTTP-маршрутов: CLI-команды, внешние интеграции, prerender'инг saved views в фоне.
+- Хочется явно сузить набор ресурсов, по которым `SystemViewSyncer` обходит БД.
+
+`SystemViewSyncer` запускается в `boot()` на каждом non-console request'е и синхронизирует `savedViews()` ресурса с таблицей `saved_views` (типа `system`). Защищён fingerprint cache `tables.sysviews.fp:{resourceKey}` — повторных SQL-вызовов на неизменных объявлениях нет. Полностью выключается через `config('tables.sync_system_views', false)`.
 
 ## Features
 
@@ -246,8 +261,8 @@ php artisan vendor:publish --tag=tables-lang
 - `default_per_page` — fallback для `perPage()` в Resource (default 25).
 - `partial_header` — заголовок AJAX-частичного рендера (default `X-Tables-Partial`).
 - `js_event_prefix` — префикс DOM-событий (`tables:rendered`, `tables:loading`, `tables:total-changed`).
-- `resources` — массив FQN ResourceClass для `ResourceRegistry` (используется sync-savedviews и Query Builder).
-- `sync_system_views` — авто-вызов `SystemViewSyncer` в `boot()` (default `true`).
+- `resources` — массив FQN ResourceClass для `ResourceRegistry`. Опциональный — ресурсы, зарегистрированные через `Route::tablesPage(...)`, попадают в реестр автоматически (см. [Registering resources](#registering-resources)). Заполняйте только для CLI-only ресурсов, `Route::tablesResource(...)` и других исключений.
+- `sync_system_views` — авто-вызов `SystemViewSyncer` в `boot()` (default `true`). Поставьте `false`, чтобы полностью выключить синхронизацию system saved views (например, в read-replica окружении).
 - `action_log.enabled`, `action_log.undo_window_minutes`, `action_log.undo_snapshot_max_bytes` — журнал и окно отката.
 - `bulk_progress.*` — настройки фоновых bulk-actions (poll-интервал, job-class, chunk-size).
 - `export.sync_limit`, `export.chunk_size`, `export.csv_*`, `export.async_dispatcher` — CSV-экспорт.
@@ -269,7 +284,7 @@ php artisan vendor:publish --tag=tables-lang
 
 2. **`->cellView('partial.name')`** на ячейке существующего поля — без подкласса, переопределить только рендер ячейки.
 
-3. **Слоты `<x-tables.page>`** — `header`, `summary`, `empty-state` принимают произвольный Blade.
+3. **Слоты `<x-tables::page>`** — `header`, `summary`, `empty-state` принимают произвольный Blade.
 
 4. **SCSS theme tokens** — переопределить переменные пакета в собственном бандле (импорт `resources/scss/vendor/tables/_tokens.scss` после собственных).
 
@@ -299,6 +314,33 @@ npm run lint:fix     # eslint resources/js/tables --fix
 ```
 
 `tables/package.json` существует только для dev-инструментов: runtime-зависимости (jQuery, Bootstrap) поставляет host-приложение через Vite. `package-lock.json` не коммитится — по аналогии с `composer.lock` (конвенция library-package'а), чтобы host-приложение свободно резолвило версии своих зависимостей.
+
+## Upgrade from v1.1 to v1.2
+
+Изменения, требующие действий на host-приложении:
+
+1. **Anonymous components namespace.** Internal Blade refs пакета теперь используют namespaced синтаксис `<x-tables::page>`, `<x-tables::table-root>`, и т.д. Если в host-шаблонах есть ссылки в старом формате `<x-tables.page>`, замените их:
+
+   ```bash
+   grep -rn '<x-tables\.' resources/views/
+   # ручная замена x-tables.foo → x-tables::foo
+   ```
+
+2. **Host-override `Blade::anonymousComponentPath` больше не нужен.** Если в `AppServiceProvider::boot()` (или другом сервис-провайдере) был добавлен workaround вида `Blade::anonymousComponentPath(base_path('vendor/mercurioplatform/tables/resources/views/components'), 'tables')` — удалите его. Пакет регистрирует namespace `'tables'` сам.
+
+3. **Опубликованные views — переопубликовать.** Структура `resources/views/vendor/tables/` упрощена: подпапка `components/tables/` убрана, файлы переехали в `components/`. Если делали `vendor:publish --tag=tables-views`:
+
+   ```bash
+   php artisan vendor:publish --tag=tables-views --force
+   php artisan view:clear
+   php artisan optimize:clear
+   ```
+
+   Альтернатива — вручную: переместить `resources/views/vendor/tables/components/tables/*` в `resources/views/vendor/tables/components/`, удалить пустую `tables/`.
+
+4. **`config('tables.resources')` стал опциональным.** Ресурсы через `Route::tablesPage(...)` теперь регистрируются автоматически. Можно очистить массив, оставив в нём только CLI-only ресурсы и ресурсы под `Route::tablesResource(...)`. Подробности — [Registering resources](#registering-resources).
+
+5. **`php artisan route:cache` в production.** Подтверждённо совместим с auto-registry: defaults сериализуются в `RouteCollection`. Если ещё не используется в деплое — добавьте, это снимет boot-стоимость регистрации ~17 маршрутов на каждый ресурс.
 
 ## License
 

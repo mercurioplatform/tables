@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-16
+
+### Added
+
+- **Auto-registry ресурсов через route defaults.** `TablesServiceProvider::boot()`
+  обходит `RouteCollection`, собирает уникальные `Route::defaults('resource', ...)`
+  и регистрирует FQN в `ResourceRegistry`. `Route::tablesPage(...)` уже ставит
+  это значение на каждый из 17 named routes — поэтому ресурс попадает в реестр
+  без дублирования в `config('tables.resources')`. Совместимо с
+  `php artisan route:cache` (defaults сериализуются вместе с маршрутами).
+  `config('tables.resources')` остаётся как опциональный override для CLI-only
+  ресурсов, ресурсов через `Route::tablesResource(...)` и других исключений.
+
+- **README — секция «Registering resources».** Объясняет разграничение
+  `Route::tablesPage(...)` (auto-registry) vs `Route::tablesResource(...)`
+  (controller-based, требует config) vs `config('tables.resources')`
+  (опциональный override), роль `SystemViewSyncer` и kill-switch
+  `config('tables.sync_system_views', false)`.
+
+- **README — секция «Upgrade from v1.1 to v1.2».** Пошаговая инструкция
+  по host-cleanup: убрать `Blade::anonymousComponentPath` override,
+  переопубликовать views (если был publish), заменить host-side
+  `<x-tables.foo>` refs на `<x-tables::foo>`, опционально подчистить
+  `config/tables.php`.
+
+### Changed
+
+- **Anonymous components namespace = `tables`.**
+  `Blade::anonymousComponentPath(__DIR__.'/../resources/views/components', 'tables')`
+  регистрирует префикс при boot'е. Internal Blade refs пакета переведены на
+  namespaced синтаксис (`<x-tables::page>`, `<x-tables::table-root>` и т.д.).
+  Старый dot-синтаксис `<x-tables.foo>` больше не работает — заменяется на
+  `<x-tables::foo>`.
+
+- **Структура `resources/views/components/` упрощена.** Подпапка
+  `components/tables/` убрана, файлы перенесены в `components/`. **Breaking**
+  для host-приложений, делавших `vendor:publish --tag=tables-views`:
+  опубликованная структура изменилась — нужно переопубликовать с `--force`
+  или вручную поправить (`view:clear` + `optimize:clear`). См. секцию
+  «Upgrade from v1.1 to v1.2» в README.
+
+### Fixed
+
+- **Summary cards резолвятся без host-override.**
+  `<x-dynamic-component :component="$cardView" />` (где `$cardView` =
+  `tables::kpi-card` или `tables::funnel-card`) раньше падал с
+  `Component tables::kpi-card not found` — namespace `tables` не был
+  зарегистрирован у `anonymousComponentPath`. После добавления префикса
+  и переноса файлов из подпапки `tables/` Summary работает «из коробки»,
+  host-workaround `Blade::anonymousComponentPath(..., 'tables')` в
+  `AppServiceProvider` больше не нужен.
+
 ## [1.1.0] — 2026-05-16
 
 ### Added

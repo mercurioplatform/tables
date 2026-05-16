@@ -64,7 +64,7 @@ class TablesServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'tables');
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'tables');
 
-        Blade::anonymousComponentPath(__DIR__.'/../resources/views/components');
+        Blade::anonymousComponentPath(__DIR__.'/../resources/views/components', 'tables');
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
@@ -103,11 +103,17 @@ class TablesServiceProvider extends ServiceProvider
             ], 'tables-migrations');
         }
 
+        $registry = $this->app->make(ResourceRegistry::class);
+        foreach ($this->app['router']->getRoutes() as $route) {
+            $cls = $route->defaults['resource'] ?? null;
+            if (is_string($cls) && $cls !== '') {
+                $registry->register($cls);
+            }
+        }
+
         if (config('tables.sync_system_views', true) && ! $this->app->runningInConsole()) {
             try {
-                $this->app->make(SystemViewSyncer::class)->sync(
-                    $this->app->make(ResourceRegistry::class)
-                );
+                $this->app->make(SystemViewSyncer::class)->sync($registry);
             } catch (\Throwable $e) {
                 Log::warning('tables.savedviews.sync_failed', ['error' => $e->getMessage()]);
             }

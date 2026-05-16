@@ -104,4 +104,4 @@
     </div>
 </div>
 
-<x-tables.save-view-modal :table="$table"/>
+<x-tables::save-view-modal :table="$table"/>

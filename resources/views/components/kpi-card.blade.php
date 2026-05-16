@@ -14,7 +14,7 @@
             @if ($card->suffix)<span class="tables-kpi__suffix">{{ $card->suffix }}</span>@endif
         </div>
         @if (! empty($card->sparklineValues))
-            <x-tables.sparkline :values="$card->sparklineValues" :color="$sparkColor" :filled="$card->sparklineFilled"/>
+            <x-tables::sparkline :values="$card->sparklineValues" :color="$sparkColor" :filled="$card->sparklineFilled"/>
         @endif
     </div>
     @if ($card->delta)

@@ -1,1 +1,1 @@
-<x-tables.row :table="$table" :row="$row"/>
+<x-tables::row :table="$table" :row="$row"/>
