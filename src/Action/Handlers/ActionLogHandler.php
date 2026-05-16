@@ -88,6 +88,15 @@ class ActionLogHandler
             abort(404);
         }
 
+        if (! $resource->resolveSource()->capabilities()->mutate) {
+            Log::warning('tables.action_log.undo_mutate_denied', [
+                'resource' => $resourceClass,
+                'log_id' => $logId,
+            ]);
+
+            return $this->authorizer->undoError($request, (string) __('tables::shell.mutate_denied'), 422);
+        }
+
         /** @var ?ActionLog $row */
         $row = ActionLog::query()->whereKey($logId)->first();
         if ($row === null) {

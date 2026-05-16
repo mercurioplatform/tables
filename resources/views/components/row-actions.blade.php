@@ -5,7 +5,7 @@
     $resource = $table->resource;
     $actions = $resource ? $resource->resolveRowActions($row) : [];
 
-    if ($actions === []) {
+    if ($actions === [] || ! $table->capabilities->mutate) {
         return;
     }
 

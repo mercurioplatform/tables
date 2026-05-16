@@ -11,7 +11,7 @@
         $tdClass = trim($tdClass.' u-mono');
     }
 
-    $editable = $field->isEditable();
+    $editable = $field->isEditable() && ($table?->capabilities?->mutate ?? true);
     $editAttrs = [];
     if ($editable) {
         $policy = $field->getEditPolicy();

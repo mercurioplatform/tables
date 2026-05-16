@@ -62,6 +62,12 @@
     --tables-qb-group-bg-nested: var(--bs-body-bg, #fff);
     --tables-qb-inverted-color: var(--bs-danger, #dc3545);
     --tables-qb-cond-bg: transparent;
+
+    --tables-z-sticky-cell: 1;
+    --tables-z-sticky-header: 2;
+    --tables-z-sticky-corner: 3;
+    --tables-row-bg: var(--bs-table-bg, var(--bs-body-bg));
+    --tables-thead-bg: var(--bs-tertiary-bg);
 }
 
 .tables-density-compact {

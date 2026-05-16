@@ -15,7 +15,7 @@
 
 <div
     data-tables-page="{{ $table->key }}"
-    data-tables-total="{{ $table->paginator->total() }}"
+    @if ($table->capabilities->count) data-tables-total="{{ $table->paginator->total() }}" @endif
     @if ($cellUpdateUrlTemplate) data-cell-update-url-template="{{ $cellUpdateUrlTemplate }}" @endif
 >
     {{ $beforePageHead ?? '' }}

@@ -49,7 +49,18 @@ class RowActionHandler
             return $this->authorizer->rowActionError($request, $isXhr, "Неизвестное действие: {$action}", 404);
         }
 
-        $model = $resource->resolveSource()->find($id);
+        $source = $resource->resolveSource();
+        if (! $source->capabilities()->mutate) {
+            Log::warning('tables.rowaction.mutate_denied', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+
+            return $this->authorizer->rowActionError($request, $isXhr, (string) __('tables::shell.mutate_denied'), 422);
+        }
+
+        $model = $source->find($id);
         if ($model === null) {
             Log::warning('tables.rowaction.missing', [
                 'resource' => $resourceClass,

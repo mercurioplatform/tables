@@ -241,6 +241,30 @@ Pipeline на `PATCH {base}/cells/{id}/{field}`: `policy` → `rules` → `trans
 
 Если ресурс read-only — переопределите `ListResource::cellEditEnabled(): false`, и route не будет регистрироваться вовсе (404).
 
+### Sticky layout
+
+Для любой `Route::tablesPage`-страницы пакет автоматически включает поведение:
+
+- **Sticky checkbox-колонка** (`.ap-table__chk`) — фиксируется слева при горизонтальной прокрутке широкой таблицы.
+- **Sticky actions-колонка** (`.ap-table__more`) — фиксируется справа при горизонтальной прокрутке.
+- **Внутренний горизонтальный скролл** — если полей много и контент не влазит в ширину карточки, появляется scrollbar **внутри** `.card`, страница по горизонтали не разъезжается.
+
+Поведение включено по умолчанию, без UI-тогглера. Реализация — чистый CSS `position: sticky` + `.tables-scroll { overflow-x: auto }` на внутреннем wrapper'е. Никакого JS, никакого custom-API.
+
+Если host опубликовал views через `vendor:publish --tag=tables-views` ранее — повторите publish (новая разметка `<div class="tables-scroll">` появилась в `table-root.blade.php`). Старые опубликованные views продолжат работать, но sticky-фичу не получат.
+
+**Sticky `<thead>` не реализован.** Чистый CSS не может пиннить thead к верху viewport'а, когда у table-обёртки есть `overflow-x: auto` — `.tables-scroll` сама становится ближайшим scroll-контейнером для sticky-позиционирования. Решения с `max-height` (внутренний y-scroll, thead к верху обёртки) и JS-cloning (DataTables-подход) рассмотрены как follow-up; в текущем релизе sticky-thead отсутствует.
+
+Чтобы выключить sticky-поведение колонок в host-приложении (host-side override после `tables`-стилей):
+
+```scss
+[data-tables-root] {
+    .tables-scroll { overflow: visible; }
+    table > * > tr > .ap-table__chk,
+    table > * > tr > .ap-table__more { position: static; }
+}
+```
+
 ### Localization
 
 Пакет поставляется с двумя локалями — **ru** и **en** — namespace `tables::*` (12 групп: `action_log`, `bulk`, `cell`, `confirm`, `export`, `filters`, `prefs`, `qb`, `row_actions`, `saved_views`, `shell`, `summary`). Переключение через `App::setLocale()`. Runtime JS обращается к строкам через `window.TablesI18n` + helper `tablesT(key, params)`.

@@ -6,10 +6,53 @@
  * <x-tables.row-action-offcanvas>.
  * ============================================================ */
 
+.ap-table__chk {
+    width: 1%;
+    white-space: nowrap;
+}
+
 .ap-table__more {
     width: 1%;
     white-space: nowrap;
     text-align: end;
+}
+
+[data-tables-root] {
+    table > thead > tr > th.ap-table__chk,
+    table > tbody > tr > td.ap-table__chk {
+        position: sticky;
+        left: 0;
+    }
+
+    table > tbody > tr > td.ap-table__chk {
+        z-index: var(--tables-z-sticky-cell);
+        background: var(--tables-row-bg);
+    }
+
+    table > thead > tr > th.ap-table__chk {
+        z-index: var(--tables-z-sticky-corner);
+        background: var(--tables-thead-bg);
+    }
+
+    table > tbody > tr[data-tables-row].is-selected {
+        --tables-row-bg: var(--tables-row-selected-bg);
+    }
+
+    table > thead > tr > th.ap-table__more,
+    table > tbody > tr > td.ap-table__more {
+        position: sticky;
+        right: 0;
+    }
+
+    table > tbody > tr > td.ap-table__more {
+        z-index: var(--tables-z-sticky-cell);
+        background: var(--tables-row-bg);
+    }
+
+    table > thead > tr > th.ap-table__more {
+        z-index: var(--tables-z-sticky-corner);
+        background: var(--tables-thead-bg);
+    }
 }
 
 .ap-table__actions {

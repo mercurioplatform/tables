@@ -59,6 +59,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ResourceTable::$capabilities` пробрасывается в shell — UI-gating в
   Phase 2.
 
+- **Source-абстракция (фаза 2): Capabilities-gating в UI + source-agnostic
+  saved views.**
+
+  - **Capabilities-gating в Blade.** UI автоматически прячет элементы,
+    которые источник не поддерживает: `mutate=false` → bulk-bar /
+    row-actions / cell-edit / select-all / row-checkbox / action-log
+    trigger в shell-header; `sort=false` → sort-link и arrow-icons в `<th>`;
+    `search=false` → input `name="q"` в filter-bar; `stream=false` →
+    export-кнопка; `count=false` → атрибут `data-tables-total` (JS может
+    отличить «unknown total» от «0»). EloquentSource объявляет всё `true`,
+    поэтому существующие Resource'ы без правок.
+  - **Server-side guards `mutate=false`.** `BulkActionHandler::dispatch()`,
+    `RowActionHandler::dispatch()`, `ActionLogHandler::undo()` отвечают
+    `422 {"message": tables::shell.mutate_denied}` + WARN-лог при
+    `Source::capabilities()->mutate === false`. CellUpdateHandler /
+    ExportHandler уже защищены в Phase 1. Новый i18n-ключ
+    `tables::shell.mutate_denied` (ru/en).
+  - **`SavedView::conditions(string $key, string $label, array $conditions)`**
+    — source-agnostic перегрузка. Принимает `array<int, FilterCondition>`;
+    условия сливаются с user-chip-фильтрами в `Query.conditions` через
+    `FilterPipeline` (saved-view сначала, user потом — детерминированный
+    trace). Counts работают (built-in операторы + Field-aware
+    customizations через `FilterApplier`).
+  - **`SavedView::sourceClosure(string $key, string $label, Closure $closure)`**
+    — source-agnostic перегрузка. `Closure(Source): Source` применяется в
+    `TableBuilder::build()` и `TableBuilder::buildForExport()` ПОСЛЕ
+    `Source::withQuery` (immutable transform). Сигнатура
+    `Source::withQuery(Query): static` НЕ меняется. В counts unsupported
+    (skip + debug-log `tables.saved_view.counts_unsupported_source_closure`).
+  - **`SavedView` constructor расширен**: `public readonly array $conditions = []`
+    и `public readonly ?Closure $sourceClosure = null` через дефолтные
+    параметры — `SavedView::all()`/`scope`/`query` без regression.
+  - **Note**: `SavedView::scope(string)` остаётся **EloquentSource-only**;
+    для source-agnostic перейдите на `SavedView::conditions(...)`. Runtime
+    исключение для не-Eloquent Source-драйверов появится в Phase 3+.
+  - **`BuiltinFilterApplier`** (`Mercurio\Tables\Filter\BuiltinFilterApplier`)
+    — shared-helper для built-in применения `FilterCondition` без Field-aware
+    кастомизаций. Используется и `EloquentSource::applyConditions()`, и
+    `SavedViewCountsCalculator::counts()` (устранён cross-class дубликат).
+
 ## [1.2.0] — 2026-05-16
 
 ### Added

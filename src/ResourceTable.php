@@ -34,6 +34,13 @@ final class ResourceTable
     private static bool $paginatorAccessLogged = false;
 
     /**
+     * Один-раз-за-process-lifetime guard на DEBUG-лог скрытия action-log
+     * trigger при mutate=false. Action log на read-only Source — нечего
+     * откатывать, кнопка должна исчезнуть.
+     */
+    private static bool $actionLogTriggerHiddenLogged = false;
+
+    /**
      * @param  array<int, Field>  $fields
      * @param  array<int, SavedView>  $savedViews
      * @param  array<int, BulkAction>  $bulkActions
@@ -315,6 +322,17 @@ final class ResourceTable
         $actions = $this->resource?->headerActions() ?? [];
 
         if ($this->resource === null || ! $this->resource->actionHistoryEnabled()) {
+            return $actions;
+        }
+
+        if (! $this->capabilities->mutate) {
+            if (! self::$actionLogTriggerHiddenLogged) {
+                Log::debug('tables.action_log.trigger_hidden_no_mutate', [
+                    'resource' => $this->resource->key(),
+                ]);
+                self::$actionLogTriggerHiddenLogged = true;
+            }
+
             return $actions;
         }
 

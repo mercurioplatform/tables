@@ -9,6 +9,7 @@ return [
     'cancel' => 'Cancel',
     'save' => 'Save',
     'close' => 'Close',
+    'mutate_denied' => 'This data source does not support changes.',
     'pagination' => [
         'aria' => 'Pagination',
         'prev_aria' => 'Previous',

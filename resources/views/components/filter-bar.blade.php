@@ -27,21 +27,23 @@
     @if ($table->currentView !== null)
         <input type="hidden" name="view" value="{{ $table->currentView }}">
     @endif
-    @if ($sort !== null)
+    @if ($sort !== null && $table->capabilities->sort)
         <input type="hidden" name="sort" value="{{ $sort }}">
         <input type="hidden" name="dir" value="{{ $dir }}">
     @endif
 
     @if ($groups === null)
-        <input
-            type="search"
-            name="q"
-            value="{{ $table->search ?? '' }}"
-            placeholder="{{ __('tables::filters.search_placeholder') }}"
-            aria-label="{{ __('tables::filters.search_aria') }}"
-            class="form-control form-control-sm"
-            style="width:280px;"
-        >
+        @if ($table->capabilities->search)
+            <input
+                type="search"
+                name="q"
+                value="{{ $table->search ?? '' }}"
+                placeholder="{{ __('tables::filters.search_placeholder') }}"
+                aria-label="{{ __('tables::filters.search_aria') }}"
+                class="form-control form-control-sm"
+                style="width:280px;"
+            >
+        @endif
 
         @foreach ($filterableFields as $field)
             <x-tables::filter-chip
@@ -62,15 +64,17 @@
         @endisset
     @else
         <div class="d-flex align-items-center flex-wrap gap-2">
-            <input
-                type="search"
-                name="q"
-                value="{{ $table->search ?? '' }}"
-                placeholder="{{ __('tables::filters.search_placeholder') }}"
-                aria-label="{{ __('tables::filters.search_aria') }}"
-                class="form-control form-control-sm"
-                style="width:280px;"
-            >
+            @if ($table->capabilities->search)
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ $table->search ?? '' }}"
+                    placeholder="{{ __('tables::filters.search_placeholder') }}"
+                    aria-label="{{ __('tables::filters.search_aria') }}"
+                    class="form-control form-control-sm"
+                    style="width:280px;"
+                >
+            @endif
 
             @if ($hasQb)
                 <x-tables::qb-button :table="$table"/>

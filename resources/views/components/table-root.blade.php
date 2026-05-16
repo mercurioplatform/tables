@@ -4,13 +4,14 @@
     $fields = $table->visibleFields();
     $sortCol = $table->sort['column'] ?? null;
     $sortDir = $table->sort['direction'] ?? 'asc';
-    $hasBulk = count($table->bulkActions) > 0;
+    $hasBulk = count($table->bulkActions) > 0 && $table->capabilities->mutate;
     $hasRowActions = $table->hasRowActions();
     $colspan = max(1, count($fields) + ($hasBulk ? 1 : 0) + ($hasRowActions ? 1 : 0));
 @endphp
 
-<div data-tables-root data-tables-key="{{ $table->key }}" data-tables-total="{{ $table->paginator->total() }}" class="tables-density-{{ $table->density }}">
-    <div class="card overflow-hidden">
+<div data-tables-root data-tables-key="{{ $table->key }}" @if ($table->capabilities->count) data-tables-total="{{ $table->paginator->total() }}" @endif class="tables-density-{{ $table->density }}">
+    <div class="card">
+        <div class="tables-scroll">
         <table class="table table-hover align-middle mb-0" @if ($hasBulk) data-tables-bulk-scope="{{ $table->key }}" @endif>
             <thead>
                 <tr>
@@ -28,6 +29,7 @@
                     @endif
                     @foreach ($fields as $field)
                         @php
+                            $sortAllowed = $field->isSortable() && $table->capabilities->sort;
                             $isCurrent = $sortCol === $field->name;
                             $nextDir = ($isCurrent && $sortDir === 'asc') ? 'desc' : 'asc';
                             $headerAlign = match ($field->getAlign()) {
@@ -35,14 +37,14 @@
                                 'center' => 'text-center',
                                 default  => '',
                             };
-                            $icon = ! $field->isSortable()
+                            $icon = ! $sortAllowed
                                 ? null
                                 : ($isCurrent
                                     ? ($sortDir === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down')
                                     : 'bi-arrow-down-up text-muted');
                         @endphp
                         <th @class([$headerAlign => $headerAlign !== ''])>
-                            @if ($field->isSortable())
+                            @if ($sortAllowed)
                                 <a href="{{ request()->fullUrlWithQuery(['sort' => $field->name, 'dir' => $nextDir, 'page' => null]) }}"
                                    class="text-decoration-none text-body d-inline-flex align-items-center gap-1">
                                     <span>{{ $field->label }}</span>
@@ -72,6 +74,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     @if ($table->paginator->hasPages())

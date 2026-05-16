@@ -404,7 +404,15 @@ return new ActionResult(
 
 ### Saved views & filters
 
-- `Mercurio\Tables\View\SavedView` — VO. Конструкторы: `::all(string $label = 'Все')`, `::scope(string $key, string $label, string $modelScopeName)`, `::query(string $key, string $label, \Closure $closure)`. Fluent: `->default(bool $value = true)`, `->position(int $value)`, `->color(?string $value)`, `->icon(?string $value)`, `->countWith(\Closure $cb)` (override count-query для saved-view counters).
+- `Mercurio\Tables\View\SavedView` — VO. Конструкторы:
+  - `::all(string $label = 'Все')` — без фильтрации.
+  - `::scope(string $key, string $label, string $modelScopeName)` — **EloquentSource-only**. Имя model-scope'а (например, `'archived'` → `$builder->archived()`). Применяется в `EloquentSource::applySavedView()`; для не-Eloquent Source-драйверов (Phase 3+) приведёт к runtime-исключению.
+  - `::query(string $key, string $label, \Closure $closure)` — **EloquentSource-only**. `Closure(\Illuminate\Database\Eloquent\Builder): void`.
+  - `::conditions(string $key, string $label, array<int, \Mercurio\Tables\Filter\FilterCondition> $conditions)` — **source-agnostic**. Условия сливаются с user-chip-фильтрами в `Query.conditions` и применяются Source-драйвером единообразно. Используется для tab'ов вида «Paid», «Active», «Archived» без привязки к Eloquent.
+  - `::sourceClosure(string $key, string $label, \Closure $closure)` — **source-agnostic**. `Closure(\Mercurio\Tables\Source\Source): \Mercurio\Tables\Source\Source` — преобразует Source после `withQuery`. TableBuilder применяет в `build()` и `buildForExport()`. В counts unsupported (skip + debug-log).
+  - Fluent: `->default(bool $value = true)`, `->position(int $value)`, `->color(?string $value)`, `->icon(?string $value)`, `->countWith(\Closure $cb)` (override count-query для saved-view counters).
+  - Public `readonly` properties: `$key`, `$label`, `$scope` (`string|Closure|null`), `$conditions` (`array<int, FilterCondition>`), `$sourceClosure` (`?Closure`).
+  - Порядок применения при одновременном наличии нескольких форм: `scope` → `conditions` → `sourceClosure`.
 - `Mercurio\Tables\Filter\Operator` — enum: `Eq`, `Neq`, `In`, `NotIn`, `Contains`, `NotContains`, `StartsWith`, `NotStartsWith`, `EndsWith`, `NotEndsWith`, `Between`, `NotBetween`, `Empty_` (case с trailing underscore, потому что `empty` зарезервировано в PHP; `value === 'empty'`), `NotEmpty`, `Gt`, `Lt`, `Gte`, `Lte`.
 - `Mercurio\Tables\Filter\FilterCondition` — VO одного условия. Передаётся в `Field::filterUsing(\Closure)` callback. Public `readonly` properties: `field: string`, `operator: Operator`, `value: mixed`.
 
@@ -534,8 +542,73 @@ interface Source
 
 `Capabilities` декларирует, какие операции источник умеет (`filter`, `sort`,
 `search`, `count`, `cursor`, `mutate`, `stream`). UI и engine используют это
-для корректной деградации — например, `mutate=false` источник прячет
-bulk/row-write/inline-edit/undo (gating в Blade появится в Phase 2).
+для корректной деградации — read-only / streaming-only / cursor-only источники
+автоматически прячут UI-элементы и блокируют server-эндпоинты, для которых нет
+поддержки.
+
+Таблица деградации (полный набор реализован в Phase 2):
+
+| Capability flag | Эффект в UI                                                                                                                                                  | Эффект на server                                                                                                                                                |
+|---|---|---|
+| `mutate = false` | bulk-bar / row-actions / cell-edit / select-all checkbox / row-checkbox / action-log trigger в shell-header — скрыты в Blade.                                | `BulkActionHandler::dispatch()`, `RowActionHandler::dispatch()`, `ActionLogHandler::undo()` отвечают `422 {"message": tables::shell.mutate_denied}` + WARN-лог. `CellUpdateHandler::handle()` и `ExportHandler::handle()` уже защищены в Phase 1. |
+| `sort = false`   | `<th>` рендерится как plain text — без `<a>` и arrow-icon'ов. Hidden inputs `name="sort"`/`name="dir"` в filter-bar не выводятся.                            | `SortResolver` в Source-pipeline продолжает работать (Source-драйвер сам решает, как / поддерживать ли).                                                        |
+| `search = false` | `<input name="q">` в filter-bar (flat + grouped) не выводится.                                                                                               | `Query.search` всё равно может быть передан; Source-драйвер игнорирует или возвращает ошибку.                                                                   |
+| `stream = false` | Export-кнопка скрыта (нет `data-tables-export`).                                                                                                             | `ExportHandler` (Phase 1) уже возвращает `422` если `Source::capabilities()->stream === false`.                                                                 |
+| `count = false`  | Атрибут `data-tables-total` не выводится в `<x-tables::page>` и `<x-tables::table-root>`. JS может отличить «unknown total» (`null`) от «нет записей» (`0`). | `Page::isCursor() === true`, `total = null`. Blade-пагинатор автоматически переходит в prev/next-cursor mode (см. ниже).                                        |
+| `cursor = true`  | Blade-пагинатор `tables::pagination-bs5` уже рендерит «← / →» без номеров страниц (Phase 1).                                                                 | Source-драйвер обязан возвращать `Page` с `nextCursor`/`prevCursor`.                                                                                            |
+| `filter = false` | (Phase 3+) Source-драйвер обязан игнорировать `Query.conditions` / `Query.qbRoot`.                                                                           | `FilterPipeline` всё ещё собирает их.                                                                                                                           |
+
+Server-side guards для `mutate=false` отвечают `422` с локализованным
+сообщением `tables::shell.mutate_denied` («Источник данных не поддерживает
+изменения.» / «This data source does not support changes.»).
+
+### Source-agnostic saved views
+
+С Phase 2 `SavedView` поддерживает три формы фильтрации, две из которых
+работают на любом Source-драйвере, а не только EloquentSource:
+
+- **`SavedView::scope(string $key, string $label, string $modelScopeName)`** —
+  **EloquentSource-only**. Имя model-scope'а (например, `'archived'` →
+  `$builder->archived()`). Для не-Eloquent Source-драйверов будущих фаз
+  выбросит runtime-исключение в `applySavedView()`.
+- **`SavedView::query(string $key, string $label, Closure $closure)`** —
+  **EloquentSource-only**. `Closure(\Illuminate\Database\Eloquent\Builder): void`.
+- **`SavedView::conditions(string $key, string $label, array $conditions)`** —
+  **source-agnostic**. Принимает `array<int, FilterCondition>`. Условия
+  сливаются с user-chip-фильтрами в `Query.conditions` (порядок:
+  saved-view-conditions сначала, user-conditions потом — детерминированный
+  trace; AND-семантика). Source-драйвер применяет их единообразно. Counts
+  через `SavedViewCountsCalculator` работают (built-in операторы +
+  Field-aware customizations через `FilterApplier`).
+- **`SavedView::sourceClosure(string $key, string $label, Closure $closure)`** —
+  **source-agnostic**. `Closure(\Mercurio\Tables\Source\Source): Source` —
+  получает Source после `withQuery()` и возвращает преобразованный Source
+  (immutable). `TableBuilder` применяет в обоих `build()` и `buildForExport()`
+  — иначе export для sourceClosure-saved-view отдал бы не-фильтрованный stream.
+  В counts unsupported (пропускается + debug-лог
+  `tables.saved_view.counts_unsupported_source_closure`); если такой view
+  единственный кандидат в counts — Calculator вернёт пустой массив.
+
+При одновременном использовании нескольких форм порядок применения
+детерминирован: `scope` (`EloquentSource::applySavedView` через
+`SavedView::apply(Builder)`) → `conditions` (`FilterPipeline::build` merge в
+`Query.conditions`) → `sourceClosure` (`TableBuilder::applySourceClosure`
+после `Source::withQuery`).
+
+```php
+use Mercurio\Tables\Filter\FilterCondition;
+use Mercurio\Tables\Filter\Operator;
+use Mercurio\Tables\Source\Source;
+use Mercurio\Tables\View\SavedView;
+
+return [
+    SavedView::all(),
+    SavedView::conditions('paid', 'Оплаченные', [
+        new FilterCondition('status', Operator::Eq, 'paid'),
+    ])->color('success'),
+    SavedView::sourceClosure('high-priority', 'Приоритет', fn (Source $s) => $s),
+];
+```
 
 `Query` — neutral VO состояния запроса (`search`, `searchableColumns`,
 `conditions: FilterCondition[]`, `qbRoot: AtomCondition|AtomGroup|null`,

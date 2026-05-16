@@ -12,6 +12,7 @@ use Mercurio\Tables\Prefs\UserPrefsResolver;
 use Mercurio\Tables\ResourceTable;
 use Mercurio\Tables\Services\SavedViewCountsCalculator;
 use Mercurio\Tables\Source\Source;
+use Mercurio\Tables\View\SavedView;
 
 /**
  * @internal
@@ -61,6 +62,13 @@ final class TableBuilder
         }
 
         $appliedSource = $source->withQuery($query);
+        $appliedSource = $this->applySourceClosure(
+            $appliedSource,
+            $savedViews,
+            $query->savedViewKey,
+            $resource->key(),
+            'tables.saved_view.source_closure_applied',
+        );
         $resultPage = $appliedSource->page($page, $effectivePerPage);
 
         Log::debug('tables.table_builder.built', [
@@ -114,6 +122,13 @@ final class TableBuilder
 
         $applied = $this->filterPipeline->build($request, $resource, $fields, $savedViews);
         $appliedSource = $source->withQuery($applied['query']);
+        $appliedSource = $this->applySourceClosure(
+            $appliedSource,
+            $savedViews,
+            $applied['query']->savedViewKey,
+            $resource->key(),
+            'tables.saved_view.source_closure_applied_export',
+        );
 
         $prefs = $this->prefsResolver->resolve($resource, $request);
         $effectiveColumnNames = $prefs->columns ?? array_values(array_map(
@@ -148,5 +163,46 @@ final class TableBuilder
     private function normalizeDensity(string $raw): string
     {
         return in_array($raw, ['compact', 'comfortable'], true) ? $raw : 'comfortable';
+    }
+
+    /**
+     * Применяет `SavedView::sourceClosure(Closure(Source): Source)` поверх уже
+     * прошедшего {@see Source::withQuery()} source-instance. Применяется и в
+     * {@see self::build()}, и в {@see self::buildForExport()}, иначе export
+     * для sourceClosure-saved-view отдал бы не-фильтрованный stream.
+     *
+     * Сигнатура `Source::withQuery(Query): static` НЕ меняется — closure
+     * применяется снаружи, симметрично для рендера и для экспорта.
+     *
+     * @param  array<int, SavedView>  $savedViews
+     */
+    private function applySourceClosure(
+        Source $source,
+        array $savedViews,
+        ?string $savedViewKey,
+        string $resourceKey,
+        string $logKey,
+    ): Source {
+        if ($savedViewKey === null) {
+            return $source;
+        }
+
+        foreach ($savedViews as $sv) {
+            if ($sv->key !== $savedViewKey || $sv->sourceClosure === null) {
+                continue;
+            }
+
+            $source = ($sv->sourceClosure)($source);
+
+            Log::debug($logKey, [
+                'resource' => $resourceKey,
+                'view' => $sv->key,
+                'source_class' => $source::class,
+            ]);
+
+            break;
+        }
+
+        return $source;
     }
 }

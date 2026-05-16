@@ -2,7 +2,7 @@
 
 @php
     $fields = $table->visibleFields();
-    $hasBulk = count($table->bulkActions) > 0;
+    $hasBulk = count($table->bulkActions) > 0 && $table->capabilities->mutate;
     $hasRowActions = $table->hasRowActions();
 @endphp
 

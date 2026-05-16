@@ -56,6 +56,16 @@ class BulkActionHandler
             return $this->authorizer->bulkActionError($isXhr, "Неизвестное действие: {$name}", 404);
         }
 
+        $source = $resource->resolveSource();
+        if (! $source->capabilities()->mutate) {
+            Log::warning('tables.bulk.mutate_denied', [
+                'resource' => $resourceClass,
+                'action' => $name,
+            ]);
+
+            return $this->authorizer->bulkActionError($isXhr, (string) __('tables::shell.mutate_denied'), 422);
+        }
+
         $kind = $action->getKind();
         $isForm = $kind === 'form';
 

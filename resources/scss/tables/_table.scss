@@ -19,3 +19,13 @@
     padding-top: var(--tables-row-padding-y);
     padding-bottom: var(--tables-row-padding-y);
 }
+
+[data-tables-root] {
+    > .card {
+        overflow: clip;
+    }
+
+    .tables-scroll {
+        overflow-x: auto;
+    }
+}

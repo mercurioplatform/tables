@@ -13,7 +13,7 @@
     }
 @endphp
 
-@if ($actions !== [])
+@if ($actions !== [] && $table->capabilities->mutate)
     <form
         class="ap-bulk"
         method="POST"
