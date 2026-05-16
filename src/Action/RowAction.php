@@ -375,7 +375,7 @@ final class RowAction
      *
      * Сигнатура: callable(mixed $row, array<string, mixed> $payload, ?\Illuminate\Contracts\Auth\Authenticatable $actor): \Mercurio\Tables\Action\ActionResult
      *
-     * $row — Eloquent model уже резолвлен engine'ом из $resource->query()->whereKey($id)->first().
+     * $row — экземпляр уже резолвлен engine'ом через $resource->resolveSource()->find($id).
      * Type-hint в declaration (например, function (Product $row, ...)) enforce'ится PHP'ом —
      * TypeError ловится try/catch в trait и логируется как tables.rowaction.callback_threw.
      *

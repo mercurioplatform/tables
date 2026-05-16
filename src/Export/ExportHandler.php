@@ -48,7 +48,15 @@ class ExportHandler
         $state = $resource->exportState($request);
         $total = (int) $state['total'];
         $columns = $state['columns'];
-        $builder = $state['builder'];
+        $source = $state['source'];
+
+        if (! $source->capabilities()->stream) {
+            Log::warning('tables.export.stream_denied', [
+                'resource' => $resourceClass,
+                'user_id' => $userId,
+            ]);
+            abort(422, 'Источник данных не поддерживает экспорт.');
+        }
 
         if ($columns === []) {
             Log::warning('tables.export.no_columns', ['resource' => $resourceClass]);
@@ -112,25 +120,34 @@ class ExportHandler
         );
 
         return new StreamedResponse(
-            function () use ($exportRequest, $builder, $writer, $resourceClass): void {
+            function () use ($exportRequest, $source, $writer, $resourceClass): void {
                 try {
                     $writer->open($exportRequest);
                     $writer->writeHeader(array_map(fn (Field $f) => $f->label, $exportRequest->columns));
 
-                    $builder->chunkById($exportRequest->chunkSize, function ($rows) use ($writer, $exportRequest): void {
-                        foreach ($rows as $row) {
-                            $line = [];
-                            foreach ($exportRequest->columns as $field) {
-                                $raw = $row->{$field->name} ?? null;
-                                $line[] = $field->exportValue($raw, $row);
+                    $rowsInBatch = 0;
+                    foreach ($source->stream($exportRequest->chunkSize) as $row) {
+                        $line = [];
+                        foreach ($exportRequest->columns as $field) {
+                            $raw = data_get($row, $field->name);
+                            $line[] = $field->exportValue($raw, $row);
+                        }
+                        $writer->writeRow($line);
+
+                        $rowsInBatch++;
+                        if ($rowsInBatch >= $exportRequest->chunkSize) {
+                            $rowsInBatch = 0;
+                            if (function_exists('flush')) {
+                                @ob_flush();
+                                @flush();
                             }
-                            $writer->writeRow($line);
                         }
-                        if (function_exists('flush')) {
-                            @ob_flush();
-                            @flush();
-                        }
-                    });
+                    }
+
+                    if (function_exists('flush')) {
+                        @ob_flush();
+                        @flush();
+                    }
                 } catch (Throwable $e) {
                     Log::error('tables.export.write_failed', [
                         'resource' => $resourceClass,

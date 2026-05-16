@@ -49,7 +49,7 @@ class RowActionHandler
             return $this->authorizer->rowActionError($request, $isXhr, "Неизвестное действие: {$action}", 404);
         }
 
-        $model = $resource->query()->whereKey($id)->first();
+        $model = $resource->resolveSource()->find($id);
         if ($model === null) {
             Log::warning('tables.rowaction.missing', [
                 'resource' => $resourceClass,
@@ -184,7 +184,7 @@ class RowActionHandler
             abort(404);
         }
 
-        $model = $resource->query()->whereKey($id)->first();
+        $model = $resource->resolveSource()->find($id);
         if ($model === null) {
             abort(404);
         }
@@ -281,7 +281,7 @@ class RowActionHandler
             abort(404);
         }
 
-        $model = $resource->query()->whereKey($id)->first();
+        $model = $resource->resolveSource()->find($id);
         if ($model === null) {
             abort(404);
         }

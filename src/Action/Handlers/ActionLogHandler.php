@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Action\Handlers;
 
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Action\ActionResult;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
@@ -12,6 +11,7 @@ use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Models\ActionLog;
 use Mercurio\Tables\Services\ActionLogWriter;
+use Mercurio\Tables\Source\Page;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -53,18 +53,22 @@ class ActionLogHandler
             $row->setAttribute('already_undone', isset($undoneIds[$row->id]));
         });
 
-        $items = $rows->forPage($page, $perPage)->values();
+        $items = $rows->forPage($page, $perPage)->values()->all();
+        $total = $rows->count();
 
-        $paginator = new LengthAwarePaginator(
-            items: $items,
-            total: $rows->count(),
+        $paginator = new Page(
+            rows: $items,
+            total: $total,
+            page: $page,
             perPage: $perPage,
-            currentPage: $page,
-            options: [
-                'path' => $request->url(),
-                'pageName' => 'page',
-            ],
         );
+
+        Log::debug('tables.action_log.page_built', [
+            'resource' => $resource->key(),
+            'page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+        ]);
 
         return response()->view('tables::action-log', [
             'resource' => $resource,
@@ -149,7 +153,7 @@ class ActionLogHandler
 
         if ($actionDecl->hasPolicy() || $actionDecl->getAbility() !== null) {
             $probeId = $ids[0] ?? null;
-            $probe = $probeId !== null ? $resource->query()->whereKey($probeId)->first() : null;
+            $probe = $probeId !== null ? $resource->resolveSource()->find($probeId) : null;
             if ($probe === null || ! $this->authorizer->authorizeAction($actionDecl, $probe, $kind, $resource)) {
                 abort(403);
             }

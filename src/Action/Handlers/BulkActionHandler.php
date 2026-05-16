@@ -76,7 +76,7 @@ class BulkActionHandler
         }
 
         if ($action->hasPolicy() || $action->getAbility() !== null) {
-            $probe = $resource->query()->whereKey($ids[0])->first();
+            $probe = $resource->resolveSource()->find($ids[0]);
             if ($probe === null) {
                 Log::warning('tables.bulk.probe_missing', [
                     'resource' => $resourceClass,
@@ -244,7 +244,7 @@ class BulkActionHandler
         }
 
         if ($bulk->hasPolicy() || $bulk->getAbility() !== null) {
-            $probe = $resource->query()->whereKey($ids[0])->first();
+            $probe = $resource->resolveSource()->find($ids[0]);
             if ($probe === null) {
                 Log::warning('tables.bulk.form.probe_missing', [
                     'resource' => $resourceClass,
@@ -345,7 +345,7 @@ class BulkActionHandler
         }
 
         if ($bulk->hasPolicy() || $bulk->getAbility() !== null) {
-            $probe = $resource->query()->whereKey($ids[0])->first();
+            $probe = $resource->resolveSource()->find($ids[0]);
             if ($probe === null) {
                 Log::warning('tables.confirm.preview.probe_missing', [
                     'resource' => $resourceClass,

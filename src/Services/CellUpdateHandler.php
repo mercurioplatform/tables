@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Services;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -39,7 +38,20 @@ class CellUpdateHandler
             ], 422);
         }
 
-        $model = $resource->query()->whereKey($id)->first();
+        $source = $resource->resolveSource();
+        if (! $source->capabilities()->mutate) {
+            Log::warning('tables.cell.update.mutate_denied', [
+                'resource' => $resourceClass,
+                'field' => $field,
+                'id' => $id,
+            ]);
+
+            return response()->json([
+                'message' => 'Источник данных не поддерживает inline-редактирование.',
+            ], 422);
+        }
+
+        $model = $source->find($id);
         if ($model === null) {
             Log::warning('tables.cell.update.missing', [
                 'resource' => $resourceClass,
@@ -106,9 +118,10 @@ class CellUpdateHandler
             }
         }
 
-        DB::transaction(fn () => $model->update([$column => $value]));
-
-        $fresh = $resource->query()->whereKey($id)->first();
+        // Source::update сам оборачивает в DB::transaction (для EloquentSource).
+        // Laravel поддерживает вложенные транзакции через savepoint'ы — если
+        // вызывающий код уже открыл транзакцию, это безопасно.
+        $fresh = $source->update($id, [$column => $value]);
         $table = $resource->table($request);
 
         return response()
