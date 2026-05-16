@@ -13,5 +13,7 @@ return [
         'aria' => 'Pagination',
         'prev_aria' => 'Previous',
         'next_aria' => 'Next',
+        'previous' => 'Previous',
+        'next' => 'Next',
     ],
 ];

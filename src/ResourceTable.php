@@ -2,8 +2,8 @@
 
 namespace Mercurio\Tables;
 
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Mercurio\Tables\Action\BulkAction;
@@ -12,6 +12,8 @@ use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Page\EmptyState;
 use Mercurio\Tables\Page\HeaderAction;
+use Mercurio\Tables\Source\Capabilities;
+use Mercurio\Tables\Source\Page;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\View\SavedView;
 
@@ -23,6 +25,13 @@ final class ResourceTable
         'meta' => 'Мета',
         'system' => 'Система',
     ];
+
+    /**
+     * Один-раз-за-process-lifetime guard на DEBUG-лог обращения к
+     * deprecated $paginator-полю. Иначе на каждом рендере сотни вызовов
+     * писали бы в лог (см. plan, risk #3).
+     */
+    private static bool $paginatorAccessLogged = false;
 
     /**
      * @param  array<int, Field>  $fields
@@ -37,7 +46,8 @@ final class ResourceTable
      */
     public function __construct(
         public readonly string $key,
-        public readonly LengthAwarePaginator $paginator,
+        public readonly Page $page,
+        public readonly Capabilities $capabilities,
         public readonly array $fields,
         public readonly array $savedViews,
         public readonly array $bulkActions,
@@ -58,7 +68,37 @@ final class ResourceTable
 
     public function rows(): Collection
     {
-        return collect($this->paginator->items());
+        return collect($this->page->rows);
+    }
+
+    /**
+     * Deprecated proxy на {@see $page} для смягчения миграции host-published
+     * Blade-шаблонов, которые читали `$table->paginator->total()` и т.п.
+     * {@see Page} реализует LengthAwarePaginator-совместимый shim, так что
+     * большинство вызовов продолжают работать без правок.
+     *
+     * @deprecated Используйте {@see $page}. Будет удалено в v3.
+     */
+    public function __get(string $name): mixed
+    {
+        if ($name === 'paginator') {
+            if (! self::$paginatorAccessLogged) {
+                self::$paginatorAccessLogged = true;
+                Log::debug('tables.resource_table.paginator_legacy_access', [
+                    'resource_key' => $this->key,
+                    'hint' => 'Use $table->page instead of $table->paginator (deprecated, removed in v3).',
+                ]);
+            }
+
+            return $this->page;
+        }
+
+        Log::debug('tables.resource_table.unknown_property_access', [
+            'property' => $name,
+            'resource_key' => $this->key,
+        ]);
+
+        return null;
     }
 
     public function hasRowActions(): bool
@@ -264,7 +304,7 @@ final class ResourceTable
             return $this->perPage;
         }
 
-        return (int) $this->paginator->perPage();
+        return $this->page->perPage();
     }
 
     /**
