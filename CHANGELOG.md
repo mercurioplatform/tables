@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **JS-модули `resources/js/tables/qb.js` и `progress.js` декомпозированы.**
+  `qb.js` (726 → 250 строк) разбит на `qb/serialization.js` (utf8 base64,
+  escapeHtml), `qb/ast.js` (operator-mode map, pure node-mutators по path,
+  schema-хелперы), `qb/render.js` (tree → HTML), `qb/form-sync.js`
+  (`readFormValues`), `qb/nav.js` (apply/reset/clearFromOutside + state-
+  аксессоры). `progress.js` (355 → 88 строк) разбит на `progress/storage.js`
+  (localStorage CRUD с warn-логом вместо silent-fail), `progress/ui.js`
+  (карточка/тосты/affected-URL), `progress/poller.js` (стейт-машина polling
+  + унифицированный `scheduleNext`). Точки входа (`data-tables-qb-*` /
+  `data-tables-progress-*`, `window.TablesProgress.{enqueue,errorToast}`,
+  события `tables:navigate` / `tables:rendered`) и импорты в
+  `resources/js/tables/index.js` не меняются.
+
 ## [1.0.0] — 2026-05-15
 
 ### Added
