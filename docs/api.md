@@ -13,7 +13,8 @@
 Override-points (фиксируются как часть контракта; добавление новых методов — non-breaking):
 
 - `key(): string` — уникальный ID ресурса (в URL routing + saved views FK + audit log).
-- `query(): \Illuminate\Database\Eloquent\Builder`
+- `source(): ?\Mercurio\Tables\Source\Source` — primary contract источника данных (см. ниже «Advanced: Source contract»). По умолчанию `null` — движок упадёт на legacy-`query()`.
+- `query(): ?\Illuminate\Database\Eloquent\Builder` — **deprecated с v2, удаление в v3.** Старый Eloquent-Builder-контракт; engine оборачивает его в `Mercurio\Tables\Source\EloquentSource` через `resolveSource()` и пишет `E_USER_DEPRECATED` + info-лог `tables.list_resource.query_shim_used`. Host-resource'ы из v1.x продолжают работать без правок; для миграции реализуйте `source(): ?Source`.
 - `fields(): array<int, Field>`
 - `searchable(): array<int, string>` — список колонок (включая dot-notation `relation.column`) для LIKE-поиска по `?q=...`.
 - `savedViews(): array<int, SavedView>`
@@ -49,11 +50,13 @@ Invariants:
 
 Runtime VO собранной таблицы. Передаётся в `view('tables::shell', ['table' => $table, ...])` и в blade-компоненты `<x-tables.page :table="$table">` / `<x-tables.table-root :table="$table">`. **Не инстанцировать вручную** — собирается через `ListResource::table($request)`.
 
-Public `readonly` properties: `key`, `fields`, `paginator`, `savedViews`, `bulkActions`, `rowActions`, `sort`, `currentView`, `search`, `density`, `summary`, `resource`, `activeFilters`, `qb`, `savedViewCounts`, `effectiveColumns`, `perPage`, `emptyState`.
+Public `readonly` properties: `key`, `fields`, `page`, `capabilities`, `savedViews`, `bulkActions`, `rowActions`, `sort`, `currentView`, `search`, `density`, `summary`, `resource`, `activeFilters`, `qb`, `savedViewCounts`, `effectiveColumns`, `perPage`, `emptyState`.
+
+Legacy property `paginator` (LengthAwarePaginator) — **deprecated с v2, удаление в v3.** Чтение `$table->paginator` продолжает работать через `__get`-proxy: возвращается `$table->page` (Page реализует LengthAwarePaginator-compatible shim для `total/hasPages/onFirstPage/previousPageUrl/currentPage/hasMorePages/nextPageUrl/onEachSide/links/items/firstItem/lastItem/perPage`). Первое обращение пишет DEBUG-лог `tables.resource_table.paginator_legacy_access` один раз за process lifetime. Замените на `$table->page`.
 
 Public методы:
 
-- `rows(): \Illuminate\Support\Collection` — items текущей страницы paginator'а.
+- `rows(): \Illuminate\Support\Collection` — items текущей страницы (`$table->page->rows`).
 - `visibleFields(): array<int, Field>` — поля для рендера (с учётом UserPrefs).
 - `filterableFields(): array<int, Field>`
 - `groupedFilterableFields(): ?array` — группировка filter-bar когда `count > filterGroupThreshold()`.
@@ -501,6 +504,58 @@ Override через `app()->bind(...)` — поддерживается.
 - `tables:flash` — flash-сообщение (`status`/`warning`/`error`) от engine. Эмиттится через `$(document).trigger('tables:flash', [{ status: msg }])` (jQuery — для совместимости с Bootstrap toast'ами host'а).
 
 Payload-объекты не специфицируются формально (документируются в коде ивент-эмиттеров); поломка структуры payload — minor breaking (рассматривается как deprecation на следующий минор).
+
+---
+
+## Advanced: Source contract (с v2)
+
+`Mercurio\Tables\Source\Source` — единая точка входа для источника данных
+Resource'а. В v2 единственная встроенная реализация — `EloquentSource`
+(адаптер поверх `Eloquent\Builder`); цель абстракции — подключение
+не-Eloquent источников в следующих фазах (`ArraySource`, `SqlSource`,
+`HttpSource`, `FileSource`).
+
+```php
+namespace Mercurio\Tables\Source;
+
+interface Source
+{
+    public function capabilities(): Capabilities;
+    public function withQuery(Query $q): static;
+    public function count(): ?int;                         // null = cursor-режим без count
+    public function page(int $page, int $perPage): Page;
+    public function stream(int $chunkSize): \Generator;
+    public function find(int|string $id): mixed;
+    public function findMany(array $ids): iterable;
+    public function update(int|string $id, array $changes): mixed;
+    public function probe(): mixed;
+}
+```
+
+`Capabilities` декларирует, какие операции источник умеет (`filter`, `sort`,
+`search`, `count`, `cursor`, `mutate`, `stream`). UI и engine используют это
+для корректной деградации — например, `mutate=false` источник прячет
+bulk/row-write/inline-edit/undo (gating в Blade появится в Phase 2).
+
+`Query` — neutral VO состояния запроса (`search`, `searchableColumns`,
+`conditions: FilterCondition[]`, `qbRoot: AtomCondition|AtomGroup|null`,
+`sortField`, `sortDirection`, `savedViewKey`). Source-драйвер транслирует
+это в свой подъязык (SQL/HTTP params/in-memory predicate).
+
+`Page` — унифицированный результат пагинации; два режима:
+- **offset** (`total !== null`) — обычные номера страниц; внутри Page хранит
+  `LengthAwarePaginator`-делегата для рендера Blade-шаблона.
+- **cursor** (`total === null`) — opt-in для HTTP/файловых источников;
+  `nextCursor` / `prevCursor` вместо номеров. Blade-пагинатор
+  (`tables::pagination-bs5`) ветвится через `@if ($paginator->isCursor())`.
+
+Резолв источника всегда через `ListResource::resolveSource(): Source`
+(final-метод): сначала `source()`, потом legacy `query()` → `EloquentSource`.
+
+Внутренний pipeline пакета не делает `instanceof Builder` — всё ходит
+через `Source` / `Query` / `Page`. Для legacy host-консьюмеров, читавших
+`$state['builder']` из `exportState()`, временный путь — `$state['source']
+->getBuilder()` для `EloquentSource` (метод помечен `@internal`).
 
 ---
 
