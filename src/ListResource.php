@@ -4,6 +4,7 @@ namespace Mercurio\Tables;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +19,8 @@ use Mercurio\Tables\Filter\Qb\AtomGroup;
 use Mercurio\Tables\Page\Breadcrumb;
 use Mercurio\Tables\Page\EmptyState;
 use Mercurio\Tables\Page\HeaderAction;
+use Mercurio\Tables\Source\EloquentSource;
+use Mercurio\Tables\Source\Source;
 use Mercurio\Tables\Summary\Summary;
 use Mercurio\Tables\Table\TableBuilder;
 use Mercurio\Tables\View\SavedView;
@@ -26,7 +29,66 @@ abstract class ListResource
 {
     abstract public function key(): string;
 
-    abstract public function query(): Builder;
+    /**
+     * Primary contract — источник данных для Resource'а.
+     *
+     * Реализации: {@see EloquentSource} (поверх Builder), а в будущих
+     * фазах — ArraySource, SqlSource, HttpSource, FileSource.
+     *
+     * Если возвращает null, движок упадёт на legacy-{@see query()}.
+     */
+    public function source(): ?Source
+    {
+        return null;
+    }
+
+    /**
+     * Legacy-контракт Eloquent\Builder. Автоматически оборачивается в
+     * {@see EloquentSource} через {@see resolveSource()}.
+     *
+     * @deprecated Используйте {@see Source()}. Будет удалено в v3.
+     *
+     * @return Builder<Model>|null
+     */
+    public function query(): ?Builder
+    {
+        return null;
+    }
+
+    /**
+     * Внутри пакета используется только этот метод (final).
+     *
+     * Резолвит Source: сначала {@see Source()}, потом legacy {@see query()}
+     * через {@see EloquentSource}-shim с E_USER_DEPRECATED.
+     */
+    final public function resolveSource(): Source
+    {
+        $explicit = $this->source();
+        if ($explicit !== null) {
+            return $explicit;
+        }
+
+        $legacy = $this->query();
+        if ($legacy !== null) {
+            @trigger_error(
+                sprintf(
+                    "ListResource '%s'::query() is deprecated. Implement source() instead. Removal in v3.",
+                    $this->key(),
+                ),
+                E_USER_DEPRECATED,
+            );
+
+            Log::info('tables.list_resource.query_shim_used', [
+                'resource' => $this->key(),
+            ]);
+
+            return new EloquentSource($legacy, $this);
+        }
+
+        throw new \LogicException(
+            "Resource '{$this->key()}' has no source() and no query(): both returned null.",
+        );
+    }
 
     /**
      * @return array<int, Field>
@@ -200,15 +262,15 @@ abstract class ListResource
     }
 
     /**
-     * Type-based probe для bulk-actions: пустой instance модели через query()->getModel()->newInstance().
+     * Type-based probe для bulk-actions: пустой instance объекта через {@see Source::probe()}.
      * Возвращает null при ошибке — UI fallback'ится на «показать всё», server-side проверит.
      */
     private function buildBulkPolicyProbe(): ?object
     {
         try {
-            $model = $this->query()->getModel();
+            $probe = $this->resolveSource()->probe();
 
-            return $model->newInstance();
+            return is_object($probe) ? $probe : null;
         } catch (\Throwable $e) {
             Log::warning('tables.policy.probe_build_failed', [
                 'resource' => $this->key(),
@@ -463,11 +525,12 @@ abstract class ListResource
     }
 
     /**
-     * Resolve full export state (filtered builder, total count, ordered visible columns,
-     * raw query params for async dispatch). Sort and pagination are intentionally not applied —
-     * `chunkById` orders by PK and chunking is decided by the caller.
+     * Resolve full export state (filtered Source с применённым Query, total count,
+     * ordered visible columns, raw query params for async dispatch). Sort и
+     * pagination намеренно не применяются — {@see Source::stream()} стримит
+     * выборку по primary key (или по cursor для не-Eloquent sources).
      *
-     * @return array{builder: Builder, total: int, columns: array<int, Field>, queryParams: array<string, mixed>}
+     * @return array{source: Source, total: int, columns: array<int, Field>, queryParams: array<string, mixed>}
      */
     public function exportState(Request $request): array
     {
