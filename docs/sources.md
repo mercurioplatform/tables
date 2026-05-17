@@ -428,12 +428,266 @@ return SqlSource::for(
      включается явно через `Capabilities(mutate: true)`.
    - Нет → шаг 4.
 4. **Внешний API / файл / другой источник?**
-   - Ждать `HttpSource` (Phase 5) / `FileSource` (Phase 6+).
+   - Внешний API → **`HttpSource`** (cursor-pagination + Laravel Cache +
+     per-field operator whitelist; read-only by design).
+   - Файл (CSV / JSONL / NDJSON) → ждать **`FileSource`** (Phase 6+).
+
+### HttpSource
+
+Драйвер поверх произвольного внешнего HTTP API через декларативный
+**fetch-closure**: host пишет одну функцию
+`Closure(Query $q, ?string $cursor): array{rows, nextCursor, prevCursor, total}`,
+а драйвер сам делает capabilities-gating, кэширование, пишет Log-каналы,
+собирает {@see Page} в правильном режиме и фильтрует операторы по
+per-field whitelist. Pipeline пакета (filter / sort / search / SavedView /
+chip-фильтры) работает поверх HttpSource без правок.
+
+**Use-cases**:
+
+- **Shopify Admin API** — orders / products / customers / inventory (cursor-only
+  API, total не возвращается; идеально ложится на `count=false, cursor=true`).
+- **Stripe API** — payments / charges / subscriptions / invoices (cursor-pagination,
+  per-resource рейт-лимит → caching критичен).
+- **GitHub REST API** — issues / PRs / repositories (cursor-pagination + ETag).
+- **Внутренние REST / gRPC bridge-сервисы** — read-only admin-список поверх
+  данных, которые лежат в другом микросервисе и доступны только через API.
+
+**Не использовать**, если:
+
+- Данные лежат в SQL / `EloquentModel` — берите `EloquentSource` (полноценный
+  CRUD) или `SqlSource` (read-only без модели);
+- Данные in-memory (массив / `Collection` / справочник из `config/`) — берите
+  `ArraySource`, иначе вы добавляете лишний серверный запрос на каждое
+  открытие админ-списка;
+- Нужен полноценный write-API (`update($id, $changes)`) — HttpSource **hard-denies**
+  mutate (`Capabilities::mutate=true` не предусмотрено); host пишет в API
+  через свой service-layer, не через `Source::update()`.
+
+**Capabilities по умолчанию**:
+
+| Capability | Value | Замечание |
+|---|---|---|
+| `filter` | `true` | chip-фильтры; host транслирует `Query::$conditions` в HTTP-параметры в собственном fetch-closure. `?qb=` AST задисейблен (см. ограничения). |
+| `sort` | `true` | host транслирует `Query::$sortField` / `$sortDirection` в HTTP-параметры. |
+| `search` | `true` | host транслирует `Query::$search` / `$searchableColumns` в HTTP-параметры. |
+| `count` | **`false`** | Cursor primary. Host может явно передать `Capabilities(count: true)` для offset-режима, тогда fetch обязан возвращать `total` в payload'е. |
+| `cursor` | **`true`** | Default. Page рендерит «← / →» через `nextCursor` / `prevCursor`. |
+| `mutate` | **`false`** (hard) | Read-only by design. `update()` логирует `tables.source.http.mutate_denied` и бросает `LogicException` всегда. **`Capabilities(mutate: true)` не поддерживается** — это контракт HttpSource, не настройка. |
+| `stream` | `true` | Stream обязан использовать cursor: при `capabilities.cursor=false` yield только первой страницы + WARN. |
+
+**Пример Resource'а на HttpSource** (Shopify orders mock):
+
+```php
+use Mercurio\Tables\Field\StatusField;
+use Mercurio\Tables\Field\TextField;
+use Mercurio\Tables\Filter\Operator;
+use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Source\HttpSource;
+use Mercurio\Tables\Source\Query;
+use Mercurio\Tables\Source\Source;
+
+final class ShopifyOrdersResource extends ListResource
+{
+    public function key(): string
+    {
+        return 'shopify.orders';
+    }
+
+    public function source(): ?Source
+    {
+        return HttpSource::for(
+            fetch: function (Query $q, ?string $cursor): array {
+                $response = app('shopify.client')->get('/orders.json', [
+                    'limit' => 50,
+                    'page_info' => $cursor,
+                    'status' => $this->extractStatusFilter($q),
+                    'created_at_min' => $this->extractCreatedAtMin($q),
+                ]);
+
+                return [
+                    'rows' => $response['orders'],
+                    'nextCursor' => $response['page_info']['next'] ?? null,
+                    'prevCursor' => $response['page_info']['prev'] ?? null,
+                    'total' => null, // Shopify cursor API не возвращает total
+                ];
+            },
+            resource: $this,
+            operatorWhitelist: [
+                // Shopify API понимает только =/>=/<= для created_at
+                'created_at' => [Operator::Eq, Operator::Gte, Operator::Lte],
+                // `status` НЕ в whitelist → keep all operators (поле без entry = no constraint)
+            ],
+            cacheTtlSeconds: 60,
+            primaryKey: 'id',
+        );
+    }
+
+    public function fields(): array
+    {
+        return [
+            TextField::make('id', '#')->sortable(),
+            TextField::make('email', 'Email')->filterable([Operator::Eq, Operator::Contains]),
+            StatusField::make('financial_status', 'Оплата')
+                ->kinds(['paid' => 'success', 'pending' => 'warning', 'refunded' => 'danger'])
+                ->filterable([Operator::Eq, Operator::In]),
+        ];
+    }
+
+    public function searchable(): array
+    {
+        return ['email', 'name'];
+    }
+}
+```
+
+#### Caching
+
+HttpSource кэширует страницы через Laravel `Cache::remember`. Включается
+передачей `cacheTtlSeconds` (в секундах) в `HttpSource::for()`. При
+`cacheTtlSeconds === null` или `=== 0` — кэш bypass, всегда live fetch.
+
+- **Ключ кэша**: `{cachePrefix или 'tables.http'}.{resource_key|'anonymous'}.{sha1(json_serialized_query + cursor)}`.
+  Query сериализуется детерминированно: explicit list полей
+  (`search`, `searchableColumns` отсортированные, `conditions` нормализованные
+  в tuples `[field, operator, value]` с `usort`, `sortField`,
+  `sortDirection`, `savedViewKey`), затем `json_encode` с
+  `JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES`.
+  Это устойчиво к PHP-версиям, opcache, порядку property-инициализации
+  (в отличие от `serialize($query)` PHP-native).
+- **Cursor** входит в ключ отдельным компонентом — каждая страница
+  кэшируется индивидуально.
+- **Invalidation** — на стороне host'а. HttpSource не отслеживает
+  write-through (mutate выключен by design). При обновлении данных в API
+  host вызывает `Cache::forget(...)` сам или ждёт TTL.
+- **Thundering herd** — для v2 простой `Cache::remember` без `Cache::lock`;
+  при cache-miss и high-concurrent traffic несколько запросов могут
+  одновременно стрелять в API. Lock через `Cache::lock(...)` — на следующую
+  фазу.
+
+Observability: каналы `tables.source.http.cache.hit` / `cache.miss` /
+`fetch.hit` / `fetch.miss` — `Log::debug`.
+
+#### Operator whitelist
+
+Per-field operator constraint. Host передаёт
+`operatorWhitelist: array<field, list<Operator>>`. Семантика:
+
+- **Поле НЕ в whitelist** → keep all operators (нет ограничения для этого
+  поля; API понимает любые операторы по нему). Если whitelist вообще `null` —
+  no-op для всех условий.
+- **Поле в whitelist** и оператор условия ∈ whitelist[field] → keep.
+- **Поле в whitelist** и оператор условия ∉ whitelist[field] → **skip
+  условия** + `Log::warning('tables.source.http.operator_not_allowed', [...])`.
+
+Пример: Shopify API понимает `=` / `>=` / `<=` для `created_at` (нет
+between), но все операторы для `status` (`=` / `in` / `!=`). Host передаёт:
+
+```php
+operatorWhitelist: [
+    'created_at' => [Operator::Eq, Operator::Gte, Operator::Lte],
+    // `status` НЕ в whitelist — API принимает любые операторы по нему,
+    // chip-фильтры по status уйдут в fetch как есть.
+],
+```
+
+`between created_at [a, b]` будет skip'нуто с WARN. Если такая семантика
+нужна, host конвертирует `between` → `>=` AND `<=` в собственном
+fetch-closure, прежде чем строить HTTP-запрос.
+
+Whitelist применяется к `Query::$conditions` (chip-фильтры); `qbRoot`
+(QB-tree AST из `?qb=`) — задисейблен полностью (см. ограничения).
+
+#### Override capabilities
+
+Если host'у нужен offset-mode (API возвращает total), включите
+`count = true` явно:
+
+```php
+return HttpSource::for(
+    fetch: $fetch,
+    capabilities: new Capabilities(
+        filter: true, sort: true, search: true, count: true,
+        cursor: false, mutate: false, stream: false,
+    ),
+    resource: $this,
+);
+```
+
+`page()` тогда передаёт fetch'у `$cursor = "offset:{$page}"` (соглашение),
+fetch обязан вернуть `total`. **Известное ограничение**: без
+`LengthAwarePaginator`-делегата `Page::previousPageUrl()` /
+`nextPageUrl()` в offset-режиме вернут `null` — Blade-пагинатор
+`tables::pagination-bs5` рендерит «← / →» вместо номеров страниц.
+
+`Capabilities::mutate = true` **не поддерживается** — `update()` бросает
+`LogicException` всегда, независимо от Capabilities.
+
+#### Ограничения
+
+1. **Read-only by design.** `Capabilities::mutate = false` — hard-denied,
+   без override. `update($id, $changes)` логирует WARN
+   `tables.source.http.mutate_denied` и бросает `LogicException`. Host
+   пишет в API через свой service-layer (отдельный controller / action /
+   command), не через `Source::update()`. UI прячет bulk / row-edit /
+   cell-edit / undo через Capabilities-gating из Phase 2.
+2. **Cursor primary; offset-mode частично функционален.** В offset-режиме
+   `Page::previousPageUrl()` / `nextPageUrl()` возвращают `null` без
+   `LengthAwarePaginator`-делегата. Blade-пагинатор рендерит «← / →» вместо
+   номеров страниц. Cursor-режим работает полностью (Page строит URL'ы
+   через `?cursor=...&page=null`).
+3. **`qbRoot` (`?qb=` AST) задисейблен.** HttpSource не транслирует Query
+   Builder AST в HTTP-параметры. При `$query->qbRoot !== null` —
+   `Log::warning('tables.source.http.qb_unsupported', ...)` + `qbRoot`
+   зануляется перед fetch'ом. Используйте chip-фильтры
+   (`Query::$conditions`); если QB-tree всё-таки нужен, host обрабатывает
+   его в собственном fetch-closure (HttpSource AST не пробрасывает).
+4. **`find($id)` fallback через chip-фильтр.** Без явного
+   `findOne`-closure HttpSource строит `Query` c
+   `conditions = [new FilterCondition($primaryKey, Eq, $id)]` и зовёт
+   `withQuery(...)->page(1, 1)` — один HTTP-запрос. **Edge-case**: если
+   whitelist задан и primaryKey в нём И `Operator::Eq` НЕ разрешён для
+   primaryKey — fallback недоступен, `find()` возвращает `null` с
+   WARN `tables.source.http.find_fallback_blocked_by_whitelist`. Передайте
+   `findOne`-closure для O(1)-пути.
+5. **`findMany($ids)` bulk-fallback через `In`-условие.** Без явного
+   `findMany`-closure HttpSource строит `Query` с
+   `conditions = [new FilterCondition($primaryKey, In, $ids)]` и зовёт
+   `withQuery(...)->page(1, count($ids))` — **один HTTP-запрос вместо N**
+   (критично для bulk-actions с 20+ ids). Если `Operator::In` не в
+   whitelist для primaryKey — degrade на N×`find()` loop с **один** WARN
+   `tables.source.http.find_many.linear_fallback`. Передайте
+   `findMany`-closure для O(1)-пути.
+6. **`findMany([...])` не сохраняет порядок входных ids.** Возвращаемые
+   строки идут в порядке выборки API, не в порядке `$ids` — consistent с
+   `SqlSource`. Известное отклонение от `Source::findMany()` PHPDoc-контракта
+   («в исходном порядке id»). Host реиндексирует сам, если порядок важен
+   (`array_combine($ids, $rows)` после `array_map(...)`).
+7. **`probe(): null`.** Type-based authz пакетный не работает — нет
+   Eloquent-модели как target'а для `Gate::allows(...)` пакетной проверки.
+   Host реализует `Field::canSee` / `RowAction::canRun` вручную или через
+   policy-методы в Resource.
+8. **`SavedView::scope` задисейблен.** Обе формы (`scope(string $modelScopeName)`
+   и `query(Closure(Builder))`) — Eloquent-only, пропускаются с WARN
+   `tables.source.http.saved_view_scope_unsupported`. Используйте
+   source-agnostic альтернативы: `SavedView::conditions(array<FilterCondition>)`
+   (сливаются в `Query.conditions` до `withQuery`) и
+   `SavedView::sourceClosure(Closure(Source): Source)` (применяется
+   TableBuilder после `withQuery`).
+9. **Field-aware filter-customizations не применяются.**
+   `Field::applyFilter` / `filterUsing(Closure(Builder))` / `filterScope(string)`
+   оперируют `Eloquent\Builder` — у HttpSource такого нет. Операторы идут
+   в payload через built-in semantics + per-field operator whitelist.
+   Кастомизация — на уровне fetch-closure host'а, не Field'ов.
+10. **Per-field operator whitelist — кастомизация на уровне Source-драйвера,
+    не Field'ов.** В отличие от `Field::filterable([Operator::Eq, ...])`
+    (UI-уровень — какие чипы показывать), `operatorWhitelist` (Source-уровень —
+    какие операторы драйвер пропустит в fetch). Это разные концепции:
+    первый ограничивает что пользователь может выбрать, второй —
+    что драйвер пошлёт в API, даже если Field разрешил больше.
 
 ### Будущие драйверы (roadmap)
 
-- **HttpSource** (Phase 5) — внешний API, opt-in cursor-режим, кэширование.
-  Использует `AtomEvaluator` для client-side fallback по колонкам, которые
-  API не понимает.
 - **FileSource** (Phase 6) — CSV / JSONL / NDJSON с lazy reader. Использует
   `AtomEvaluator` и `BuiltinFilterEvaluator` для in-memory фильтрации.
+
+

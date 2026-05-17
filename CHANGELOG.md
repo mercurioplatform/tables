@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Mercurio\Tables\Source\HttpSource`** — четвёртый полноценный Source-драйвер
+  пакета поверх произвольного внешнего HTTP API через декларативный
+  fetch-closure. Создаётся через статический фабричный метод
+  `HttpSource::for(Closure $fetch, ?Capabilities $capabilities = null, ?ListResource $resource = null, ?Closure $findOne = null, ?Closure $findMany = null, ?array $operatorWhitelist = null, ?int $cacheTtlSeconds = null, ?string $cachePrefix = null, string $primaryKey = 'id')`.
+  Host передаёт `Closure(Query $q, ?string $cursor): array{rows, nextCursor, prevCursor, total}`
+  — драйвер сам делает capabilities-gating, кэширование (Laravel
+  `Cache::remember` с детерминированным `json_encode` ключом по explicit
+  списку Query-полей), Log-каналы и собирает {@see Page} в правильном
+  режиме. Capabilities по умолчанию: `filter / sort / search / stream = true`,
+  **`cursor = true`** (cursor primary), **`count = false`** (cursor-mode без
+  total), **`mutate = false`** (hard-denied, без override — `update()`
+  логирует `tables.source.http.mutate_denied` и бросает `LogicException`
+  всегда). Host может явно передать `Capabilities(count: true)` для
+  offset-режима, тогда fetch обязан возвращать `total`. **Per-field
+  operator whitelist** через `operatorWhitelist: array<field, list<Operator>>`:
+  для поля в whitelist оставляем только разрешённые операторы (skip + WARN
+  иначе); поля без entry — no constraint. **Кэширование** через
+  `cacheTtlSeconds` (Laravel `Cache::remember`); ключ детерминирован
+  (`{cachePrefix или 'tables.http'}.{resource_key|'anonymous'}.{sha1(...)}`),
+  host инвалидирует через `Cache::forget(...)` или ждёт TTL. **`find($id)`**
+  fallback через chip-фильтр `primaryKey = $id` + `withQuery(...)->page(1, 1)`,
+  closure-injection (`findOne`) даёт O(1)-путь; edge-case: `Operator::Eq` не
+  в whitelist для primaryKey → WARN + `null`. **`findMany($ids)`**
+  bulk-fallback через `In`-условие на `primaryKey` — один HTTP-запрос
+  вместо N; degrade на N×`find()` loop если `Operator::In` не в whitelist
+  (WARN `tables.source.http.find_many.linear_fallback`); closure-injection
+  (`findMany`) — самый быстрый путь. **`stream($chunkSize)`** обязан
+  использовать cursor: при `capabilities.cursor=false` yield первой
+  страницы + WARN; safety-cap 10 000 итераций / 1 000 000 yielded строк
+  против infinite-cursor-loop. Ограничения: `qbRoot` skip + WARN
+  (`?qb=` AST не транслируется в HTTP-параметры); `SavedView::scope`
+  задисейблен (source-agnostic формы `conditions()` / `sourceClosure()`
+  работают); `probe(): null` (нет Eloquent-модели); `findMany` не
+  сохраняет порядок ids; Field-aware customizations не применяются.
+  Основные use-cases — Shopify Admin API / Stripe API / GitHub REST API /
+  внутренние REST / gRPC bridge-сервисы.
+
 - **`Mercurio\Tables\Source\SqlSource`** — третий полноценный Source-драйвер
   пакета поверх произвольного `DB::connection`. Создаётся через статический
   фабричный метод

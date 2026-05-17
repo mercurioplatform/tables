@@ -8,10 +8,13 @@ use Generator;
  * Контракт источника данных для ResourceListing.
  *
  * Реализации:
- * - {@see EloquentSource} (адаптер поверх Eloquent\Builder, единственный в v2 Phase 1).
+ * - {@see EloquentSource} (адаптер поверх Eloquent\Builder; mutate=true по default);
+ * - {@see ArraySource} (in-memory Collection / iterable; read-only by default);
+ * - {@see SqlSource} (произвольный DB::connection через inline-Model; read-only by default);
+ * - {@see HttpSource} (внешний HTTP API через декларативный fetch-closure;
+ *   cursor primary, кэширование, read-only by design).
  *
- * Будущие фазы: ArraySource (Collection), SqlSource (DB::connection),
- * HttpSource (внешние API), FileSource (CSV/JSONL).
+ * Будущие фазы: FileSource (CSV/JSONL/NDJSON с lazy reader, Phase 6+).
  */
 interface Source
 {
