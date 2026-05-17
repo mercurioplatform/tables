@@ -99,6 +99,23 @@ Route::middleware(['auth'])->group(function () {
 
 Откройте `/admin/products` — рабочая страница со списком, поиском, сортировкой и пагинацией. Bulk/row actions, saved views, фильтры, экспорт включаются добавлением соответствующих методов в `ProductResource` (см. [Features](#features)).
 
+## Examples
+
+В репозитории есть [`examples/`](https://github.com/mercurioplatform/tables/tree/main/examples) — готовые demo-ресурсы на все пять Source-адаптеров (`EloquentSource`, `ArraySource`, `SqlSource`, `HttpSource`, `FileSource` CSV/JSONL). Это лучший способ увидеть, как поднимается каждый Source: copy-paste файла в `app/Tables/Demo/`, миграция + сидер, route-snippet — и demo-страницы работают.
+
+После copy-paste откроется шесть URL'ов:
+
+- `/admin/tables-demo/eloquent` — `App\Models\User` через `EloquentSource`
+- `/admin/tables-demo/array` — справочник из 32 строк через `ArraySource`
+- `/admin/tables-demo/sql` — таблица `tables_demo_orders` через `SqlSource`
+- `/admin/tables-demo/http` — JSONPlaceholder через `HttpSource`
+- `/admin/tables-demo/file-csv` — `currencies.csv` через `FileSource::csv()`
+- `/admin/tables-demo/file-jsonl` — `instruments.jsonl` через `FileSource::jsonl()`
+
+> `examples/` **не попадает в `vendor/` после `composer require`** — он исключён через `.gitattributes`/`composer.json#archive.exclude`. Это сознательное архитектурное решение: вендор остаётся с одним только runtime-кодом. Examples живут на GitHub.
+
+Quick-start (copy-paste): [`examples/README.md`](https://github.com/mercurioplatform/tables/tree/main/examples). Подробный разбор каждого demo и decision-tree «какой Source выбрать»: [`docs/examples.md`](docs/examples.md).
+
 ## Registering resources
 
 `Route::tablesPage('admin/products', ProductResource::class)` — основной путь. Макрос регистрирует 17 named routes для страницы (index, options, bulk/row actions, export, prefs, saved views, action log), и одновременно записывает FQN ресурса в `Route::defaults('resource', ...)` на каждый из них. При boot'е сервис-провайдер обходит все маршруты, собирает уникальные `defaults['resource']` и вызывает `ResourceRegistry::register()`. Это даёт два важных свойства:

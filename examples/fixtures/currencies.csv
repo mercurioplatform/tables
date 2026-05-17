@@ -1,0 +1,33 @@
+id,code,name,group,amount,status
+1,EUR,Euro,fiat,1200,active
+2,USD,US Dollar,fiat,980,active
+3,GBP,British Pound,fiat,540,active
+4,CHF,Swiss Franc,fiat,310,active
+5,JPY,Japanese Yen,fiat,88000,active
+6,CNY,Chinese Yuan,fiat,7100,active
+7,TRY,Turkish Lira,fiat,290,archived
+8,UAH,Ukrainian Hryvnia,fiat,41,archived
+9,BTC,Bitcoin,crypto,65000,active
+10,ETH,Ethereum,crypto,3500,active
+11,SOL,Solana,crypto,145,active
+12,ADA,Cardano,crypto,0.45,active
+13,DOGE,Dogecoin,crypto,0.18,archived
+14,LTC,Litecoin,crypto,82,active
+15,XRP,Ripple,crypto,0.52,active
+16,BNB,Binance Coin,crypto,580,active
+17,AAPL,Apple Inc.,stocks,230,active
+18,GOOG,Alphabet,stocks,175,active
+19,MSFT,Microsoft,stocks,430,active
+20,AMZN,Amazon,stocks,190,active
+21,TSLA,Tesla,stocks,250,active
+22,NVDA,NVIDIA,stocks,1100,active
+23,META,Meta,stocks,540,active
+24,XAU,Gold,commodities,2380,active
+25,XAG,Silver,commodities,30,active
+26,XPT,Platinum,commodities,940,active
+27,XPD,Palladium,commodities,980,archived
+28,WTI,WTI Crude Oil,commodities,78,active
+29,BRENT,Brent Crude Oil,commodities,82,active
+30,SPX,S&P 500 Index,indices,5400,active
+31,DJI,Dow Jones,indices,40500,active
+32,IXIC,NASDAQ Composite,indices,17200,active

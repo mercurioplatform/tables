@@ -5,3 +5,11 @@
 /tests export-ignore
 /docs export-ignore
 /art export-ignore
+/examples export-ignore
+/.github export-ignore
+/composer.lock export-ignore
+/eslint.config.js export-ignore
+/package.json export-ignore
+/package-lock.json export-ignore
+/phpstan-baseline.neon export-ignore
+/node_modules export-ignore

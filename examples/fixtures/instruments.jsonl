@@ -1,0 +1,32 @@
+{"id":1,"code":"EUR","name":"Euro","group":"fiat","amount":1200,"status":"active"}
+{"id":2,"code":"USD","name":"US Dollar","group":"fiat","amount":980,"status":"active"}
+{"id":3,"code":"GBP","name":"British Pound","group":"fiat","amount":540,"status":"active"}
+{"id":4,"code":"CHF","name":"Swiss Franc","group":"fiat","amount":310,"status":"active"}
+{"id":5,"code":"JPY","name":"Japanese Yen","group":"fiat","amount":88000,"status":"active"}
+{"id":6,"code":"CNY","name":"Chinese Yuan","group":"fiat","amount":7100,"status":"active"}
+{"id":7,"code":"TRY","name":"Turkish Lira","group":"fiat","amount":290,"status":"archived"}
+{"id":8,"code":"UAH","name":"Ukrainian Hryvnia","group":"fiat","amount":41,"status":"archived"}
+{"id":9,"code":"BTC","name":"Bitcoin","group":"crypto","amount":65000,"status":"active"}
+{"id":10,"code":"ETH","name":"Ethereum","group":"crypto","amount":3500,"status":"active"}
+{"id":11,"code":"SOL","name":"Solana","group":"crypto","amount":145,"status":"active"}
+{"id":12,"code":"ADA","name":"Cardano","group":"crypto","amount":0.45,"status":"active"}
+{"id":13,"code":"DOGE","name":"Dogecoin","group":"crypto","amount":0.18,"status":"archived"}
+{"id":14,"code":"LTC","name":"Litecoin","group":"crypto","amount":82,"status":"active"}
+{"id":15,"code":"XRP","name":"Ripple","group":"crypto","amount":0.52,"status":"active"}
+{"id":16,"code":"BNB","name":"Binance Coin","group":"crypto","amount":580,"status":"active"}
+{"id":17,"code":"AAPL","name":"Apple Inc.","group":"stocks","amount":230,"status":"active"}
+{"id":18,"code":"GOOG","name":"Alphabet","group":"stocks","amount":175,"status":"active"}
+{"id":19,"code":"MSFT","name":"Microsoft","group":"stocks","amount":430,"status":"active"}
+{"id":20,"code":"AMZN","name":"Amazon","group":"stocks","amount":190,"status":"active"}
+{"id":21,"code":"TSLA","name":"Tesla","group":"stocks","amount":250,"status":"active"}
+{"id":22,"code":"NVDA","name":"NVIDIA","group":"stocks","amount":1100,"status":"active"}
+{"id":23,"code":"META","name":"Meta","group":"stocks","amount":540,"status":"active"}
+{"id":24,"code":"XAU","name":"Gold","group":"commodities","amount":2380,"status":"active"}
+{"id":25,"code":"XAG","name":"Silver","group":"commodities","amount":30,"status":"active"}
+{"id":26,"code":"XPT","name":"Platinum","group":"commodities","amount":940,"status":"active"}
+{"id":27,"code":"XPD","name":"Palladium","group":"commodities","amount":980,"status":"archived"}
+{"id":28,"code":"WTI","name":"WTI Crude Oil","group":"commodities","amount":78,"status":"active"}
+{"id":29,"code":"BRENT","name":"Brent Crude Oil","group":"commodities","amount":82,"status":"active"}
+{"id":30,"code":"SPX","name":"S&P 500 Index","group":"indices","amount":5400,"status":"active"}
+{"id":31,"code":"DJI","name":"Dow Jones","group":"indices","amount":40500,"status":"active"}
+{"id":32,"code":"IXIC","name":"NASDAQ Composite","group":"indices","amount":17200,"status":"active"}

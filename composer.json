@@ -48,6 +48,25 @@
             ]
         }
     },
+    "archive": {
+        "exclude": [
+            "/.github",
+            "/.gitattributes",
+            "/.gitignore",
+            "/.pint.json",
+            "/art",
+            "/docs",
+            "/examples",
+            "/tests",
+            "/composer.lock",
+            "/eslint.config.js",
+            "/node_modules",
+            "/package.json",
+            "/package-lock.json",
+            "/phpstan-baseline.neon",
+            "/phpstan.neon"
+        ]
+    },
     "scripts": {
         "pint": "pint --test",
         "pint:fix": "pint",
