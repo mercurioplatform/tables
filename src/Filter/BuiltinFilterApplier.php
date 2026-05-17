@@ -23,7 +23,7 @@ use Mercurio\Tables\Source\EloquentSource;
 final class BuiltinFilterApplier
 {
     /**
-     * @param  Builder<Model>  $q
+     * @param  Builder<covariant Model>  $q
      */
     public static function apply(Builder $q, string $column, Operator $op, mixed $value): void
     {

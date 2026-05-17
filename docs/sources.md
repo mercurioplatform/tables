@@ -207,10 +207,231 @@ SavedView::sourceClosure('archived', Lang::get('app.views.archived'),
 
 Counts вычисляются через `withQuery` + applied closure → `count()`.
 
+### SqlSource
+
+Драйвер поверх произвольного `DB::connection` через **inline-Model**:
+SqlSource внутри сам создаёт голый `Eloquent\Model` (без relations / scopes /
+observers / accessors) и собирает поверх него обычный `Eloquent\Builder`. За
+счёт этого весь существующий applier-стек пакета (`BuiltinFilterApplier`,
+`QueryBuilderApplier`, `FilterApplier`, `SavedViewCountsCalculator`,
+`paginate(...)->withQueryString()`, `lazyById(...)`) переиспользуется
+**без изменений сигнатур** — нет параллельного стека под голый
+`Query\Builder`.
+
+**Use-cases**:
+
+- ClickHouse / BigQuery-через-bridge / read-replica / read-only пул — данные
+  лежат в SQL-источнике, но писать `EloquentModel` ради admin-списка нет
+  смысла (нет relations / observers / business-logic, которую модель
+  оправдала бы).
+- Unmanaged / legacy таблицы — таблица существует в БД, но в коде проекта
+  для неё нет (и не нужно) Eloquent-модели.
+- Внешний read-only connection — другой database / другой driver, чем
+  default-connection приложения; SqlSource даёт admin-список без правок
+  глобальной конфигурации Eloquent.
+
+**Не использовать**, если:
+
+- Для таблицы уже есть `EloquentModel` с relations / scopes / mutators /
+  observers / accessors — берите `EloquentSource` (`ListResource::query()`
+  через legacy-shim или явный `EloquentSource` в `source()`); inline-Model
+  в SqlSource намеренно не подхватывает этот context, и вы потеряете
+  observer-driven side-effects / accessor-форматирование / relation-aware
+  фильтры.
+- Нужны relation-aware search/filter (dotted `user.email`) — SqlSource не
+  поддерживает (inline-Model не имеет relations); ждать Phase 4b /
+  Phase 5+ или использовать `EloquentSource`.
+- Нужен полноценный write-API с observer'ами / events / accessors —
+  inline-Model такого не даёт; делайте `EloquentSource` поверх реальной
+  модели.
+
+**Capabilities по умолчанию**:
+
+| Capability | Value | Замечание |
+|---|---|---|
+| `filter` | `true` | chip-фильтры + `?qb=` через `BuiltinFilterApplier` / `QueryBuilderApplier` поверх `Eloquent\Builder`. |
+| `sort` | `true` | `orderBy(column, direction)` на builder'е inline-Model. |
+| `search` | `true` | `LIKE %q%` через `orWhere(column, 'LIKE', …)` по `Resource::searchable()`. **Только single-column.** |
+| `count` | `true` | `clone->toBase()->getCountForPagination()` (Eloquent overhead сброшен для COUNT). |
+| `cursor` | `false` | Offset-only. `page()` строит `LengthAwarePaginator` через `paginate(...)->withQueryString()`. |
+| `mutate` | `false` | Read-only. `update()` логирует `tables.source.sql.mutate_denied` и бросает `LogicException`. UI прячет bulk / row-actions / cell-edit / undo. |
+| `stream` | `true` | `lazyById($chunkSize)` поверх builder'а inline-Model. Memory O(chunkSize). |
+
+**Пример Resource'а на SqlSource**:
+
+```php
+use Mercurio\Tables\Field\MoneyField;
+use Mercurio\Tables\Field\StatusField;
+use Mercurio\Tables\Field\TextField;
+use Mercurio\Tables\Filter\FilterCondition;
+use Mercurio\Tables\Filter\Operator;
+use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Source\Source;
+use Mercurio\Tables\Source\SqlSource;
+use Mercurio\Tables\View\SavedView;
+
+final class ClickhouseEventsResource extends ListResource
+{
+    public function key(): string
+    {
+        return 'analytics.events';
+    }
+
+    public function source(): ?Source
+    {
+        return SqlSource::for(
+            table: 'events',
+            connection: 'clickhouse',
+            primaryKey: 'id',
+            resource: $this,
+        );
+    }
+
+    public function fields(): array
+    {
+        return [
+            TextField::make('id', '#')->sortable(),
+            TextField::make('kind', 'Тип')->sortable()->filterable([Operator::Eq, Operator::In]),
+            StatusField::make('source', 'Источник')
+                ->kinds(['web' => 'primary', 'app' => 'success', 'api' => 'info'])
+                ->filterable(),
+            MoneyField::make('revenue', 'Выручка')
+                ->sortable()
+                ->filterable([Operator::Between, Operator::Gt]),
+        ];
+    }
+
+    public function searchable(): array
+    {
+        // ВАЖНО: single-column только. Никаких `user.email` — у inline-Model нет relations.
+        return ['kind', 'session_id'];
+    }
+
+    public function savedViews(): array
+    {
+        return [
+            SavedView::all('Все'),
+            SavedView::conditions('web-only', 'Web', [
+                new FilterCondition('source', Operator::Eq, 'web'),
+            ]),
+        ];
+    }
+
+    public function defaultSort(): ?array
+    {
+        return ['id', 'desc'];
+    }
+}
+```
+
+#### Override capabilities
+
+Если в host'е поверх SqlSource построен write-API (он сам отвечает за
+валидацию / observer-less update / транзакции), включите `mutate = true`
+явно через четвёртый аргумент `for()`:
+
+```php
+return SqlSource::for(
+    table: 'events',
+    connection: 'clickhouse',
+    primaryKey: 'id',
+    capabilities: new Capabilities(
+        filter: true, sort: true, search: true, count: true,
+        cursor: false, mutate: true, stream: true,
+    ),
+    resource: $this,
+);
+```
+
+Тогда `update($id, $changes)` вместо `LogicException` выполнит
+`whereKey($id)->update($changes)` (raw SQL UPDATE) и вернёт свежую строку
+через `whereKey($id)->first()`. **Observer'ы / accessors / model-events не
+вызываются** — inline-Model их не имеет; это контракт SqlSource, не баг.
+
+> ⚠️ **Транзакции — на стороне host'а.** В отличие от `EloquentSource`,
+> `SqlSource::update()` **не** оборачивает запись и последующий re-fetch в
+> `DB::transaction(...)`: host лучше знает, какие именно операции должны
+> идти атомарно (часто write идёт батчем рядом с другой бизнес-логикой —
+> аудит-лог, queue-job, исходящий webhook). Если атомарность строки нужна,
+> оберните `update()` явно:
+>
+> ```php
+> use Illuminate\Support\Facades\DB;
+>
+> DB::connection('clickhouse')->transaction(function () use ($source, $id, $changes) {
+>     return $source->update($id, $changes);
+> });
+> ```
+>
+> Для connection'ов без полноценной транзакционной семантики (ClickHouse,
+> read-replicas с особыми ограничениями) ответственность за идемпотентность /
+> retry-safety тоже остаётся на host'е.
+
+#### Ограничения
+
+1. **Read-only по умолчанию.** `Capabilities::mutate = false`. Прямой вызов
+   `update()` бросает `LogicException` после WARN
+   `tables.source.sql.mutate_denied`. Это намеренный разрыв с
+   `EloquentSource` (там паттерн `return null`): SqlSource, как и
+   `ArraySource`, считает write-mutate **opt-in только через явный
+   `Capabilities(mutate: true)`** — read-replica / ClickHouse / unmanaged
+   table не должны принимать `update()` через UI без явного решения host'а.
+2. **Single-column search.** `LIKE %q%` применяется через
+   `orWhere(column, 'LIKE', …)` без относительных подзапросов. Dotted-path
+   (`user.email`) пропускается с WARN
+   `tables.source.sql.search_dotted_unsupported` — inline-Model не имеет
+   relations, и `orWhereHas('user', …)` некорректен.
+3. **`probe(): mixed` всегда `null`.** Type-based authz пакетный не
+   работает: host должен реализовать `Field::canSee` / `RowAction::canRun`
+   вручную либо через policy-методы в Resource. `EloquentSource::probe()`
+   возвращает empty `Model::newInstance()` (для `Gate::allows(...)`-проверок);
+   у SqlSource такого class-target'а нет — `null` — final-fallback на
+   «показать все actions».
+4. **`SavedView::scope` задисейблен.** Обе формы (`scope(string $modelScopeName)`
+   и `query(Closure(Builder<Model>))`) пропускаются с WARN
+   `tables.source.sql.saved_view_scope_unsupported`. Scope-функции
+   ожидают конкретную модель / relation / local-scope, inline-Model такого
+   контекста не даёт. Используйте source-agnostic альтернативы:
+   `SavedView::conditions(array<FilterCondition>)` (сливаются в
+   `Query.conditions` до `withQuery`) и `SavedView::sourceClosure(Closure(Source): Source)`
+   (применяется TableBuilder после `withQuery`).
+5. **`findMany([…])` не сохраняет порядок IN-листа.** Возвращаемые строки
+   идут в SQL-порядке выборки, не в порядке `$ids`. Без явного
+   `FIELD(id, …)` ordering (driver-specific — `MySQL`/`PostgreSQL`/`SQLite`
+   разные) восстановить порядок нельзя средствами универсального драйвера.
+   Если порядок важен — полагайтесь на `defaultSort()` поля.
+6. **Update без observer'ов / accessors / events.** При включённом
+   `mutate = true` запись идёт через `Builder::update($changes)` — raw SQL
+   UPDATE, минуя `Model::save()`. Это особенность inline-Model'а, а не
+   баг: SqlSource намеренно не подхватывает observer-context конкретной
+   модели приложения.
+7. **Field-aware filter-customizations** (`Field::applyFilter`,
+   `Field::filterUsing(Closure)`, `Field::filterScope(string)`) работают —
+   они оперируют `Eloquent\Builder` и колоночными именами, не зависят от
+   relations / scopes inline-Model'а. Тот же путь, что в `EloquentSource`.
+
+#### Decision tree
+
+Какой Source-драйвер взять:
+
+1. **Есть `EloquentModel` для строк таблицы?**
+   - Да → **`EloquentSource`** (через `ListResource::query()` legacy-shim
+     или явный `source()`). Получаете relations / scopes / observers /
+     accessors / mutate=true по default.
+   - Нет → шаг 2.
+2. **Данные in-memory (массив / `Collection` / справочник из `config/`)?**
+   - Да → **`ArraySource`**. Read-only, никакой БД, full pipeline на
+     `BuiltinFilterEvaluator` / `AtomEvaluator`.
+   - Нет → шаг 3.
+3. **Данные в SQL-источнике (любая БД через Laravel `DB::connection`)?**
+   - Да → **`SqlSource`**. Inline-Model + read-only by default; mutate
+     включается явно через `Capabilities(mutate: true)`.
+   - Нет → шаг 4.
+4. **Внешний API / файл / другой источник?**
+   - Ждать `HttpSource` (Phase 5) / `FileSource` (Phase 6+).
+
 ### Будущие драйверы (roadmap)
 
-- **SqlSource** (Phase 4) — произвольный `DB::connection` (ClickHouse,
-  BigQuery, read-replica), не Eloquent.
 - **HttpSource** (Phase 5) — внешний API, opt-in cursor-режим, кэширование.
   Использует `AtomEvaluator` для client-side fallback по колонкам, которые
   API не понимает.

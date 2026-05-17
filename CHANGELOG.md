@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Mercurio\Tables\Source\SqlSource`** — третий полноценный Source-драйвер
+  пакета поверх произвольного `DB::connection`. Создаётся через статический
+  фабричный метод
+  `SqlSource::for(string $table, ?string $connection = null, string $primaryKey = 'id', ?Capabilities $capabilities = null, ?ListResource $resource = null)`,
+  внутри которого собирается **inline-Model** (голый `Eloquent\Model`-subclass
+  без relations / scopes / observers / accessors — `Mercurio\Tables\Source\Support\SqlSourceModel`)
+  и оборачивается в `Eloquent\Builder`. За счёт этого весь существующий
+  applier-стек (`BuiltinFilterApplier`, `FilterApplier`, `QueryBuilderApplier`,
+  `SavedViewCountsCalculator`, `paginate(...)->withQueryString()`,
+  `lazyById(...)`) переиспользуется без правок сигнатур. Capabilities по
+  умолчанию: `filter / sort / search / count / stream = true`,
+  `cursor = false`, `mutate = false` (read-only — `update()` логирует
+  `tables.source.sql.mutate_denied` и бросает `LogicException`; host
+  может явно включить `mutate = true` через четвёртый аргумент `for()`,
+  тогда `update()` выполнит raw SQL UPDATE через
+  `Builder::update($changes)` без observer'ов / accessors). Ограничения:
+  search — single-column LIKE (dotted-path → WARN
+  `tables.source.sql.search_dotted_unsupported` + skip; inline-Model не
+  имеет relations); `SavedView::scope` / `SavedView::query(Closure)` — WARN
+  `tables.source.sql.saved_view_scope_unsupported` + skip (используйте
+  source-agnostic `SavedView::conditions()` / `SavedView::sourceClosure()`);
+  `probe(): null` (нет model-class для type-based authz — host реализует
+  `Field::canSee` / `RowAction::canRun` вручную); `findMany([…])` не
+  сохраняет порядок IN-листа. Основные use-cases — ClickHouse /
+  read-replica / BigQuery-через-bridge / unmanaged tables / legacy
+  schemas без `EloquentModel` в проекте.
+
 - **Source-абстракция (фаза 3): `ArraySource` + in-memory эвалюаторы.**
 
   - **`Mercurio\Tables\Source\ArraySource`** — второй полноценный Source-драйвер
@@ -89,6 +116,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`Source::stream($chunkSize): Generator`** на месте `chunkById` —
   стрим выборки для экспорта. Для `EloquentSource` реализован через
   `lazyById($chunkSize)` (память O(chunkSize)).
+
+### Docs
+
+- **`docs/sources.md` — раздел `SqlSource`.** Use-cases (ClickHouse /
+  read-replica / unmanaged tables / legacy schemas), capabilities table,
+  пример Resource'а на `SqlSource::for(...)` с inline-Model, пример
+  override-capabilities для opt-in write-API, перечень ограничений
+  (single-column search, `SavedView::scope` отключён, `probe(): null`,
+  `findMany([…])` не сохраняет порядок IN-листа, update без
+  observer'ов / accessors / model-events) и decision-tree
+  «EloquentSource vs ArraySource vs SqlSource vs HttpSource/FileSource».
 
 ### Changed
 
