@@ -430,7 +430,9 @@ return SqlSource::for(
 4. **Внешний API / файл / другой источник?**
    - Внешний API → **`HttpSource`** (cursor-pagination + Laravel Cache +
      per-field operator whitelist; read-only by design).
-   - Файл (CSV / JSONL / NDJSON) → ждать **`FileSource`** (Phase 6+).
+   - Файл (CSV / JSONL / NDJSON) на диске → **`FileSource`** (двухрежимная
+     модель: materialized для маленьких файлов, lazy reader-generator для
+     больших; UTF-8 only; read-only by design).
 
 ### HttpSource
 
@@ -685,9 +687,284 @@ fetch обязан вернуть `total`. **Известное ограниче
     первый ограничивает что пользователь может выбрать, второй —
     что драйвер пошлёт в API, даже если Field разрешил больше.
 
-### Будущие драйверы (roadmap)
+### FileSource
 
-- **FileSource** (Phase 6) — CSV / JSONL / NDJSON с lazy reader. Использует
-  `AtomEvaluator` и `BuiltinFilterEvaluator` для in-memory фильтрации.
+Драйвер поверх локального CSV / JSONL / NDJSON файла на диске. Уникален среди
+sibling-source'ов **двухрежимной моделью**: поведение драйвера выбирается в
+ctor по `filesize($path)` против порога `materializeUnderBytes` (default 5 MB)
+и далее не меняется. Маленькие файлы читаются целиком в `Collection` —
+получаете тот же набор capabilities, что у `ArraySource`. Большие
+обрабатываются построчно через lazy reader-generator с memory O(1) — но
+`sort` / `count` становятся недоступны, а `qbRoot` пропускается.
+
+**Use-cases**:
+
+- **Audit-логи в NDJSON** (`storage/audit/events-YYYY-MM.ndjson`) — крупные
+  файлы (>5 MB), append-only, read-only; идеально на lazy режим.
+- **Batched-импорты CSV** (каталоги от поставщиков, прайс-листы, csv-дампы
+  из ETL-стейджа).
+- **Статичные дампы / справочники** (CSV / JSONL рядом с приложением — list
+  стран / валют / категорий, который проще держать в файле, чем в `config/`).
+- **Ops-dashboards** (метрики из json-line логов внешнего процесса — nginx
+  access-log в JSONL-формате, container-логи).
+- **Config-driven каталоги вне `config/`**, когда `ArraySource::for(config(...))`
+  уже не помещается в php-конфиг и хочется выгрузить его в отдельный файл.
+
+**Не использовать**, если:
+
+- Данные лежат в SQL / `EloquentModel` — берите `EloquentSource`
+  (полноценный CRUD) или `SqlSource` (read-only без модели);
+- Данные in-memory < ~10 000 строк (массив / `Collection` /
+  справочник из `config/`) — берите `ArraySource` без файла, иначе вы
+  добавляете лишний disk I/O на каждое открытие админ-списка;
+- Файл > 50 MB и нужен materialized режим — `materializeUnderBytes`
+  клампится к `MATERIALIZE_MAX_BYTES = 50_000_000` с WARN
+  `tables.source.file.file_too_large_for_materialize`. Если все ограничения
+  lazy режима неприемлемы — преобразуйте файл в SQLite и берите `SqlSource`;
+- Файлы под compression (`.csv.gz` / `.jsonl.gz`) — out of scope Phase 6;
+- Кодировка не UTF-8 — host конвертирует `iconv`-ом ДО прокидывания пути.
+
+**Capabilities по умолчанию** (зависит от режима):
+
+| Capability | Materialized | Lazy | Замечание |
+|---|---|---|---|
+| `filter` | `true` | `true` | chip-фильтры применяются построчно через `BuiltinFilterEvaluator`. |
+| `sort` | `true` | **`false`** | lazy не материализует; sort требует full scan / external sort. |
+| `search` | `true` | `true` | sub-string search по `searchableColumns` через `mb_stripos`. |
+| `count` | `true` | **`false`** | lazy → `count()` возвращает `null` (Source contract допускает). |
+| `cursor` | `false` | `false` | offset-режим в обоих случаях. |
+| `mutate` | **`false`** (hard) | **`false`** (hard) | Read-only by design. Никакой атомарной перезаписи строк CSV / JSONL в v2. |
+| `stream` | `true` (via reader) | `true` | Memory O(1) экспорт — даже в materialized stream идёт через reader-generator, не через `Collection`. |
+
+Host может передать явный {@see Capabilities}, но в lazy режиме `sort=true` /
+`count=true` / `mutate=true` будут заклампены обратно к `false` с WARN —
+lazy не может физически выполнить эти capabilities.
+
+**Пример Resource'а — CSV (materialized) — каталог товаров**:
+
+```php
+use Mercurio\Tables\Field\TextField;
+use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Source\FileSource;
+use Mercurio\Tables\Source\Source;
+
+final class CatalogResource extends ListResource
+{
+    public function key(): string
+    {
+        return 'catalog.imported';
+    }
+
+    public function source(): ?Source
+    {
+        return FileSource::csv(
+            path: storage_path('catalog/products.csv'),
+            delimiter: ';',
+            resource: $this,
+            primaryKey: 'sku',
+        );
+    }
+
+    public function fields(): array
+    {
+        return [
+            TextField::make('sku', 'SKU')->sortable()->mono(),
+            TextField::make('title', 'Название')->sortable(),
+            TextField::make('price', 'Цена')->sortable(),
+        ];
+    }
+
+    public function searchable(): array
+    {
+        return ['sku', 'title'];
+    }
+}
+```
+
+**Пример Resource'а — NDJSON (lazy) — audit log**:
+
+```php
+use Mercurio\Tables\Field\TextField;
+use Mercurio\Tables\ListResource;
+use Mercurio\Tables\Source\FileSource;
+use Mercurio\Tables\Source\Source;
+
+final class AuditLogResource extends ListResource
+{
+    public function key(): string
+    {
+        return 'audit.events';
+    }
+
+    public function source(): ?Source
+    {
+        return FileSource::ndjson(
+            path: storage_path('audit/events-'.now()->format('Y-m').'.ndjson'),
+            resource: $this,
+            primaryKey: 'event_id',
+            // Принудительно lazy режим, даже для маленьких файлов в начале месяца —
+            // у UI должно быть предсказуемое поведение по мере роста файла.
+            materializeUnderBytes: 0,
+            strictJson: true,
+        );
+    }
+
+    public function fields(): array
+    {
+        return [
+            TextField::make('event_id', 'ID')->mono(),
+            TextField::make('actor', 'Кто'),
+            TextField::make('action', 'Действие'),
+            TextField::make('created_at', 'Когда'),
+        ];
+    }
+
+    public function searchable(): array
+    {
+        return ['actor', 'action'];
+    }
+}
+```
+
+#### Materialize threshold
+
+`materializeUnderBytes` (default `5_000_000` = 5 MB) — порог переключения:
+
+- `filesize($path) <= materializeUnderBytes` → **materialized**: ctor читает
+  файл целиком в `Collection`; pipeline идёт через `BuiltinFilterEvaluator` +
+  `AtomEvaluator`; полный `ArraySource`-набор capabilities.
+- `filesize($path) > materializeUnderBytes` → **lazy**: ctor не читает файл;
+  reader-generator открывается per-call в `page()` / `find()` / `stream()`;
+  capabilities снижаются автоматически (`sort=false`, `count=false`).
+
+Host явно переключается:
+
+- `materializeUnderBytes: 0` → всегда lazy (даже для пустого файла, кроме
+  файлов размера 0 байт — там filesize=0 ≤ 0 → materialized; edge: пустой
+  файл всегда materialized, count=0, page пустой);
+- `materializeUnderBytes: PHP_INT_MAX` → попытка всегда materialize, но
+  клампится к `MATERIALIZE_MAX_BYTES = 50_000_000` (50 MB) с WARN.
+
+Эвристика 5 MB / 50 MB подобрана под типичный PHP-FPM worker с 128–256 MB
+лимитом памяти и желание держать одну страницу таблицы в пределах ~1–10%
+memory budget'а.
+
+#### Encoding
+
+Phase 6 поддерживает **только UTF-8**:
+
+- CSV: BOM `\xEF\xBB\xBF` автоматически стрипается с первой колонки header'а
+  (либо с первой строки данных, если `columns` передан явно).
+- JSONL: BOM стрипается с первой строки.
+- Прочие кодировки (CP1251, Windows-1252, Latin-1) **не поддерживаются**.
+  Host конвертирует файл `iconv`-ом перед прокидыванием пути:
+
+  ```bash
+  iconv -f WINDOWS-1251 -t UTF-8 catalog.cp1251.csv > catalog.utf8.csv
+  ```
+
+#### Pipeline re-read (известный trade-off)
+
+В materialized режиме `withQuery()` пробрасывает уже-filtered `Collection`
+в новый instance через приватный ctor-param, **но** factory-вызов
+(`FileSource::csv(...)` без `$rows`) каждый раз читает файл с нуля. Если
+host вызывает `Resource::source()` несколько раз за один HTTP-запрос
+(UI + bulk + counters + cell-edit), без memoize'а в `ListResource` файл
+прочитается N раз.
+
+Phase 6 не вводит class-static cache (lifetime-issues и memory-issues между
+запросами в long-running worker'ах). Host **обязан** memoize FileSource-инстанс
+per request:
+
+```php
+final class CatalogResource extends ListResource
+{
+    private ?Source $sourceMemo = null;
+
+    public function source(): ?Source
+    {
+        return $this->sourceMemo ??= FileSource::csv(
+            path: storage_path('catalog/products.csv'),
+            resource: $this,
+        );
+    }
+}
+```
+
+#### JSONL strict mode
+
+`strictJson` (default `true`) контролирует поведение reader'а при невалидной
+строке:
+
+- `strictJson: true` — `LogicException` (через `JSON_THROW_ON_ERROR`) с номером
+  строки в сообщении. В **materialized** режиме exception падает в ctor →
+  host обязан обернуть `FileSource::jsonl(...)` в `try/catch` в `source()`.
+  В **lazy** режиме exception падает per-call (на первом `page()` / `find()` /
+  `stream()`, который дошёл до битой строки) — UI получает 500 на конкретный
+  запрос.
+- `strictJson: false` — WARN `tables.source.file.read.invalid_json_line` +
+  skip row. Толерантный режим для дампов внешнего происхождения.
+
+**Рекомендация**:
+
+- `strict=true` для известно-валидных audit-логов в lazy режиме (host сам
+  контролирует source и сразу замечает повреждение).
+- `strict=false` для materialized дампов внешнего происхождения (CSV-импорт
+  через ETL, NDJSON из сторонней системы) — читайте
+  `tables.source.file.read.invalid_json_line` WARN'ы и санитизируйте ДО
+  следующего рендера.
+
+#### Ограничения
+
+1. **Read-only by design.** `Capabilities::mutate = false` — hard-denied,
+   без override. `update($id, $changes)` логирует WARN
+   `tables.source.file.mutate_denied` и бросает `LogicException`. Никакой
+   атомарной перезаписи строк CSV/JSONL в v2 (это требует полного rewrite
+   файла; outside of scope Phase 6).
+2. **Только UTF-8.** BOM auto-strip в CSV/JSONL; не-UTF-8 кодировки host
+   конвертирует `iconv`-ом ДО прокидывания пути.
+3. **Compression** (`.csv.gz` / `.jsonl.gz`) — out of scope Phase 6 (PHP
+   `gzopen` + wrapped stream — отдельная reader-абстракция; пост-v2 при
+   появлении пользовательского use-case).
+4. **`qbRoot` (`?qb=` AST) поддерживается только в materialized режиме.**
+   В lazy режиме — `Log::warning('tables.source.file.qb_unsupported_in_lazy_mode')`
+   + `qbRoot` зануляется в клоне Query перед фильтрацией. Если QB-tree нужен —
+   уменьшите файл или повысьте `materializeUnderBytes`.
+5. **`sort` недоступен в lazy режиме.** Capabilities автоматически снижаются
+   (`sort=false`); если host передал `Capabilities(sort: true)` — клампится
+   обратно с WARN. Используйте materialized режим или примиритесь с file-order.
+6. **`count() = null` в lazy режиме.** Source contract допускает; UI пагинатор
+   переключается в offset-режим без `total`/делегата — кнопки навигации
+   `«← / →»` недоступны (Page строится с `delegate: null` и `total: null`;
+   известное ограничение для v2, как у `HttpSource` offset-mode без делегата).
+7. **`stream()` всегда идёт через reader-generator (даже в materialized).**
+   `qbRoot` и `sort` в `stream()` **не применяются** ни в одном режиме —
+   explicit trade-off в пользу memory O(1) экспорта. Если export должен
+   соответствовать активному sort'у — экспортируйте уже отсортированную
+   страницу или materialized-режим с custom export-path'ом.
+8. **`SavedView::scope` задисейблен.** Обе формы (`scope(string $modelScopeName)`
+   и `query(Closure(Builder))`) — Eloquent-only, пропускаются с WARN
+   `tables.source.file.saved_view_scope_unsupported`. Используйте source-agnostic
+   альтернативы: `SavedView::conditions(array<FilterCondition>)` и
+   `SavedView::sourceClosure(Closure(Source): Source)`.
+9. **`probe(): null`** — нет Eloquent-модели; type-based authz пакетный не
+   работает. Host реализует `Field::canSee` / `RowAction::canRun` вручную.
+10. **Field-aware filter-customizations** (`Field::applyFilter` /
+    `filterUsing(Closure(Builder))` / `filterScope(string)`) **не применяются** —
+    они оперируют `Eloquent\Builder` API, которого у FileSource нет.
+    Операторы идут через `BuiltinFilterEvaluator` + WARN
+    `tables.source.file.field_filter_customization_skipped` (warn-once per field).
+11. **`find()` / `findMany()` в lazy режиме делают линейный full-scan файла.**
+    После накопленных `FIND_LINEAR_SCAN_WARN_AT = 100_000` отсканированных строк
+    пишется warn-once `tables.source.file.find_linear_scan_in_lazy_mode`. Если
+    host часто резолвит rows по id — materialized режим или другой источник.
+12. **`stream()` cap'нут на `STREAM_MAX_ROWS = 10_000_000` rows** — защита
+    от runaway pipe-style device файлов; при превышении бросает
+    `LogicException`. Это твёрдый верх для v2 (не настраивается; post-v2
+    при появлении пользовательского use-case).
+13. **Path-traversal — ответственность host'а.** FileSource принимает
+    произвольный `string $path` без sanitization. Не передавайте
+    user-controlled пути (`request('path')`); используйте только known paths
+    (`storage_path(...)`, `database_path(...)`, $env-конфиг).
 
 

@@ -9,6 +9,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Mercurio\Tables\Source\FileSource`** — пятый и последний полноценный
+  Source-драйвер v2 поверх локального CSV / JSONL / NDJSON файла на диске.
+  Создаётся через статические фабрики `FileSource::for($path, ?$format)`
+  (auto-detect формата по расширению — `.csv` → CSV, `.jsonl`/`.ndjson` →
+  JSONL), либо shorthand'ы `FileSource::csv(...)` /
+  `FileSource::jsonl($path, bool $strictJson = true, ...)` /
+  `FileSource::ndjson(...)` (алиас `jsonl`). Уникален среди sibling-source'ов
+  **двухрежимной моделью**: поведение драйвера выбирается в ctor по
+  `filesize($path)` против порога `materializeUnderBytes` (default 5 MB) и
+  фиксируется на всё время жизни instance'а. **Materialized режим**
+  (`filesize ≤ materializeUnderBytes`): ctor читает файл целиком в
+  `Collection`; pipeline — full `ArraySource`-семантика (`BuiltinFilterEvaluator`
+  + `AtomEvaluator`); capabilities `filter / sort / search / count / stream = true`,
+  `cursor = false`, `mutate = false`. **Lazy режим** (`filesize > materializeUnderBytes`):
+  ctor не читает файл; reader-generator открывается per-call в `page()` /
+  `find()` / `stream()`; `sort = false`, `count = false` (автоматически), `qbRoot`
+  пропускается с WARN — chip-фильтры (`Query::$conditions`) и search работают
+  построчно через `BuiltinFilterEvaluator`. `withQuery(Query)` следует
+  **корректному immutable-контракту** (`clone $query` перед guard'ами; входной
+  VO не мутируется — в отличие от `HttpSource::withQuery`); в materialized
+  режиме pipeline применяется к `$this->rows` и filtered Collection пробрасывается
+  в новый instance через приватный ctor-param `$rows` (host обязан memoize
+  FileSource per request — иначе materializeFromFile() в ctor каждый раз
+  перечитает файл). `stream($chunkSize)` всегда идёт через reader-generator
+  (даже materialized — memory O(1) экспорт); `chunkSize` контролирует только
+  частоту `tables.source.file.stream.chunk` лога; safety-cap
+  `STREAM_MAX_ROWS = 10_000_000` против runaway pipe-style device-файлов
+  (превышение → `LogicException`). **Reader-абстракция** в
+  `Mercurio\Tables\Source\Support\`:
+  - `FileReader` (interface) с одним методом `read(string $path): Generator<int, array<string, mixed>>`;
+  - `CsvFileReader` — `fgetcsv` с конфигурируемыми `$delimiter` / `$enclosure` /
+    `$escape` и опциональными `$columns` (если `null` — header читается из
+    первой строки, BOM `\xEF\xBB\xBF` стрипается; mismatching column count →
+    WARN `tables.source.file.read.column_count_mismatch` + skip row);
+  - `JsonlFileReader` — `fgets` per-line + `json_decode(... assoc: true)` с
+    режимами `strictJson: true` (`JSON_THROW_ON_ERROR` → `LogicException` с
+    номером строки) и `strictJson: false` (WARN
+    `tables.source.file.read.invalid_json_line` + skip row).
+  Все reader'ы оборачивают handle в `try { yield ... } finally { fclose ... }`
+  — Generator-aware закрытие при раннем break/return консьюмера.
+  **`find($id)` / `findMany($ids)`** в materialized — pattern из `ArraySource`
+  (Collection + `RowValueExtractor`); в lazy — линейный full-scan reader'а
+  с warn-once `tables.source.file.find_linear_scan_in_lazy_mode` после
+  пересечения `FIND_LINEAR_SCAN_WARN_AT = 100_000` накопленных сканов
+  (per instance). `findMany` сохраняет порядок входных ids (`$byId[(string)id]`
+  индексация). **`update()` всегда** бросает `LogicException` + WARN
+  `tables.source.file.mutate_denied` (read-only by design; никакой атомарной
+  перезаписи строк CSV/JSONL в v2). **`getRows()`** `@internal` — для
+  `SavedViewCountsCalculator` universal-path: materialized → `$this->rows`;
+  lazy → `LogicException` + WARN `tables.source.file.get_rows_unavailable_in_lazy_mode`
+  (SavedViewCountsCalculator пропускает per-view counts для lazy инстансов).
+  Ограничения: **только UTF-8** (BOM auto-strip в CSV/JSONL; host конвертирует
+  не-UTF-8 `iconv`-ом ДО); compression (`.csv.gz` / `.jsonl.gz`) out of scope
+  Phase 6; `qbRoot` поддерживается только в materialized; `sort` недоступен
+  в lazy (capabilities автоматически снижаются); `count = null` в lazy
+  (UI пагинатор переключается в offset-режим без `total` / делегата —
+  кнопки навигации null); `stream()` не применяет `qbRoot` / `sort` ни в одном
+  режиме (explicit trade-off для memory O(1) экспорта); `SavedView::scope`
+  задисейблен (используйте source-agnostic `conditions()` / `sourceClosure()`);
+  `probe(): null`; Field-aware customizations (`filterUsing` / `filterScope`)
+  skip + WARN (warn-once per field); path-traversal — ответственность host'а
+  (FileSource не делает sanitization). Safety-cap'ы: `MATERIALIZE_MAX_BYTES = 50_000_000`
+  (materializeUnderBytes клампится с WARN), `STREAM_MAX_ROWS = 10_000_000`,
+  `FIND_LINEAR_SCAN_WARN_AT = 100_000`. Use-cases: audit-логи в NDJSON,
+  batched-импорты CSV (каталоги от поставщиков), статичные дампы /
+  справочники, ops-dashboards (метрики из json-line логов), config-driven
+  каталоги вне `config/`.
+
 - **`Mercurio\Tables\Source\HttpSource`** — четвёртый полноценный Source-драйвер
   пакета поверх произвольного внешнего HTTP API через декларативный
   fetch-closure. Создаётся через статический фабричный метод

@@ -12,9 +12,10 @@ use Generator;
  * - {@see ArraySource} (in-memory Collection / iterable; read-only by default);
  * - {@see SqlSource} (произвольный DB::connection через inline-Model; read-only by default);
  * - {@see HttpSource} (внешний HTTP API через декларативный fetch-closure;
- *   cursor primary, кэширование, read-only by design).
- *
- * Будущие фазы: FileSource (CSV/JSONL/NDJSON с lazy reader, Phase 6+).
+ *   cursor primary, кэширование, read-only by design);
+ * - {@see FileSource} (локальный CSV / JSONL / NDJSON файл с двухрежимной
+ *   моделью — materialized для маленьких файлов и lazy reader-generator для
+ *   больших; read-only by design).
  */
 interface Source
 {
