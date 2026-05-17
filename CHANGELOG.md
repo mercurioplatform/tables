@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-05-17
+
+### Breaking Changes
+
+- **`ListResource::exportState(): array{source: Source, …}`** — shape
+  массива изменён, старый ключ `builder: Builder` **удалён**. Хосты,
+  читавшие `$state['builder']`, должны перейти на `$state['source']`
+  напрямую (или, как временный путь для Eloquent-кейсов, на
+  `$state['source']->getBuilder()` для `EloquentSource`). Это единственное
+  жёсткое breaking-изменение в публичном API; все остальные старые
+  контракты (`ListResource::query()`, `ResourceTable::$paginator`,
+  `SavedView::scope`/`query`, `SavedView::all()`) продолжают работать
+  через deprecation shim'ы — см. секцию `### Deprecated`.
+
+### Deprecated
+
+- **`ListResource::query(): ?Builder`** — продолжает работать через
+  `EloquentSource`-shim в `ListResource::resolveSource()` с
+  `E_USER_DEPRECATED` и info-логом
+  `tables.list_resource.query_shim_used`. Подклассы Resource-ов из
+  host-приложений менять не требуется. **Удаление shim'а — версия 3.**
+- **`ResourceTable::$paginator`** — DEPRECATED proxy через `__get`,
+  возвращает LengthAwarePaginator-compatible объект; первое обращение
+  пишет DEBUG-лог `tables.resource_table.paginator_legacy_access`.
+  Замените на `$table->page` (VO `Page` с offset/cursor режимами).
+  **Удаление proxy — версия 3.**
+- **`SavedView::scope(string)`** — остаётся EloquentSource-only;
+  для source-agnostic перейдите на `SavedView::conditions(...)` или
+  `SavedView::sourceClosure(...)`. Runtime-исключение для не-Eloquent
+  Source-драйверов появится в Phase 3+ (внутренний номер фазы; не
+  привязано к версии 3).
+
 ### Added
 
 - **`Mercurio\Tables\Source\FileSource`** — пятый и последний полноценный
@@ -224,6 +256,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- **`examples/` — GitHub-only demo bundle на 5 Source-адаптеров.** Шесть
+  `ListResource`-классов (`EloquentSourceDemo`, `ArraySourceDemo`,
+  `SqlSourceDemo`, `HttpSourceDemo`, `FileSourceCsvDemo`,
+  `FileSourceJsonlDemo`), fixtures (`currencies.csv` — 32 строки,
+  `instruments.jsonl` — 32 объекта), route-snippet с alternative
+  auth-блоком, миграция `tables_demo_orders` и сидер на 44 строки.
+  Vendor-isolation: каталог `examples/` исключён из публикуемого
+  tarball'а через `.gitattributes export-ignore` и
+  `composer.json#archive.exclude` — на Packagist уезжают только
+  `src/`, `config/`, `database/`, `resources/` и top-level
+  README/LICENSE/CHANGELOG/composer.json. Подробный разбор каждого
+  demo и decision-tree «какой Source выбрать?» в `docs/examples.md`,
+  быстрый copy-paste — в `examples/README.md`. Секция «Examples» в
+  главном README ссылается на GitHub-каталог.
+
 - **`docs/sources.md` — раздел `SqlSource`.** Use-cases (ClickHouse /
   read-replica / unmanaged tables / legacy schemas), capabilities table,
   пример Resource'а на `SqlSource::for(...)` с inline-Model, пример
@@ -234,23 +281,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   «EloquentSource vs ArraySource vs SqlSource vs HttpSource/FileSource».
 
 ### Changed
-
-- **`ListResource::query(): ?Builder` — DEPRECATED.** Старый контракт
-  продолжает работать v2-сессии через `EloquentSource`-shim (с
-  `E_USER_DEPRECATED` и info-логом `tables.list_resource.query_shim_used`).
-  Подклассы Resource-ов из host-приложений менять не требуется. Удаление
-  shim'а — версия 3.
-
-- **`ListResource::exportState(): array{source: Source, …}`** — было
-  `array{builder: Builder, …}`. Хосты, читающие `$state['builder']`,
-  должны перейти на `$state['source']` (или, как временный путь, на
-  `$state['source']->getBuilder()` для `EloquentSource`).
-
-- **`ResourceTable::$paginator` — DEPRECATED proxy.** Чтение
-  `$table->paginator` продолжает возвращать LengthAwarePaginator-compatible
-  объект через `__get`, но первое обращение пишет DEBUG-лог
-  `tables.resource_table.paginator_legacy_access`. Замените на
-  `$table->page`. Удаление proxy — версия 3.
 
 - **`Row/Bulk/Cell-edit` handlers + `ActionLogHandler` undo-probe** —
   переехали на `Source::find()` / `Source::update()` / `Source::probe()`.
