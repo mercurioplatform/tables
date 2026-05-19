@@ -96,6 +96,7 @@ final class SqlSource implements Source
             cursor: false,
             mutate: false,
             stream: true,
+            qbTree: true,
         );
     }
 
@@ -108,15 +109,6 @@ final class SqlSource implements Source
         $this->applyConditions($cloned, $query);
         $this->applyQb($cloned, $query);
         $this->applySort($cloned, $query);
-
-        Log::debug('tables.source.sql.with_query', [
-            'resource' => $this->resource?->key(),
-            'search' => $query->search !== null,
-            'conditions' => count($query->conditions),
-            'qb' => $query->qbRoot !== null,
-            'sort' => $query->sortField,
-            'saved_view' => $query->savedViewKey,
-        ]);
 
         return new self($cloned, $this->capabilities ?? $this->capabilities(), $this->resource);
     }
@@ -134,13 +126,6 @@ final class SqlSource implements Source
 
         \assert($delegate instanceof LengthAwarePaginator);
 
-        Log::debug('tables.source.sql.page', [
-            'resource' => $this->resource?->key(),
-            'page' => $delegate->currentPage(),
-            'per_page' => $delegate->perPage(),
-            'total' => $delegate->total(),
-        ]);
-
         return new Page(
             rows: $delegate->items(),
             total: $delegate->total(),
@@ -152,11 +137,6 @@ final class SqlSource implements Source
 
     public function stream(int $chunkSize): Generator
     {
-        Log::debug('tables.source.sql.stream.start', [
-            'resource' => $this->resource?->key(),
-            'chunk_size' => $chunkSize,
-        ]);
-
         foreach ((clone $this->builder)->lazyById($chunkSize) as $row) {
             yield $row;
         }
@@ -165,12 +145,6 @@ final class SqlSource implements Source
     public function find(int|string $id): mixed
     {
         $result = (clone $this->builder)->whereKey($id)->first();
-
-        Log::debug('tables.source.sql.find', [
-            'resource' => $this->resource?->key(),
-            'id' => $id,
-            'hit' => $result !== null,
-        ]);
 
         return $result;
     }
@@ -182,12 +156,6 @@ final class SqlSource implements Source
         }
 
         $rows = (clone $this->builder)->whereKey($ids)->get()->all();
-
-        Log::debug('tables.source.sql.find_many', [
-            'resource' => $this->resource?->key(),
-            'requested' => count($ids),
-            'found' => count($rows),
-        ]);
 
         return $rows;
     }
@@ -206,12 +174,6 @@ final class SqlSource implements Source
         }
 
         (clone $this->builder)->whereKey($id)->update($changes);
-
-        Log::debug('tables.source.sql.update.ok', [
-            'resource' => $this->resource?->key(),
-            'id' => $id,
-            'columns' => array_keys($changes),
-        ]);
 
         return (clone $this->builder)->whereKey($id)->first();
     }

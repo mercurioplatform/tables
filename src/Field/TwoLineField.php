@@ -52,6 +52,21 @@ class TwoLineField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'two_line';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'sub_mono' => $this->subMono,
+            'empty_text' => $this->emptyText,
+            'main_using_closure' => $this->main !== null,
+            'sub_using_closure' => $this->sub !== null,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $mainText = $this->main !== null

@@ -6,14 +6,13 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\UrlWindow;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Унифицированный результат пагинации, замещающий {@see LengthAwarePaginator}.
  *
  * Два режима:
  * - **offset** ($total !== null) — традиционная пагинация по номерам страниц.
- *   В Phase 1 EloquentSource всегда возвращает offset Page с приложенным
+ *   EloquentSource всегда возвращает offset Page с приложенным
  *   $delegate ({@see LengthAwarePaginator}), на который форвардятся
  *   LengthAwarePaginator-совместимые методы для рендера Blade-шаблонов.
  * - **cursor** ($total === null) — opt-in для HTTP/файловых sources без count.
@@ -229,10 +228,6 @@ final class Page
         if ($name === 'total') {
             return $this->total();
         }
-
-        Log::debug('tables.page.unknown_property_access', [
-            'property' => $name,
-        ]);
 
         return null;
     }

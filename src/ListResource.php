@@ -12,10 +12,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\RowAction;
+use Mercurio\Tables\Api\ApiConfig;
+use Mercurio\Tables\Api\ApiQueryParser;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\Operator;
 use Mercurio\Tables\Filter\Qb\AtomCondition;
 use Mercurio\Tables\Filter\Qb\AtomGroup;
+use Mercurio\Tables\Http\Controllers\JsonApiController;
 use Mercurio\Tables\Page\Breadcrumb;
 use Mercurio\Tables\Page\EmptyState;
 use Mercurio\Tables\Page\HeaderAction;
@@ -77,10 +80,6 @@ abstract class ListResource
                 ),
                 E_USER_DEPRECATED,
             );
-
-            Log::info('tables.list_resource.query_shim_used', [
-                'resource' => $this->key(),
-            ]);
 
             return new EloquentSource($legacy, $this);
         }
@@ -313,6 +312,57 @@ abstract class ListResource
         return null;
     }
 
+    /**
+     * Опциональный конфиг JSON API-поверхности (см. `Route::tablesApi(...)`).
+     *
+     * Default — `ApiConfig::make()` с sensible defaults:
+     * `allowFields` / `allowSavedViews` — sentinel `null`, резолвится в
+     * {@see self::resolveApiConfig()} через `fieldsMemo()` / `savedViewsMemo()`.
+     * `allowMutations=false` — read-only из коробки; write активируется
+     * `->allowMutations(true)`.
+     */
+    public function api(): ApiConfig
+    {
+        return ApiConfig::make();
+    }
+
+    /**
+     * Финальный (memo-кэшированный) ApiConfig с резолвленными sentinel'ами.
+     *
+     * Если `allowFields === null` в декларации `api()`, метод резолвит его
+     * через `array_map(fn (Field $f) => $f->name, $this->fieldsMemo())`.
+     * То же для `allowSavedViews` через `savedViewsMemo()`.
+     *
+     * Используется {@see JsonApiController}
+     * и {@see ApiQueryParser}.
+     */
+    final public function resolveApiConfig(): ApiConfig
+    {
+        if ($this->cachedApiConfig !== null) {
+            return $this->cachedApiConfig;
+        }
+
+        $config = $this->api();
+
+        if ($config->getAllowFields() === null) {
+            $fieldNames = array_map(
+                fn (Field $f) => $f->name,
+                $this->fieldsMemo(),
+            );
+            $config = $config->allowFields($fieldNames);
+        }
+
+        if ($config->getAllowSavedViews() === null) {
+            $savedViewKeys = array_map(
+                fn (SavedView $v) => $v->key,
+                $this->savedViewsMemo(),
+            );
+            $config = $config->allowSavedViews($savedViewKeys);
+        }
+
+        return $this->cachedApiConfig = $config;
+    }
+
     public function emptyState(): ?EmptyState
     {
         return null;
@@ -388,6 +438,8 @@ abstract class ListResource
 
     /** @var array<int, RowAction>|null */
     private ?array $cachedRowActions = null;
+
+    private ?ApiConfig $cachedApiConfig = null;
 
     /**
      * @return array<int, Field>

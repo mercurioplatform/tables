@@ -11,10 +11,10 @@ use Mercurio\Tables\Source\Support\RowValueExtractor;
  *
  * Семантически эквивалентен {@see QueryBuilderApplier} (Eloquent), но работает
  * над одной row-value парой и возвращает `bool`. Reused by:
- * - {@see ArraySource} — Phase 3.
- * - `HttpSource` (Phase 5) — client-side fallback для колонок, которые API не
+ * - {@see ArraySource}.
+ * - `HttpSource` — client-side fallback для колонок, которые API не
  *   умеет фильтровать на сервере.
- * - `FileSource` (Phase 6) — CSV/JSONL.
+ * - `FileSource` — CSV/JSONL.
  *
  * **Field-aware customizations не поддерживаются.** В Eloquent-стеке
  * `QueryBuilderApplier::apply()` принимает `$resource` и пускает atom'ы через
@@ -24,9 +24,6 @@ use Mercurio\Tables\Source\Support\RowValueExtractor;
  * built-in operator semantics ({@see BuiltinFilterEvaluator}). ArraySource при
  * detection кастомизации пишет один WARN per-field
  * (`array_source.field_filter_customization_skipped`).
- *
- * Без `Log::debug` в hot-path: `matches()` вызывается N×rows на render и
- * мог бы залить лог при больших коллекциях.
  */
 final class AtomEvaluator
 {

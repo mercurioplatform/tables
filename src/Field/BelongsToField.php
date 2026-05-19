@@ -96,6 +96,20 @@ class BelongsToField extends Field
         return true;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'belongs_to';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'relation' => $this->relation,
+            'display_key' => $this->displayKey,
+            'foreign_key' => $this->foreignKey ?? ($this->name.'_id'),
+        ];
+    }
+
     public function isFilterMultiple(?Operator $op = null): bool
     {
         if ($op === null) {

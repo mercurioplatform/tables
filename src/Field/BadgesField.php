@@ -35,6 +35,20 @@ class BadgesField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'badges';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'subtle' => $this->subtle,
+            'gap' => $this->gap,
+            'using_closure' => $this->using !== null,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $badges = $this->using !== null

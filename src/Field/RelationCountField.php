@@ -45,6 +45,21 @@ class RelationCountField extends NumberField
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'relation_count';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return array_merge(parent::defaultFormatHints(), [
+            'plural' => $this->plural,
+            'with_label' => $this->withLabel,
+            'icon_before' => $this->iconBefore,
+            'empty_as_dash' => $this->emptyAsDash,
+        ]);
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if (($value === null || (int) $value === 0) && $this->emptyAsDash) {

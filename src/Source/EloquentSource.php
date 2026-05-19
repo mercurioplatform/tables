@@ -19,7 +19,7 @@ use Throwable;
 /**
  * Source-адаптер поверх Eloquent\Builder.
  *
- * В Phase 1 — единственная реализация {@see Source}. Сохраняет всю
+ * Базовая реализация {@see Source}. Сохраняет всю
  * существующую SQL-семантику: chip-фильтры (через Field-aware customizations:
  * applyFilter/Using/Scope + built-in fallback), Query Builder AST (?qb=…),
  * search через LIKE по searchable() колонкам, SavedView-scope (model-scope
@@ -51,6 +51,7 @@ final class EloquentSource implements Source
             cursor: false,
             mutate: true,
             stream: true,
+            qbTree: true,
         );
     }
 
@@ -63,15 +64,6 @@ final class EloquentSource implements Source
         $this->applyConditions($cloned, $query);
         $this->applyQb($cloned, $query);
         $this->applySort($cloned, $query);
-
-        Log::debug('tables.source.eloquent.with_query', [
-            'resource' => $this->resource?->key(),
-            'search' => $query->search !== null,
-            'conditions' => count($query->conditions),
-            'qb' => $query->qbRoot !== null,
-            'sort' => $query->sortField,
-            'saved_view' => $query->savedViewKey,
-        ]);
 
         return new self($cloned, $this->resource);
     }
@@ -89,13 +81,6 @@ final class EloquentSource implements Source
 
         \assert($delegate instanceof LengthAwarePaginator);
 
-        Log::debug('tables.source.eloquent.page', [
-            'resource' => $this->resource?->key(),
-            'page' => $delegate->currentPage(),
-            'per_page' => $delegate->perPage(),
-            'total' => $delegate->total(),
-        ]);
-
         return new Page(
             rows: $delegate->items(),
             total: $delegate->total(),
@@ -109,11 +94,6 @@ final class EloquentSource implements Source
 
     public function stream(int $chunkSize): Generator
     {
-        Log::debug('tables.source.eloquent.stream.start', [
-            'resource' => $this->resource?->key(),
-            'chunk_size' => $chunkSize,
-        ]);
-
         // lazyById даёт memory O(chunkSize): внутри chunkById,
         // снаружи — обычный foreach без материализации полной выборки.
         foreach ((clone $this->builder)->lazyById($chunkSize) as $row) {
@@ -125,12 +105,6 @@ final class EloquentSource implements Source
     {
         $result = (clone $this->builder)->whereKey($id)->first();
 
-        Log::debug('tables.source.eloquent.find', [
-            'resource' => $this->resource?->key(),
-            'id' => $id,
-            'hit' => $result !== null,
-        ]);
-
         return $result;
     }
 
@@ -141,12 +115,6 @@ final class EloquentSource implements Source
         }
 
         $rows = (clone $this->builder)->whereKey($ids)->get()->all();
-
-        Log::debug('tables.source.eloquent.find_many', [
-            'resource' => $this->resource?->key(),
-            'requested' => count($ids),
-            'found' => count($rows),
-        ]);
 
         return $rows;
     }
@@ -174,12 +142,6 @@ final class EloquentSource implements Source
             }
 
             $model->update($changes);
-
-            Log::debug('tables.source.eloquent.update.ok', [
-                'resource' => $this->resource?->key(),
-                'id' => $id,
-                'columns' => array_keys($changes),
-            ]);
 
             return $model->fresh();
         });

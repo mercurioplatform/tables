@@ -219,7 +219,9 @@ return [
     |                       Mercurio\Tables\Export\ExportJobDispatcher.
     |                       Engine calls dispatch() when total > sync_limit.
     |                       null = no async fallback (engine returns 413).
-    |   - log_chunks:       emit Log::debug per chunk (verbose, off by default).
+    |   - log_chunks:       passes a per-chunk callback to the deprecated
+    |                       CsvStreamWriter::stream() when host injects a logger
+    |                       Closure (verbose, off by default).
     |   - button_label:     label of the Export button in filter-bar:right.
     |   - button_icon:      Bootstrap Icons class for the button.
     |

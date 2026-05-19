@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -28,7 +27,6 @@ return new class extends Migration
             $table->unique(['resource_key', 'key', 'user_id'], 'tsv_resource_key_user_unique');
         });
 
-        Log::debug('migration.tables_saved_views.up', ['table' => 'tables_saved_views']);
     }
 
     public function down(): void

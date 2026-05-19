@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Table;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\FilterPipeline;
 use Mercurio\Tables\Filter\Qb\QueryBuilderNormalizer;
@@ -70,14 +69,6 @@ final class TableBuilder
             'tables.saved_view.source_closure_applied',
         );
         $resultPage = $appliedSource->page($page, $effectivePerPage);
-
-        Log::debug('tables.table_builder.built', [
-            'resource' => $resource->key(),
-            'page' => $resultPage->currentPage(),
-            'per_page' => $resultPage->perPage(),
-            'total' => $resultPage->total(),
-            'is_cursor' => $resultPage->isCursor(),
-        ]);
 
         $qbRoot = $applied['qbRoot'];
         $qbVo = $qbRoot !== null
@@ -193,12 +184,6 @@ final class TableBuilder
             }
 
             $source = ($sv->sourceClosure)($source);
-
-            Log::debug($logKey, [
-                'resource' => $resourceKey,
-                'view' => $sv->key,
-                'source_class' => $source::class,
-            ]);
 
             break;
         }

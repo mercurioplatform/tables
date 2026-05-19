@@ -406,7 +406,7 @@ return new ActionResult(
 
 - `Mercurio\Tables\View\SavedView` — VO. Конструкторы:
   - `::all(string $label = 'Все')` — без фильтрации.
-  - `::scope(string $key, string $label, string $modelScopeName)` — **EloquentSource-only**. Имя model-scope'а (например, `'archived'` → `$builder->archived()`). Применяется в `EloquentSource::applySavedView()`; для не-Eloquent Source-драйверов (Phase 3+) приведёт к runtime-исключению.
+  - `::scope(string $key, string $label, string $modelScopeName)` — **EloquentSource-only**. Имя model-scope'а (например, `'archived'` → `$builder->archived()`). Применяется в `EloquentSource::applySavedView()`; для не-Eloquent Source-драйверов приведёт к runtime-исключению.
   - `::query(string $key, string $label, \Closure $closure)` — **EloquentSource-only**. `Closure(\Illuminate\Database\Eloquent\Builder): void`.
   - `::conditions(string $key, string $label, array<int, \Mercurio\Tables\Filter\FilterCondition> $conditions)` — **source-agnostic**. Условия сливаются с user-chip-фильтрами в `Query.conditions` и применяются Source-драйвером единообразно. Используется для tab'ов вида «Paid», «Active», «Archived» без привязки к Eloquent.
   - `::sourceClosure(string $key, string $label, \Closure $closure)` — **source-agnostic**. `Closure(\Mercurio\Tables\Source\Source): \Mercurio\Tables\Source\Source` — преобразует Source после `withQuery`. TableBuilder применяет в `build()` и `buildForExport()`. В counts unsupported (skip + debug-log).
@@ -546,17 +546,17 @@ interface Source
 автоматически прячут UI-элементы и блокируют server-эндпоинты, для которых нет
 поддержки.
 
-Таблица деградации (полный набор реализован в Phase 2):
+Таблица деградации:
 
 | Capability flag | Эффект в UI                                                                                                                                                  | Эффект на server                                                                                                                                                |
 |---|---|---|
-| `mutate = false` | bulk-bar / row-actions / cell-edit / select-all checkbox / row-checkbox / action-log trigger в shell-header — скрыты в Blade.                                | `BulkActionHandler::dispatch()`, `RowActionHandler::dispatch()`, `ActionLogHandler::undo()` отвечают `422 {"message": tables::shell.mutate_denied}` + WARN-лог. `CellUpdateHandler::handle()` и `ExportHandler::handle()` уже защищены в Phase 1. |
+| `mutate = false` | bulk-bar / row-actions / cell-edit / select-all checkbox / row-checkbox / action-log trigger в shell-header — скрыты в Blade.                                | `BulkActionHandler::dispatch()`, `RowActionHandler::dispatch()`, `ActionLogHandler::undo()` отвечают `422 {"message": tables::shell.mutate_denied}` + WARN-лог. `CellUpdateHandler::handle()` и `ExportHandler::handle()` тоже защищены capabilities-gate'ом. |
 | `sort = false`   | `<th>` рендерится как plain text — без `<a>` и arrow-icon'ов. Hidden inputs `name="sort"`/`name="dir"` в filter-bar не выводятся.                            | `SortResolver` в Source-pipeline продолжает работать (Source-драйвер сам решает, как / поддерживать ли).                                                        |
 | `search = false` | `<input name="q">` в filter-bar (flat + grouped) не выводится.                                                                                               | `Query.search` всё равно может быть передан; Source-драйвер игнорирует или возвращает ошибку.                                                                   |
-| `stream = false` | Export-кнопка скрыта (нет `data-tables-export`).                                                                                                             | `ExportHandler` (Phase 1) уже возвращает `422` если `Source::capabilities()->stream === false`.                                                                 |
+| `stream = false` | Export-кнопка скрыта (нет `data-tables-export`).                                                                                                             | `ExportHandler` возвращает `422` если `Source::capabilities()->stream === false`.                                                                               |
 | `count = false`  | Атрибут `data-tables-total` не выводится в `<x-tables::page>` и `<x-tables::table-root>`. JS может отличить «unknown total» (`null`) от «нет записей» (`0`). | `Page::isCursor() === true`, `total = null`. Blade-пагинатор автоматически переходит в prev/next-cursor mode (см. ниже).                                        |
-| `cursor = true`  | Blade-пагинатор `tables::pagination-bs5` уже рендерит «← / →» без номеров страниц (Phase 1).                                                                 | Source-драйвер обязан возвращать `Page` с `nextCursor`/`prevCursor`.                                                                                            |
-| `filter = false` | (Phase 3+) Source-драйвер обязан игнорировать `Query.conditions` / `Query.qbRoot`.                                                                           | `FilterPipeline` всё ещё собирает их.                                                                                                                           |
+| `cursor = true`  | Blade-пагинатор `tables::pagination-bs5` рендерит «← / →» без номеров страниц.                                                                                | Source-драйвер обязан возвращать `Page` с `nextCursor`/`prevCursor`.                                                                                            |
+| `filter = false` | Source-драйвер обязан игнорировать `Query.conditions` / `Query.qbRoot`.                                                                                       | `FilterPipeline` всё ещё собирает их.                                                                                                                           |
 
 Server-side guards для `mutate=false` отвечают `422` с локализованным
 сообщением `tables::shell.mutate_denied` («Источник данных не поддерживает
@@ -564,7 +564,7 @@ Server-side guards для `mutate=false` отвечают `422` с локали�
 
 ### Source-agnostic saved views
 
-С Phase 2 `SavedView` поддерживает три формы фильтрации, две из которых
+`SavedView` поддерживает три формы фильтрации, две из которых
 работают на любом Source-драйвере, а не только EloquentSource:
 
 - **`SavedView::scope(string $key, string $label, string $modelScopeName)`** —

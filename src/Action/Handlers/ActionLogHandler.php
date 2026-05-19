@@ -63,13 +63,6 @@ class ActionLogHandler
             perPage: $perPage,
         );
 
-        Log::debug('tables.action_log.page_built', [
-            'resource' => $resource->key(),
-            'page' => $page,
-            'per_page' => $perPage,
-            'total' => $total,
-        ]);
-
         return response()->view('tables::action-log', [
             'resource' => $resource,
             'paginator' => $paginator,

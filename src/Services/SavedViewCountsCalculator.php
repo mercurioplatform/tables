@@ -58,11 +58,6 @@ final class SavedViewCountsCalculator
                 // sourceClosure работает на уровне Source-instance после
                 // withQuery — здесь, в SQL-UNION-композиции, его применить
                 // нельзя. Соответствующий counts[view] просто не появится.
-                Log::debug('tables.saved_view.counts_unsupported_source_closure', [
-                    'resource' => $resource->key(),
-                    'view' => $view->key,
-                ]);
-
                 continue;
             }
 
@@ -107,8 +102,8 @@ final class SavedViewCountsCalculator
     }
 
     /**
-     * Универсальный путь для не-Eloquent Source-драйверов (ArraySource в Phase 3,
-     * HttpSource в Phase 5, FileSource в Phase 6). N+1 проходов по
+     * Универсальный путь для не-Eloquent Source-драйверов (ArraySource,
+     * HttpSource, FileSource). N+1 проходов по
      * `$source->withQuery($svQuery)->count()` — приемлемо для in-memory
      * use-case (справочники <10K rows, <20 saved views).
      *
@@ -161,12 +156,6 @@ final class SavedViewCountsCalculator
             $count = $applied->count();
             $result[$view->key] = $count ?? 0;
         }
-
-        Log::debug('tables.saved_view.counts_generic_source', [
-            'resource' => $resource->key(),
-            'source' => $source::class,
-            'view_count' => count($views),
-        ]);
 
         return $result;
     }

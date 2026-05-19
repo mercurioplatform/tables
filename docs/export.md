@@ -126,9 +126,9 @@ final class TsvStreamWriter implements ExportWriter
 
 ## Логирование
 
-Только `Log::error` (Phase D minimal-logging contract). События:
+`Log::error` для unrecoverable-ошибок, `Log::warning` для denied/no-columns/too-large. События:
 
-- `tables.export.unknown_format` — неизвестный `?format=`, fallback к default.
-- `tables.export.write_failed` — исключение в writer'е (после rethrow клиент получит 500).
-- `tables.export.dispatch_failed` — falling-back async dispatcher бросил.
-- `tables.export.forbidden`/`no_columns`/`too_large` — оставлены как `Log::warning` (legacy, вне scope Phase D).
+- `tables.export.unknown_format` — неизвестный `?format=`, fallback к default (`Log::error`).
+- `tables.export.write_failed` — исключение в writer'е (после rethrow клиент получит 500) (`Log::error`).
+- `tables.export.dispatch_failed` — falling-back async dispatcher бросил (`Log::error`).
+- `tables.export.forbidden`/`no_columns`/`too_large` — `Log::warning`.

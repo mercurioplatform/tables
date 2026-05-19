@@ -13,6 +13,9 @@ use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
 use Mercurio\Tables\Action\Helpers\ActionResponseBuilder;
+use Mercurio\Tables\Api\ApiErrorCode;
+use Mercurio\Tables\Api\Exceptions\ApiValidationException;
+use Mercurio\Tables\Api\Mutate\BulkMutateResult;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\Jobs\BulkActionJob;
 use Mercurio\Tables\ListResource;
@@ -218,6 +221,311 @@ class BulkActionHandler
             isXhr: $isXhr,
             reload: $reload,
             resourceClass: $resourceClass,
+        );
+    }
+
+    /**
+     * Pure-mutate primitive: применяет bulk-action и возвращает {@see BulkMutateResult}.
+     *
+     * **Queued-path не имеет XHR-guard** — это HTML-specific concern, оставшийся
+     * в {@see self::dispatch()}. JSON-API queued-bulk возвращает 202 без
+     * каких-либо partial-заголовков.
+     *
+     * Бросает {@see ApiValidationException} с конкретным {@see ApiErrorCode}.
+     * Laravel `ValidationException` (от FormRequest при form-kind) пробрасывается
+     * наружу — JSON-API-контроллер ловит её отдельным catch'ем.
+     *
+     * @param  array<int, int|string>  $ids
+     * @param  array<string, mixed>  $payloadOverride
+     */
+    public function applyAsResult(
+        Request $request,
+        ListResource $resource,
+        string $action,
+        array $ids,
+        array $payloadOverride = [],
+    ): BulkMutateResult {
+        $resourceClass = $resource::class;
+        $bulk = $this->authorizer->findBulkAction($resource, $action);
+
+        if ($bulk === null) {
+            Log::warning('tables.api.bulk.unknown_action', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::ActionNotFound,
+                "Неизвестное действие: {$action}",
+                ['action' => $action],
+            );
+        }
+
+        $source = $resource->resolveSource();
+        if (! $source->capabilities()->mutate) {
+            Log::warning('tables.api.bulk.mutate_denied', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::CapabilityUnsupported,
+                (string) __('tables::shell.mutate_denied'),
+                ['capability' => 'mutate'],
+            );
+        }
+
+        if ($ids === []) {
+            Log::warning('tables.api.bulk.empty_ids', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::ValidationFailed,
+                'Не выбрано ни одного объекта.',
+                ['reason' => 'empty_ids'],
+            );
+        }
+
+        $kind = $bulk->getKind();
+        $isForm = $kind === 'form';
+
+        if ($bulk->hasPolicy() || $bulk->getAbility() !== null) {
+            $probe = $source->find($ids[0]);
+            if ($probe === null) {
+                Log::warning('tables.api.bulk.probe_missing', [
+                    'resource' => $resourceClass,
+                    'action' => $action,
+                    'kind' => $kind,
+                    'probe_id' => $ids[0],
+                ]);
+
+                throw new ApiValidationException(
+                    ApiErrorCode::RecordNotFound,
+                    'Запись не найдена.',
+                    ['probe_id' => $ids[0]],
+                );
+            }
+            if (! $this->authorizer->authorizeAction($bulk, $probe, 'bulk', $resource)) {
+                Log::warning('tables.api.bulk.forbidden', [
+                    'resource' => $resourceClass,
+                    'action' => $action,
+                    'kind' => $kind,
+                    'ability' => $bulk->getAbility(),
+                ]);
+
+                throw new ApiValidationException(
+                    ApiErrorCode::PolicyDenied,
+                    'Action запрещён политикой.',
+                    ['action' => $action, 'ability' => $bulk->getAbility()],
+                );
+            }
+        }
+
+        $payload = [];
+        $formRequestClass = $isForm ? $bulk->getFormRequest() : null;
+
+        if ($isForm) {
+            if ($formRequestClass !== null) {
+                // Laravel FormRequest hook валидирует автоматически при resolve;
+                // на провале ValidationException пробрасывается ВЫШЕ — контроллер
+                // ловит и транслирует в 422 с details.errors.
+                /** @var FormRequest $formRequest */
+                $formRequest = app($formRequestClass);
+                $payload = $formRequest->validated();
+            } else {
+                $resolved = $this->payloads->resolveSchemaPayload($bulk, $request, $resourceClass);
+                $payload = $resolved['payload'];
+            }
+        } else {
+            $payload = $payloadOverride !== [] ? $payloadOverride : $bulk->getPayload();
+        }
+
+        if (
+            (bool) config('tables.bulk_progress.enabled', true)
+            && $bulk->isQueued()
+            && $bulk->shouldQueueFor(count($ids))
+        ) {
+            return $this->dispatchQueuedPure(
+                resource: $resource,
+                action: $bulk,
+                name: $action,
+                ids: $ids,
+                payload: $payload,
+            );
+        }
+
+        $callback = $bulk->getCallback();
+        $handlerClass = $bulk->getHandler();
+        $mode = $bulk->hasCallback() ? 'callback' : ($handlerClass !== null ? 'handler' : 'none');
+
+        if ($mode === 'none') {
+            Log::warning('tables.api.bulk.no_handler', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::MutationFailed,
+                'Действие не настроено.',
+                ['action' => $action],
+            );
+        }
+
+        $undoSnapshot = null;
+        if ($bulk->isUndoable()) {
+            try {
+                $undoSnapshot = ($bulk->getCaptureCallback())($ids, $payload, $resource);
+            } catch (Throwable $e) {
+                Log::warning('tables.action.undo.capture_threw', [
+                    'resource' => $resourceClass,
+                    'action' => $action,
+                    'kind' => 'bulk',
+                    'error' => $e->getMessage(),
+                ]);
+                $undoSnapshot = null;
+            }
+        }
+
+        $result = null;
+        try {
+            if ($mode === 'callback') {
+                $result = $callback($ids, $payload, $this->authorizer->currentTableActor($resource));
+            } elseif ($mode === 'handler') {
+                /** @var Action $handler */
+                $handler = app($handlerClass);
+                $result = $handler->execute($ids, $payload);
+            }
+        } catch (Throwable $e) {
+            Log::error('tables.api.bulk.callback_threw', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'kind' => $kind,
+                'mode' => $mode,
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::MutationFailed,
+                'Выполнение действия завершилось с ошибкой.',
+                ['action' => $action, 'exception' => $e::class],
+            );
+        }
+
+        $undoLogId = null;
+        $affectedIds = [];
+        $counts = ['affected' => 0, 'missing' => 0, 'denied' => 0, 'skipped' => 0];
+
+        if ($result instanceof ActionResult) {
+            $counts['affected'] = $result->affected;
+            $counts['missing'] = $result->missing;
+            $counts['denied'] = $result->denied;
+            $counts['skipped'] = $result->skipped;
+
+            $undoLogId = ActionLogWriter::write(
+                resourceKey: $resource->key(),
+                actionName: $action,
+                kind: 'bulk',
+                actorId: $this->authorizer->resolveAuditActorId($resource),
+                ids: $ids,
+                payload: $payload,
+                result: $result,
+                undoSnapshot: $undoSnapshot,
+            );
+        }
+
+        return new BulkMutateResult(
+            affected: $counts['affected'],
+            missing: $counts['missing'],
+            denied: $counts['denied'],
+            skipped: $counts['skipped'],
+            progressId: null,
+            affectedIds: $affectedIds,
+            undoLogId: $undoLogId,
+        );
+    }
+
+    /**
+     * Pure queued-path для {@see self::applyAsResult()} — без XHR-guard'а.
+     *
+     * @param  array<int, int|string>  $ids
+     * @param  array<string, mixed>  $payload
+     */
+    private function dispatchQueuedPure(
+        ListResource $resource,
+        BulkAction $action,
+        string $name,
+        array $ids,
+        array $payload,
+    ): BulkMutateResult {
+        $resourceClass = $resource::class;
+        $handlerClass = $action->getHandler();
+        if ($handlerClass === null) {
+            Log::error('tables.api.bulk_progress.no_handler', [
+                'resource' => $resourceClass,
+                'action' => $name,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::MutationFailed,
+                'Действие декларировало ::queue(), но не имеет handler-класса.',
+                ['action' => $name],
+            );
+        }
+
+        $progressId = (string) Str::uuid();
+        $actorId = $this->authorizer->resolveAuditActorId($resource);
+
+        ActionProgress::create([
+            'id' => $progressId,
+            'resource_key' => $resource->key(),
+            'action_name' => $name,
+            'kind' => 'bulk',
+            'actor_id' => $actorId,
+            'status' => 'pending',
+            'total' => count($ids),
+            'processed' => 0,
+            'affected' => 0,
+            'missing' => 0,
+            'denied' => 0,
+            'skipped' => 0,
+            'affected_ids_json' => [],
+            'payload_json' => $payload,
+        ]);
+
+        $jobClass = (string) config('tables.bulk_progress.job_class', BulkActionJob::class);
+        if ($jobClass === '' || ! class_exists($jobClass)) {
+            $jobClass = BulkActionJob::class;
+        }
+
+        $queueName = $action->getQueueName();
+
+        /** @var BulkActionJob $job */
+        $job = new $jobClass(
+            resourceClass: $resourceClass,
+            actionName: $name,
+            ids: $ids,
+            payload: $payload,
+            actorId: $actorId,
+            progressId: $progressId,
+        );
+
+        if ($queueName !== null && $queueName !== '') {
+            $job->onQueue($queueName);
+        }
+
+        dispatch($job);
+
+        return new BulkMutateResult(
+            affected: 0,
+            missing: 0,
+            denied: 0,
+            skipped: 0,
+            progressId: $progressId,
+            affectedIds: [],
+            undoLogId: null,
         );
     }
 

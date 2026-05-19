@@ -44,6 +44,21 @@ class AvatarField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'avatar';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'size' => $this->size,
+            'initials_using_closure' => $this->initials !== null,
+            'name_using_closure' => $this->nameUsing !== null,
+            'email_using_closure' => $this->emailUsing !== null,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $name = $this->nameUsing !== null

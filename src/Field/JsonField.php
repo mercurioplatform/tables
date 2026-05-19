@@ -43,6 +43,20 @@ class JsonField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'json';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'pretty' => $this->pretty,
+            'max_length' => $this->maxLength,
+            'expandable' => $this->expandable,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $decoded = $this->decode($value);

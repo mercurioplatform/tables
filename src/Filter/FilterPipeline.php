@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Filter;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\Filter\Qb\AtomCondition;
 use Mercurio\Tables\Filter\Qb\AtomGroup;
@@ -67,11 +66,6 @@ final class FilterPipeline
             foreach ($savedViews as $sv) {
                 if ($sv->key === $currentView && $sv->conditions !== []) {
                     $svConditions = $sv->conditions;
-                    Log::debug('tables.saved_view.conditions_merged', [
-                        'resource' => $resource->key(),
-                        'view' => $sv->key,
-                        'merged_count' => count($sv->conditions),
-                    ]);
                     break;
                 }
             }

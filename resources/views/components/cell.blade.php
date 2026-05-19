@@ -74,12 +74,6 @@
                 $editAttrs['data-false-label'] = $field->getFalseLabel();
             }
         }
-
-        if ($field->hasLinkTo()) {
-            \Illuminate\Support\Facades\Log::debug('tables.cell.linkto_overridden', [
-                'field' => $field->name,
-            ]);
-        }
     }
 @endphp
 

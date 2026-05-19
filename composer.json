@@ -31,7 +31,8 @@
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.27",
         "openspout/openspout": "^4.26",
-        "orchestra/testbench": "^11.0"
+        "orchestra/testbench": "^11.0",
+        "phpunit/phpunit": "^11.0|^12.0|^13.0"
     },
     "suggest": {
         "openspout/openspout": "Required for XLSX export (^4.26). Install in the host project to enable `?format=xlsx`."
@@ -39,6 +40,11 @@
     "autoload": {
         "psr-4": {
             "Mercurio\\Tables\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Mercurio\\Tables\\Tests\\": "tests/"
         }
     },
     "extra": {
@@ -64,16 +70,20 @@
             "/package.json",
             "/package-lock.json",
             "/phpstan-baseline.neon",
-            "/phpstan.neon"
+            "/phpstan.neon",
+            "/phpunit.xml.dist",
+            "/.phpunit.cache"
         ]
     },
     "scripts": {
         "pint": "pint --test",
         "pint:fix": "pint",
         "phpstan": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
         "ci": [
             "@pint",
-            "@phpstan"
+            "@phpstan",
+            "@test"
         ]
     },
     "config": {

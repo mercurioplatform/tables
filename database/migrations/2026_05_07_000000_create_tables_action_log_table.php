@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,7 +23,6 @@ return new class extends Migration
             $table->index('actor_id', 'tal_actor_idx');
         });
 
-        Log::debug('migration.tables_action_log.up', ['table' => 'tables_action_log']);
     }
 
     public function down(): void

@@ -147,7 +147,7 @@ final class DocumentTypesResource extends ListResource
 #### Ограничения
 
 1. **Read-only.** `Capabilities::mutate = false`. Прямой вызов `update()`
-   бросает `LogicException`. Контроллеры Phase 2 уже возвращают 422 при
+   бросает `LogicException`. Контроллеры возвращают 422 при
    `mutate = false` — UI bulk / row-actions / cell-edit / undo скрыты.
 2. **Sort по реляционным полям.** `Collection::sortBy` через
    `RowValueExtractor` работает по dotted-path, но это требует, чтобы вложенные
@@ -239,8 +239,7 @@ observers / accessors) и собирает поверх него обычный 
   observer-driven side-effects / accessor-форматирование / relation-aware
   фильтры.
 - Нужны relation-aware search/filter (dotted `user.email`) — SqlSource не
-  поддерживает (inline-Model не имеет relations); ждать Phase 4b /
-  Phase 5+ или использовать `EloquentSource`.
+  поддерживает (inline-Model не имеет relations); используйте `EloquentSource`.
 - Нужен полноценный write-API с observer'ами / events / accessors —
   inline-Model такого не даёт; делайте `EloquentSource` поверх реальной
   модели.
@@ -563,11 +562,7 @@ HttpSource кэширует страницы через Laravel `Cache::remember
   host вызывает `Cache::forget(...)` сам или ждёт TTL.
 - **Thundering herd** — для v2 простой `Cache::remember` без `Cache::lock`;
   при cache-miss и high-concurrent traffic несколько запросов могут
-  одновременно стрелять в API. Lock через `Cache::lock(...)` — на следующую
-  фазу.
-
-Observability: каналы `tables.source.http.cache.hit` / `cache.miss` /
-`fetch.hit` / `fetch.miss` — `Log::debug`.
+  одновременно стрелять в API. Lock через `Cache::lock(...)` — рассмотрим позже.
 
 #### Operator whitelist
 
@@ -631,7 +626,7 @@ fetch обязан вернуть `total`. **Известное ограниче
    `tables.source.http.mutate_denied` и бросает `LogicException`. Host
    пишет в API через свой service-layer (отдельный controller / action /
    command), не через `Source::update()`. UI прячет bulk / row-edit /
-   cell-edit / undo через Capabilities-gating из Phase 2.
+   cell-edit / undo через Capabilities-gating.
 2. **Cursor primary; offset-mode частично функционален.** В offset-режиме
    `Page::previousPageUrl()` / `nextPageUrl()` возвращают `null` без
    `LengthAwarePaginator`-делегата. Blade-пагинатор рендерит «← / →» вместо
@@ -721,7 +716,7 @@ ctor по `filesize($path)` против порога `materializeUnderBytes` (d
   клампится к `MATERIALIZE_MAX_BYTES = 50_000_000` с WARN
   `tables.source.file.file_too_large_for_materialize`. Если все ограничения
   lazy режима неприемлемы — преобразуйте файл в SQLite и берите `SqlSource`;
-- Файлы под compression (`.csv.gz` / `.jsonl.gz`) — out of scope Phase 6;
+- Файлы под compression (`.csv.gz` / `.jsonl.gz`) — out of scope;
 - Кодировка не UTF-8 — host конвертирует `iconv`-ом ДО прокидывания пути.
 
 **Capabilities по умолчанию** (зависит от режима):
@@ -851,7 +846,7 @@ memory budget'а.
 
 #### Encoding
 
-Phase 6 поддерживает **только UTF-8**:
+FileSource поддерживает **только UTF-8**:
 
 - CSV: BOM `\xEF\xBB\xBF` автоматически стрипается с первой колонки header'а
   (либо с первой строки данных, если `columns` передан явно).
@@ -872,7 +867,7 @@ host вызывает `Resource::source()` несколько раз за оди
 (UI + bulk + counters + cell-edit), без memoize'а в `ListResource` файл
 прочитается N раз.
 
-Phase 6 не вводит class-static cache (lifetime-issues и memory-issues между
+FileSource не вводит class-static cache (lifetime-issues и memory-issues между
 запросами в long-running worker'ах). Host **обязан** memoize FileSource-инстанс
 per request:
 
@@ -920,12 +915,12 @@ final class CatalogResource extends ListResource
    без override. `update($id, $changes)` логирует WARN
    `tables.source.file.mutate_denied` и бросает `LogicException`. Никакой
    атомарной перезаписи строк CSV/JSONL в v2 (это требует полного rewrite
-   файла; outside of scope Phase 6).
+   файла; out of scope).
 2. **Только UTF-8.** BOM auto-strip в CSV/JSONL; не-UTF-8 кодировки host
    конвертирует `iconv`-ом ДО прокидывания пути.
-3. **Compression** (`.csv.gz` / `.jsonl.gz`) — out of scope Phase 6 (PHP
-   `gzopen` + wrapped stream — отдельная reader-абстракция; пост-v2 при
-   появлении пользовательского use-case).
+3. **Compression** (`.csv.gz` / `.jsonl.gz`) — out of scope (PHP
+   `gzopen` + wrapped stream — отдельная reader-абстракция; рассмотрим
+   при появлении пользовательского use-case).
 4. **`qbRoot` (`?qb=` AST) поддерживается только в materialized режиме.**
    В lazy режиме — `Log::warning('tables.source.file.qb_unsupported_in_lazy_mode')`
    + `qbRoot` зануляется в клоне Query перед фильтрацией. Если QB-tree нужен —

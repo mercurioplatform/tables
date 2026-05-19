@@ -38,7 +38,7 @@ use Mercurio\Tables\Source\Support\RowValueExtractor;
  * прячется UI'ем за счёт `Capabilities::mutate = false` ({@see EloquentSource}
  * остаётся единственным mutate-source в v2). Прямой вызов {@see self::update()}
  * бросает `LogicException` — основная защита от user-инициированных mutate-вызовов
- * уже в контроллерах Phase 2 (`0014_…phase2.md`), которые возвращают 422 при
+ * уже в контроллерах, которые возвращают 422 при
  * `capabilities()->mutate === false` ДО вызова `update()`.
  */
 final class ArraySource implements Source
@@ -76,6 +76,7 @@ final class ArraySource implements Source
             cursor: false,
             mutate: false,
             stream: true,
+            qbTree: true,
         );
     }
 
@@ -107,17 +108,6 @@ final class ArraySource implements Source
         }
 
         $next = new self($rows->values(), $this->caps, $this->primaryKey, $this->resource);
-
-        Log::debug('tables.array_source.with_query', [
-            'resource' => $this->resource?->key(),
-            'in_count' => $this->rows->count(),
-            'out_count' => $next->rows->count(),
-            'search' => $query->search !== null,
-            'conditions' => count($query->conditions),
-            'qb' => $query->qbRoot !== null,
-            'sort' => $query->sortField,
-            'saved_view' => $query->savedViewKey,
-        ]);
 
         return $next;
     }
@@ -154,14 +144,6 @@ final class ArraySource implements Source
             ],
         );
 
-        Log::debug('tables.array_source.page.built', [
-            'resource' => $this->resource?->key(),
-            'page' => $page,
-            'per_page' => $perPage,
-            'total' => $total,
-            'returned' => count($items),
-        ]);
-
         return new Page(
             rows: $items,
             total: $total,
@@ -176,12 +158,6 @@ final class ArraySource implements Source
         if ($chunkSize < 1) {
             $chunkSize = 1;
         }
-
-        Log::debug('tables.array_source.stream.start', [
-            'resource' => $this->resource?->key(),
-            'chunk_size' => $chunkSize,
-            'total' => $this->rows->count(),
-        ]);
 
         foreach ($this->rows->chunk($chunkSize) as $chunk) {
             foreach ($chunk as $row) {
@@ -207,12 +183,6 @@ final class ArraySource implements Source
 
             return $candidate !== null && (string) $candidate === (string) $id;
         });
-
-        Log::debug('tables.array_source.find', [
-            'resource' => $this->resource?->key(),
-            'id' => $id,
-            'hit' => $hit !== null,
-        ]);
 
         return $hit;
     }
@@ -244,12 +214,6 @@ final class ArraySource implements Source
             }
         }
 
-        Log::debug('tables.array_source.find_many', [
-            'resource' => $this->resource?->key(),
-            'requested' => count($ids),
-            'found' => count($result),
-        ]);
-
         return $result;
     }
 
@@ -261,7 +225,7 @@ final class ArraySource implements Source
             'columns' => array_keys($changes),
         ]);
 
-        // Final guard: контроллеры Phase 2 уже возвращают 422 при
+        // Final guard: контроллеры уже возвращают 422 при
         // `capabilities()->mutate === false` ДО вызова update(). Этот
         // exception срабатывает только при программных обходах контроллера.
         throw new LogicException('ArraySource is read-only (Capabilities::mutate=false).');
@@ -269,8 +233,7 @@ final class ArraySource implements Source
 
     public function probe(): mixed
     {
-        // Нет Eloquent-модели → null. UI fallback'ится на «показать все actions»
-        // (Phase 1, spec § Risks).
+        // Нет Eloquent-модели → null. UI fallback'ится на «показать все actions».
         return null;
     }
 

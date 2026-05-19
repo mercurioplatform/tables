@@ -44,7 +44,7 @@ use Mercurio\Tables\Source\Support\HttpFetchResult;
  * - **`qbRoot` задисейблен** (WARN `tables.source.http.qb_unsupported` + skip):
  *   HttpSource не транслирует Query Builder AST в HTTP-параметры. Используйте
  *   chip-фильтры; если QB-tree всё-таки нужен, host вытаскивает его в
- *   собственном fetch-closure (но HttpSource его не пробрасывает в Phase 5);
+ *   собственном fetch-closure (HttpSource его не пробрасывает);
  * - **`mutate` hard-denied**: `update()` бросает {@see LogicException}
  *   всегда — нет override через `Capabilities(mutate: true)`. Host пишет в API
  *   через свой service-layer, не через `Source::update()`;
@@ -83,8 +83,6 @@ final class HttpSource implements Source
     private const STREAM_MAX_ITERATIONS = 10_000;
 
     private const STREAM_MAX_YIELDED_ROWS = 1_000_000;
-
-    private bool $countWarnedInCursorMode = false;
 
     /**
      * @param  Closure(Query, ?string): array<string, mixed>  $fetch
@@ -167,15 +165,6 @@ final class HttpSource implements Source
         $this->guardSavedViewScope($query);
         $this->guardQbRoot($query);
 
-        Log::debug('tables.source.http.with_query', [
-            'resource' => $this->resource?->key(),
-            'search' => $query->search !== null,
-            'conditions' => count($query->conditions),
-            'qb' => $query->qbRoot !== null,
-            'sort' => $query->sortField,
-            'saved_view' => $query->savedViewKey,
-        ]);
-
         return new self(
             fetch: $this->fetch,
             query: $query,
@@ -194,14 +183,6 @@ final class HttpSource implements Source
     public function count(): ?int
     {
         if (! $this->capabilities()->count) {
-            if (! $this->countWarnedInCursorMode) {
-                $this->countWarnedInCursorMode = true;
-                Log::debug('tables.source.http.count_unsupported_in_cursor_mode', [
-                    'resource' => $this->resource?->key(),
-                    'reason' => 'cursor-mode source — Source::count() контракт допускает null',
-                ]);
-            }
-
             return null;
         }
 
@@ -222,15 +203,6 @@ final class HttpSource implements Source
         if (! $this->capabilities()->count) {
             $result = $this->fetchPage($this->cursor);
 
-            Log::debug('tables.source.http.page', [
-                'resource' => $this->resource?->key(),
-                'mode' => 'cursor',
-                'cursor' => $this->cursor,
-                'per_page' => $perPage,
-                'count' => count($result->rows),
-                'next_cursor' => $result->nextCursor,
-            ]);
-
             return new Page(
                 rows: $result->rows,
                 total: null,
@@ -242,15 +214,6 @@ final class HttpSource implements Source
         }
 
         $result = $this->fetchPage('offset:'.$page);
-
-        Log::debug('tables.source.http.page', [
-            'resource' => $this->resource?->key(),
-            'mode' => 'offset',
-            'page' => $page,
-            'per_page' => $perPage,
-            'total' => $result->total,
-            'count' => count($result->rows),
-        ]);
 
         return new Page(
             rows: $result->rows,
@@ -265,12 +228,6 @@ final class HttpSource implements Source
         if ($chunkSize < 1) {
             $chunkSize = 1;
         }
-
-        Log::debug('tables.source.http.stream.start', [
-            'resource' => $this->resource?->key(),
-            'chunk_size' => $chunkSize,
-            'mode' => $this->capabilities()->cursor ? 'cursor' : 'offset',
-        ]);
 
         if (! $this->capabilities()->cursor) {
             Log::warning('tables.source.http.cursor_required_for_stream', [
@@ -292,12 +249,6 @@ final class HttpSource implements Source
 
         while (true) {
             $result = $this->fetchPage($cursor);
-
-            Log::debug('tables.source.http.stream.chunk', [
-                'resource' => $this->resource?->key(),
-                'cursor' => $cursor,
-                'count' => count($result->rows),
-            ]);
 
             foreach ($result->rows as $row) {
                 yield $row;
@@ -332,13 +283,6 @@ final class HttpSource implements Source
             $result = ($this->findOne)($id);
             $hit = $result !== null && $result !== [];
 
-            Log::debug('tables.source.http.find', [
-                'resource' => $this->resource?->key(),
-                'id' => $id,
-                'hit' => $hit,
-                'mode' => 'closure',
-            ]);
-
             return $hit ? $result : null;
         }
 
@@ -367,13 +311,6 @@ final class HttpSource implements Source
         $page = $this->withQuery($fallbackQuery)->page(1, 1);
         $row = $page->items()[0] ?? null;
 
-        Log::debug('tables.source.http.find', [
-            'resource' => $this->resource?->key(),
-            'id' => $id,
-            'hit' => $row !== null,
-            'mode' => 'fallback',
-        ]);
-
         return $row;
     }
 
@@ -386,13 +323,6 @@ final class HttpSource implements Source
         if ($this->findMany !== null) {
             $result = ($this->findMany)($ids);
             $rows = is_array($result) ? $result : iterator_to_array($result, false);
-
-            Log::debug('tables.source.http.find_many', [
-                'resource' => $this->resource?->key(),
-                'requested' => count($ids),
-                'found' => count($rows),
-                'mode' => 'closure',
-            ]);
 
             return $rows;
         }
@@ -408,13 +338,6 @@ final class HttpSource implements Source
             ];
 
             $page = $this->withQuery($bulkQuery)->page(1, count($ids));
-
-            Log::debug('tables.source.http.find_many', [
-                'resource' => $this->resource?->key(),
-                'requested' => count($ids),
-                'found' => count($page->items()),
-                'mode' => 'bulk-fallback',
-            ]);
 
             return $page->items();
         }
@@ -434,13 +357,6 @@ final class HttpSource implements Source
             }
         }
 
-        Log::debug('tables.source.http.find_many', [
-            'resource' => $this->resource?->key(),
-            'requested' => count($ids),
-            'found' => count($rows),
-            'mode' => 'linear-fallback',
-        ]);
-
         return $rows;
     }
 
@@ -450,7 +366,7 @@ final class HttpSource implements Source
             'resource' => $this->resource?->key(),
             'id' => $id,
             'columns' => array_keys($changes),
-            'reason' => 'HttpSource is read-only by design; mutate=true не предусмотрено в Phase 5. Пишите в API через host service-layer.',
+            'reason' => 'HttpSource is read-only by design; mutate=true не предусмотрено. Пишите в API через host service-layer.',
         ]);
 
         throw new LogicException(
@@ -466,12 +382,6 @@ final class HttpSource implements Source
     private function fetchPage(?string $cursor): HttpFetchResult
     {
         if ($this->cacheTtlSeconds === null || $this->cacheTtlSeconds === 0) {
-            Log::debug('tables.source.http.fetch.miss', [
-                'resource' => $this->resource?->key(),
-                'cursor' => $cursor,
-                'cache' => 'bypass',
-            ]);
-
             return $this->liveFetch($cursor);
         }
 
@@ -479,22 +389,8 @@ final class HttpSource implements Source
         $cached = Cache::get($key);
 
         if ($cached instanceof HttpFetchResult) {
-            Log::debug('tables.source.http.cache.hit', [
-                'resource' => $this->resource?->key(),
-                'cursor' => $cursor,
-                'key' => $key,
-                'ttl' => $this->cacheTtlSeconds,
-            ]);
-
             return $cached;
         }
-
-        Log::debug('tables.source.http.cache.miss', [
-            'resource' => $this->resource?->key(),
-            'cursor' => $cursor,
-            'key' => $key,
-            'ttl' => $this->cacheTtlSeconds,
-        ]);
 
         $result = $this->liveFetch($cursor);
         Cache::put($key, $result, $this->cacheTtlSeconds);
@@ -507,14 +403,6 @@ final class HttpSource implements Source
         $payload = ($this->fetch)($this->query, $cursor);
 
         $result = HttpFetchResult::fromArray($payload, $this->resource?->key());
-
-        Log::debug('tables.source.http.fetch.hit', [
-            'resource' => $this->resource?->key(),
-            'cursor' => $cursor,
-            'count' => count($result->rows),
-            'has_next' => $result->nextCursor !== null,
-            'total' => $result->total,
-        ]);
 
         return $result;
     }
@@ -621,7 +509,7 @@ final class HttpSource implements Source
 
         Log::warning('tables.source.http.qb_unsupported', [
             'resource' => $this->resource?->key(),
-            'reason' => 'HttpSource не транслирует Query Builder AST (?qb=) в HTTP-параметры. Используйте chip-фильтры; если QB-tree нужен, обрабатывайте его в собственном fetch-closure (HttpSource его не пробрасывает в Phase 5).',
+            'reason' => 'HttpSource не транслирует Query Builder AST (?qb=) в HTTP-параметры. Используйте chip-фильтры; если QB-tree нужен, обрабатывайте его в собственном fetch-closure (HttpSource его не пробрасывает).',
         ]);
 
         $query->qbRoot = null;

@@ -68,13 +68,6 @@ final class CsvFileReader implements FileReader
                 $lineNumber++;
 
                 if ($headerRow === false || $headerRow === [null]) {
-                    Log::debug('tables.source.file.read.open', [
-                        'path' => basename($path),
-                        'format' => 'csv',
-                        'columns' => 0,
-                        'note' => 'empty file or missing header',
-                    ]);
-
                     return;
                 }
 
@@ -84,12 +77,6 @@ final class CsvFileReader implements FileReader
 
                 $columns = array_map(static fn ($v): string => is_string($v) ? $v : (string) $v, $headerRow);
             }
-
-            Log::debug('tables.source.file.read.open', [
-                'path' => basename($path),
-                'format' => 'csv',
-                'columns' => count($columns),
-            ]);
 
             $expectedCount = count($columns);
 
@@ -118,12 +105,6 @@ final class CsvFileReader implements FileReader
                 $rowsYielded++;
             }
         } finally {
-            Log::debug('tables.source.file.read.eof', [
-                'path' => basename($path),
-                'format' => 'csv',
-                'rows' => $rowsYielded,
-            ]);
-
             if (is_resource($handle)) {
                 fclose($handle);
             }

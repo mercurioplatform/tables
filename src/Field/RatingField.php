@@ -62,6 +62,23 @@ class RatingField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'rating';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'max' => $this->max,
+            'precision' => $this->precision,
+            'style' => $this->style,
+            'show_value' => $this->showValue,
+            'empty_as_dash' => $this->emptyAsDash,
+            'color_using_closure' => $this->colorUsing !== null,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $num = is_numeric($value) ? (float) $value : 0.0;

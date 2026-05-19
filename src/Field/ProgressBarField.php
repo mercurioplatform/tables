@@ -63,6 +63,23 @@ class ProgressBarField extends NumberField
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'progress_bar';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return array_merge(parent::defaultFormatHints(), [
+            'capacity' => $this->capacity instanceof Closure ? 'closure' : $this->capacity,
+            'low_threshold' => $this->lowThreshold,
+            'high_threshold' => $this->highThreshold,
+            'bar_width' => $this->barWidth,
+            'with_value' => $this->withValue,
+            'color_using_closure' => $this->colorUsing !== null,
+        ]);
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {

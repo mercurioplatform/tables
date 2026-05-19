@@ -52,6 +52,19 @@ class DateField extends Field
         return 'date';
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'date';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'mode' => $this->mode,
+            'format' => $this->format,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null || $value === '') {

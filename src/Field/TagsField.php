@@ -101,6 +101,26 @@ class TagsField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'tags';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'relation' => $this->relation,
+            'display_key' => $this->displayKey,
+            'limit' => $this->limit,
+            'variant' => $this->variant,
+            'subtle' => $this->subtle,
+            'add_label' => $this->addLabel,
+            'using_closure' => $this->using !== null,
+            'kind_using_closure' => $this->kindUsing !== null,
+            'add_action_closure' => $this->addAction !== null,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $items = $this->extractItems($value, $row);

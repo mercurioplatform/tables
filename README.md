@@ -116,6 +116,35 @@ Route::middleware(['auth'])->group(function () {
 
 Quick-start (copy-paste): [`examples/README.md`](https://github.com/mercurioplatform/tables/tree/main/examples). Подробный разбор каждого demo и decision-tree «какой Source выбрать»: [`docs/examples.md`](docs/examples.md).
 
+## JSON API
+
+Любой `ListResource` может опционально отдавать JSON параллельно Blade-рендеру через `Route::tablesApi(...)`. Macro независим от `Route::tablesPage(...)` — middleware наследуется от файла маршрутов (`routes/api.php` → `api` stack, `routes/web.php` → `web` stack), implicit-публикации нет.
+
+```php
+// routes/api.php
+Route::tablesApi('orders', OrdersResource::class)->name('orders');
+```
+
+```bash
+curl "https://example.test/api/orders?per_page=10&include=summary,capabilities"
+```
+
+Доступно из коробки:
+
+- `?fields=id,number,total` — sparse-fieldsets (whitelist через `ApiConfig::allowFields`).
+- `?format=raw|formatted|both` — три режима сериализации значений; per-field overrides `?format[total]=both&format[status]=raw` (детали в [`docs/json-api.md`](docs/json-api.md)).
+- `?filter[status]=paid` / `?filter[total][gte]=1000` — плоский AND-sugar, whitelist operator'ов через существующий `Field::filterable([Operator::...])`.
+- POST с JSON-body или `?qb=<base64>` для произвольного QB-дерева (OR-группы, NOT, вложенность) — см. [`docs/json-api.md`](docs/json-api.md).
+- `?sort=-created_at`, `?q=…`, `?per_page=N`, `?page=N`.
+- `?savedView=key` — мерджится с пришедшими `filter[..]`.
+- `?include=summary,savedViews,capabilities` — опциональные блоки envelope'а.
+- self-описание ресурса через `?include=schema` или discovery-endpoint `GET /{uri}/schema` — см. [`docs/json-api.md`](docs/json-api.md).
+- mutations через `POST /{uri}/mutate` (cell / row / bulk, JSON body с `op`-дискриминатором) при `api()->allowMutations(true)` — undo-probe через `?include=undoToken`, queued-bulk через 202 + `progress_id`; см. [`docs/json-api.md`](docs/json-api.md).
+
+Read-only из коробки. Write активируется явным `ApiConfig::allowMutations(true)`. Для публичного API под Sanctum/токены — `Route::middleware('auth:sanctum')->group(...)` в `routes/api.php`.
+
+Полный контракт и error envelope: [`docs/json-api.md`](docs/json-api.md).
+
 ## Registering resources
 
 `Route::tablesPage('admin/products', ProductResource::class)` — основной путь. Макрос регистрирует 17 named routes для страницы (index, options, bulk/row actions, export, prefs, saved views, action log), и одновременно записывает FQN ресурса в `Route::defaults('resource', ...)` на каждый из них. При boot'е сервис-провайдер обходит все маршруты, собирает уникальные `defaults['resource']` и вызывает `ResourceRegistry::register()`. Это даёт два важных свойства:

@@ -6,13 +6,6 @@
 @php
     $hasFilters = $table?->hasActiveFilters() ?? false;
     $hasDeclared = $emptyState !== null;
-    $path = $hasFilters ? 'filtered' : ($hasDeclared ? 'declared' : 'fallback');
-
-    \Log::debug('tables.empty_state', [
-        'path' => $path,
-        'resource_key' => $table?->key,
-        'total' => $table?->paginator?->total() ?? 0,
-    ]);
 @endphp
 
 @if ($hasFilters)

@@ -17,6 +17,18 @@ class ConditionalColorField extends NumberField
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'conditional_color';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return array_merge(parent::defaultFormatHints(), [
+            'color_using_closure' => $this->colorUsing !== null,
+        ]);
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $inner = parent::renderDefault($value, $row);

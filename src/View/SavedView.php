@@ -5,7 +5,6 @@ namespace Mercurio\Tables\View;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Source\EloquentSource;
 use Mercurio\Tables\Source\Source;
@@ -88,13 +87,6 @@ final class SavedView
             ($this->countQueryCallback)($cloned);
 
             return $cloned;
-        }
-
-        if ($this->conditions !== [] || $this->sourceClosure !== null) {
-            Log::debug('tables.saved_view.count_external', [
-                'view' => $this->key,
-                'kind' => $this->sourceClosure !== null ? 'source_closure' : 'conditions',
-            ]);
         }
 
         $this->apply($cloned);

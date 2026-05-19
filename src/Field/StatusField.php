@@ -77,6 +77,23 @@ class StatusField extends Field
         return 'select';
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'status';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'kinds' => $this->kindMap,
+            'labels' => $this->labelMap,
+            'default_kind' => $this->defaultKind,
+            'use_dot' => $this->useDot,
+            'kind_using_closure' => $this->kindResolver !== null,
+            'label_using_closure' => $this->labelResolver !== null,
+        ];
+    }
+
     /**
      * @return array<int, array{value: int|string, label: string}>|null
      */

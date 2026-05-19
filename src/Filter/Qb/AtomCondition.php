@@ -2,6 +2,7 @@
 
 namespace Mercurio\Tables\Filter\Qb;
 
+use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Filter\Operator;
 use Mercurio\Tables\ListResource;
 
@@ -18,4 +19,9 @@ final readonly class AtomCondition
         public mixed $value,
         public bool $not = false,
     ) {}
+
+    public static function fromFilter(FilterCondition $f): self
+    {
+        return new self($f->field, $f->operator, $f->value);
+    }
 }

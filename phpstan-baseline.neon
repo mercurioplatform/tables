@@ -289,18 +289,6 @@ parameters:
 			path: src/Filter/Qb/QueryBuilderNormalizer.php
 
 		-
-			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderParser\:\:walkCondition\(\) has parameter \$node with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Filter/Qb/QueryBuilderParser.php
-
-		-
-			message: '#^Method Mercurio\\Tables\\Filter\\Qb\\QueryBuilderParser\:\:walkGroup\(\) has parameter \$node with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Filter/Qb/QueryBuilderParser.php
-
-		-
 			message: '#^Access to an undefined property Mercurio\\Tables\\Http\\GenericTablesController\:\:\$bulkActionForms\.$#'
 			identifier: property.notFound
 			count: 1

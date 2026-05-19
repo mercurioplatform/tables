@@ -25,13 +25,13 @@ final class ActionLogWriter
         ?ActionResult $result,
         ?array $undoSnapshot = null,
         ?int $undoOfLogId = null,
-    ): void {
+    ): ?int {
         if (! (bool) config('tables.action_log.enabled', true)) {
-            return;
+            return null;
         }
 
         try {
-            ActionLog::create([
+            $log = ActionLog::create([
                 'resource_key' => $resourceKey,
                 'action_name' => $actionName,
                 'kind' => $kind,
@@ -47,6 +47,8 @@ final class ActionLogWriter
                 'result_json' => self::serializeResult($result, $undoSnapshot, $resourceKey, $actionName),
                 'created_at' => now(),
             ]);
+
+            return (int) $log->id;
         } catch (Throwable $e) {
             Log::warning('tables.action_log.write_failed', [
                 'resource' => $resourceKey,
@@ -55,6 +57,8 @@ final class ActionLogWriter
                 'undo_of' => $undoOfLogId,
                 'error' => $e->getMessage(),
             ]);
+
+            return null;
         }
     }
 

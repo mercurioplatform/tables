@@ -108,6 +108,23 @@ class NumberField extends Field
         return 'number';
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'number';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'decimals' => $this->decimals,
+            'decimal_separator' => $this->decimalSeparator,
+            'thousands_separator' => $this->thousandsSeparator,
+            'edit_min' => $this->editMin,
+            'edit_max' => $this->editMax,
+            'edit_step' => $this->editStep,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {

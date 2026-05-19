@@ -3,7 +3,6 @@
 namespace Mercurio\Tables;
 
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Mercurio\Tables\Action\BulkAction;
@@ -25,20 +24,6 @@ final class ResourceTable
         'meta' => 'Мета',
         'system' => 'Система',
     ];
-
-    /**
-     * Один-раз-за-process-lifetime guard на DEBUG-лог обращения к
-     * deprecated $paginator-полю. Иначе на каждом рендере сотни вызовов
-     * писали бы в лог (см. plan, risk #3).
-     */
-    private static bool $paginatorAccessLogged = false;
-
-    /**
-     * Один-раз-за-process-lifetime guard на DEBUG-лог скрытия action-log
-     * trigger при mutate=false. Action log на read-only Source — нечего
-     * откатывать, кнопка должна исчезнуть.
-     */
-    private static bool $actionLogTriggerHiddenLogged = false;
 
     /**
      * @param  array<int, Field>  $fields
@@ -89,21 +74,8 @@ final class ResourceTable
     public function __get(string $name): mixed
     {
         if ($name === 'paginator') {
-            if (! self::$paginatorAccessLogged) {
-                self::$paginatorAccessLogged = true;
-                Log::debug('tables.resource_table.paginator_legacy_access', [
-                    'resource_key' => $this->key,
-                    'hint' => 'Use $table->page instead of $table->paginator (deprecated, removed in v3).',
-                ]);
-            }
-
             return $this->page;
         }
-
-        Log::debug('tables.resource_table.unknown_property_access', [
-            'property' => $name,
-            'resource_key' => $this->key,
-        ]);
 
         return null;
     }
@@ -326,13 +298,6 @@ final class ResourceTable
         }
 
         if (! $this->capabilities->mutate) {
-            if (! self::$actionLogTriggerHiddenLogged) {
-                Log::debug('tables.action_log.trigger_hidden_no_mutate', [
-                    'resource' => $this->resource->key(),
-                ]);
-                self::$actionLogTriggerHiddenLogged = true;
-            }
-
             return $actions;
         }
 

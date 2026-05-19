@@ -71,6 +71,22 @@ class BooleanField extends Field
         return 'boolean';
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'boolean';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'true_label' => $this->trueLabel,
+            'false_label' => $this->falseLabel,
+            'true_kind' => $this->trueKind,
+            'false_kind' => $this->falseKind,
+            'use_dot' => $this->useDot,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $bool = (bool) $value;

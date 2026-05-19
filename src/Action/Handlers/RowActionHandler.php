@@ -9,6 +9,9 @@ use Mercurio\Tables\Action\ActionResult;
 use Mercurio\Tables\Action\Helpers\ActionAuthorizer;
 use Mercurio\Tables\Action\Helpers\ActionPayloadResolver;
 use Mercurio\Tables\Action\Helpers\ActionResponseBuilder;
+use Mercurio\Tables\Api\ApiErrorCode;
+use Mercurio\Tables\Api\Exceptions\ApiValidationException;
+use Mercurio\Tables\Api\Mutate\RowMutateResult;
 use Mercurio\Tables\Concerns\HandlesResourceListing;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Services\ActionLogWriter;
@@ -169,6 +172,187 @@ class RowActionHandler
             reload: $rowAction->shouldReloadAfterSubmit(),
             resourceClass: $resourceClass,
         );
+    }
+
+    /**
+     * Pure-mutate primitive: применяет row-action и возвращает {@see RowMutateResult}.
+     *
+     * Бросает {@see ApiValidationException} с конкретным {@see ApiErrorCode}.
+     * Laravel `ValidationException` (от form-payload resolve) пробрасывается
+     * наружу — JSON-API-контроллер ловит её отдельным catch'ем.
+     *
+     * @param  int|string  $id
+     */
+    public function applyAsResult(Request $request, ListResource $resource, $id, string $action): RowMutateResult
+    {
+        $resourceClass = $resource::class;
+        $rowAction = $this->authorizer->findRowAction($resource, $action);
+
+        if ($rowAction === null) {
+            Log::warning('tables.api.row_action.unknown', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::ActionNotFound,
+                "Неизвестное действие: {$action}",
+                ['action' => $action],
+            );
+        }
+
+        $source = $resource->resolveSource();
+        if (! $source->capabilities()->mutate) {
+            Log::warning('tables.api.row_action.mutate_denied', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::CapabilityUnsupported,
+                (string) __('tables::shell.mutate_denied'),
+                ['capability' => 'mutate'],
+            );
+        }
+
+        $model = $source->find($id);
+        if ($model === null) {
+            Log::warning('tables.api.row_action.missing', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::RecordNotFound,
+                'Запись не найдена.',
+                ['id' => $id],
+            );
+        }
+
+        if ($rowAction->isHiddenFor($model)) {
+            Log::warning('tables.api.row_action.hidden', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::PolicyDenied,
+                'Действие недоступно.',
+                ['action' => $action, 'reason' => 'hidden'],
+            );
+        }
+
+        if ($rowAction->hasPolicy() || $rowAction->getAbility() !== null) {
+            if (! $this->authorizer->authorizeAction($rowAction, $model, 'row', $resource)) {
+                Log::warning('tables.api.row_action.forbidden', [
+                    'resource' => $resourceClass,
+                    'action' => $action,
+                    'id' => $id,
+                    'ability' => $rowAction->getAbility(),
+                ]);
+
+                throw new ApiValidationException(
+                    ApiErrorCode::PolicyDenied,
+                    'Action запрещён политикой.',
+                    ['action' => $action, 'ability' => $rowAction->getAbility()],
+                );
+            }
+        }
+
+        if ($rowAction->getKind() === 'link') {
+            Log::warning('tables.api.row_action.link_unsupported', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::ValidationFailed,
+                'link-action не поддерживается через JSON API.',
+                ['action' => $action, 'kind' => 'link'],
+            );
+        }
+
+        $resolved = $this->payloads->resolveRowActionPayload($request, $rowAction, $resourceClass);
+        $payload = $resolved['payload'];
+
+        $callback = $rowAction->getCallback();
+        $handlerClass = $rowAction->getHandler();
+        $mode = $rowAction->hasCallback() ? 'callback' : ($handlerClass !== null ? 'handler' : 'none');
+
+        if ($mode === 'none') {
+            Log::warning('tables.api.row_action.no_handler', [
+                'resource' => $resourceClass,
+                'action' => $action,
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::MutationFailed,
+                'Действие не настроено.',
+                ['action' => $action],
+            );
+        }
+
+        $undoSnapshot = null;
+        if ($rowAction->isUndoable()) {
+            try {
+                $undoSnapshot = ($rowAction->getCaptureCallback())([$model->getKey()], $payload, $resource);
+            } catch (Throwable $e) {
+                Log::warning('tables.action.undo.capture_threw', [
+                    'resource' => $resourceClass,
+                    'action' => $action,
+                    'kind' => 'row',
+                    'error' => $e->getMessage(),
+                ]);
+                $undoSnapshot = null;
+            }
+        }
+
+        $result = null;
+        try {
+            if ($mode === 'callback') {
+                $result = $callback($model, $payload, $this->authorizer->currentTableActor($resource));
+            } elseif ($mode === 'handler') {
+                /** @var Action $handler */
+                $handler = app($handlerClass);
+                $result = $handler->execute($model, $payload);
+            }
+        } catch (Throwable $e) {
+            Log::error('tables.api.row_action.callback_threw', [
+                'resource' => $resourceClass,
+                'action' => $action,
+                'id' => $id,
+                'handler' => $handlerClass,
+                'mode' => $mode,
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new ApiValidationException(
+                ApiErrorCode::MutationFailed,
+                'Выполнение действия завершилось с ошибкой.',
+                ['action' => $action, 'exception' => $e::class],
+            );
+        }
+
+        $undoLogId = null;
+        $actionResult = $result instanceof ActionResult ? $result : new ActionResult(affected: 0);
+        if ($result instanceof ActionResult) {
+            $undoLogId = ActionLogWriter::write(
+                resourceKey: $resource->key(),
+                actionName: $action,
+                kind: 'row',
+                actorId: $this->authorizer->resolveAuditActorId($resource),
+                ids: [$model->getKey()],
+                payload: $payload,
+                result: $result,
+                undoSnapshot: $undoSnapshot,
+            );
+        }
+
+        return new RowMutateResult($model->getKey(), $actionResult, $undoLogId);
     }
 
     public function renderForm(

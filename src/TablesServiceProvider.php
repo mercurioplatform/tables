@@ -6,10 +6,17 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use Mercurio\Tables\Api\ApiQueryParser;
+use Mercurio\Tables\Api\JsonRenderer;
+use Mercurio\Tables\Api\MutateBodyParser;
+use Mercurio\Tables\Api\MutateRenderer;
+use Mercurio\Tables\Api\SchemaBuilder;
 use Mercurio\Tables\Console\SyncSavedViewsCommand;
 use Mercurio\Tables\Export\ExportWriterRegistry;
 use Mercurio\Tables\Filter\FilterPipeline;
+use Mercurio\Tables\Http\Controllers\JsonApiMutateController;
 use Mercurio\Tables\Prefs\UserPrefsResolver;
+use Mercurio\Tables\Routing\PendingTablesApiResource;
 use Mercurio\Tables\Routing\PendingTablesResource;
 use Mercurio\Tables\Services\SystemViewSyncer;
 use Mercurio\Tables\Summary\SummaryCardRegistry;
@@ -35,6 +42,12 @@ class TablesServiceProvider extends ServiceProvider
         $this->app->singleton(UserPrefsResolver::class);
         $this->app->singleton(FilterPipeline::class);
         $this->app->singleton(TableBuilder::class);
+        $this->app->singleton(ApiQueryParser::class);
+        $this->app->singleton(SchemaBuilder::class);
+        $this->app->singleton(JsonRenderer::class);
+        $this->app->singleton(MutateBodyParser::class);
+        $this->app->singleton(MutateRenderer::class);
+        $this->app->singleton(JsonApiMutateController::class);
 
         $this->app->singleton(ExportWriterRegistry::class, function () {
             $registry = new ExportWriterRegistry;
@@ -76,6 +89,11 @@ class TablesServiceProvider extends ServiceProvider
         Router::macro('tablesPage', function (string $path, string $resourceClass): PendingTablesResource {
             /** @var Router $this */
             return PendingTablesResource::page($this, $path, $resourceClass);
+        });
+
+        Router::macro('tablesApi', function (string $uri, string $resourceClass): PendingTablesApiResource {
+            /** @var Router $this */
+            return new PendingTablesApiResource($this, $uri, $resourceClass);
         });
 
         if ($this->app->runningInConsole()) {

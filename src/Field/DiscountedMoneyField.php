@@ -32,6 +32,19 @@ class DiscountedMoneyField extends MoneyField
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'discounted_money';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return array_merge(parent::defaultFormatHints(), [
+            'show_percentage' => $this->showPercentage,
+            'compare_using_closure' => $this->compareUsing !== null,
+        ]);
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         if ($value === null) {

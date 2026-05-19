@@ -55,6 +55,22 @@ class ImageField extends Field
         return $this;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'image';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'size' => $this->size,
+            'shape' => $this->shape,
+            'placeholder_icon' => $this->placeholderIcon,
+            'url_using_closure' => $this->urlUsing !== null,
+            'placeholder_using_closure' => $this->placeholderUsing !== null,
+        ];
+    }
+
     protected function renderDefault(mixed $value, mixed $row): Htmlable
     {
         $url = $this->urlUsing !== null

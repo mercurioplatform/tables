@@ -61,8 +61,7 @@ use Mercurio\Tables\Source\Support\RowValueExtractor;
  * - **Только UTF-8.** В CSV-reader'е стрипается BOM `\xEF\xBB\xBF` с первой
  *   колонки header'а; в JSONL — с первой строки. Не-UTF-8 кодировки host обязан
  *   конвертировать `iconv`-ом ДО прокидывания пути.
- * - **Compression out of scope.** `.csv.gz` / `.jsonl.gz` не поддерживаются в
- *   Phase 6.
+ * - **Compression out of scope.** `.csv.gz` / `.jsonl.gz` не поддерживаются.
  * - **`qbRoot` (AST из `?qb=`)** поддерживается только в materialized режиме
  *   через {@see AtomEvaluator}; в lazy — `qbRoot` зануляется в клоне Query +
  *   WARN `tables.source.file.qb_unsupported_in_lazy_mode`.
@@ -103,7 +102,7 @@ use Mercurio\Tables\Source\Support\RowValueExtractor;
  * файл будет прочитан N раз. См. `docs/sources.md` — секция «FileSource → Pipeline re-read».
  *
  * **Security note.** FileSource принимает произвольный `string $path` от
- * host'а. Phase 6 НЕ делает path-sanitization — это ответственность host'а
+ * host'а. Path-sanitization — ответственность host'а
  * (`FileSource::csv(storage_path('catalog/products.csv'))`, не
  * `FileSource::csv(request('path'))`). Не передавайте user-controlled пути.
  */
@@ -124,8 +123,6 @@ final class FileSource implements Source
     private readonly ?Collection $rows;
 
     private readonly Capabilities $caps;
-
-    private bool $countDebugLogged = false;
 
     private int $findCallsInLazyMode = 0;
 
@@ -319,19 +316,6 @@ final class FileSource implements Source
 
             $filtered = $rows->values();
 
-            Log::debug('tables.source.file.with_query', [
-                'resource' => $this->resource?->key(),
-                'path' => basename($this->path),
-                'mode' => 'materialized',
-                'in_count' => $this->rows?->count() ?? 0,
-                'out_count' => $filtered->count(),
-                'search' => $cloned->search !== null,
-                'conditions' => count($cloned->conditions),
-                'qb' => $cloned->qbRoot !== null,
-                'sort' => $cloned->sortField,
-                'saved_view' => $cloned->savedViewKey,
-            ]);
-
             return new self(
                 path: $this->path,
                 format: $this->format,
@@ -368,17 +352,6 @@ final class FileSource implements Source
             $cloned->sortField = null;
         }
 
-        Log::debug('tables.source.file.with_query', [
-            'resource' => $this->resource?->key(),
-            'path' => basename($this->path),
-            'mode' => 'lazy',
-            'search' => $cloned->search !== null,
-            'conditions' => count($cloned->conditions),
-            'qb' => false,
-            'sort' => null,
-            'saved_view' => $cloned->savedViewKey,
-        ]);
-
         return new self(
             path: $this->path,
             format: $this->format,
@@ -400,15 +373,6 @@ final class FileSource implements Source
     {
         if ($this->materialized) {
             return $this->rows?->count() ?? 0;
-        }
-
-        if (! $this->countDebugLogged) {
-            Log::debug('tables.source.file.count_unsupported_in_lazy_mode', [
-                'resource' => $this->resource?->key(),
-                'path' => basename($this->path),
-                'reason' => 'Lazy mode не делает full scan для total (анти-паттерн); count() returns null per Source contract.',
-            ]);
-            $this->countDebugLogged = true;
         }
 
         return null;
@@ -440,16 +404,6 @@ final class FileSource implements Source
                 ],
             );
 
-            Log::debug('tables.source.file.page', [
-                'resource' => $this->resource?->key(),
-                'path' => basename($this->path),
-                'mode' => 'materialized',
-                'page' => $page,
-                'per_page' => $perPage,
-                'total' => $total,
-                'returned' => count($items),
-            ]);
-
             return new Page(
                 rows: $items,
                 total: $total,
@@ -475,16 +429,6 @@ final class FileSource implements Source
             $collected[] = $row;
         }
 
-        Log::debug('tables.source.file.page', [
-            'resource' => $this->resource?->key(),
-            'path' => basename($this->path),
-            'mode' => 'lazy',
-            'page' => $page,
-            'per_page' => $perPage,
-            'total' => null,
-            'returned' => count($collected),
-        ]);
-
         return new Page(
             rows: $collected,
             total: null,
@@ -499,13 +443,6 @@ final class FileSource implements Source
         if ($chunkSize < 1) {
             $chunkSize = 1;
         }
-
-        Log::debug('tables.source.file.stream.start', [
-            'resource' => $this->resource?->key(),
-            'path' => basename($this->path),
-            'chunk_size' => $chunkSize,
-            'mode' => $this->materialized ? 'materialized-via-reader' : 'lazy-via-reader',
-        ]);
 
         $yielded = 0;
 
@@ -525,14 +462,6 @@ final class FileSource implements Source
 
             yield $row;
             $yielded++;
-
-            if ($yielded % $chunkSize === 0) {
-                Log::debug('tables.source.file.stream.chunk', [
-                    'resource' => $this->resource?->key(),
-                    'path' => basename($this->path),
-                    'yielded' => $yielded,
-                ]);
-            }
         }
     }
 
@@ -558,14 +487,6 @@ final class FileSource implements Source
                 return $candidate !== null && (string) $candidate === (string) $id;
             });
 
-            Log::debug('tables.source.file.find', [
-                'resource' => $this->resource?->key(),
-                'path' => basename($this->path),
-                'mode' => 'materialized',
-                'id' => $id,
-                'hit' => $hit !== null,
-            ]);
-
             return $hit;
         }
 
@@ -585,15 +506,6 @@ final class FileSource implements Source
 
         $this->findRowsScannedInLazyMode += $scannedThisCall;
         $this->maybeWarnFindLinearScan();
-
-        Log::debug('tables.source.file.find', [
-            'resource' => $this->resource?->key(),
-            'path' => basename($this->path),
-            'mode' => 'lazy',
-            'id' => $id,
-            'hit' => $hit !== null,
-            'scanned' => $scannedThisCall,
-        ]);
 
         return $hit;
     }
@@ -634,14 +546,6 @@ final class FileSource implements Source
                 $result[] = $byId[$key];
             }
         }
-
-        Log::debug('tables.source.file.find_many', [
-            'resource' => $this->resource?->key(),
-            'path' => basename($this->path),
-            'mode' => $this->materialized ? 'materialized' : 'lazy',
-            'requested' => count($ids),
-            'found' => count($result),
-        ]);
 
         return $result;
     }
@@ -706,11 +610,13 @@ final class FileSource implements Source
                 cursor: false,
                 mutate: false,
                 stream: true,
+                qbTree: $materialized,
             );
         }
 
         $sort = $user->sort;
         $count = $user->count;
+        $qbTree = $user->qbTree;
 
         if (! $materialized && $user->sort) {
             Log::warning('tables.source.file.sort_unsupported_in_lazy_mode', [
@@ -722,12 +628,16 @@ final class FileSource implements Source
         }
 
         if (! $materialized && $user->count) {
-            Log::debug('tables.source.file.count_unsupported_in_lazy_mode', [
+            $count = false;
+        }
+
+        if (! $materialized && $user->qbTree) {
+            Log::warning('tables.source.file.qb_tree_unsupported_in_lazy_mode', [
                 'resource' => $this->resource?->key(),
                 'path' => basename($path),
-                'reason' => 'capabilities.count=true ignored in lazy mode; clamped to false.',
+                'reason' => 'capabilities.qbTree=true ignored in lazy mode (AtomEvaluator требует materialized Collection); clamped to false.',
             ]);
-            $count = false;
+            $qbTree = false;
         }
 
         if ($user->mutate) {
@@ -746,6 +656,7 @@ final class FileSource implements Source
             cursor: $user->cursor,
             mutate: false,
             stream: $user->stream,
+            qbTree: $qbTree,
         );
     }
 
@@ -775,14 +686,6 @@ final class FileSource implements Source
         }
 
         $collection = Collection::make($rows)->values();
-
-        Log::debug('tables.source.file.materialize.read', [
-            'resource' => $this->resource?->key(),
-            'path' => basename($this->path),
-            'format' => $this->format,
-            'rows' => $collection->count(),
-            'bytes' => $fileSize,
-        ]);
 
         return $collection;
     }

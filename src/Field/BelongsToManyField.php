@@ -87,6 +87,21 @@ class BelongsToManyField extends Field
         return true;
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'belongs_to_many';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return [
+            'relation' => $this->relation,
+            'display_key' => $this->displayKey,
+            'related_key' => $this->relatedKey,
+            'preview_limit' => $this->previewLimit,
+        ];
+    }
+
     public function isFilterMultiple(?Operator $op = null): bool
     {
         return true;

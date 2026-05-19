@@ -48,6 +48,20 @@ class MoneyField extends NumberField
         return (int) round(((float) $value) * $multiplier);
     }
 
+    protected function defaultSchemaType(): string
+    {
+        return 'money';
+    }
+
+    protected function defaultFormatHints(): array
+    {
+        return array_merge(parent::defaultFormatHints(), [
+            'currency' => $this->currency,
+            'divisor' => $this->divisor,
+            'position' => $this->currencyPosition,
+        ]);
+    }
+
     public function denormalizeFilterValue(mixed $value): mixed
     {
         $divisor = max(1, $this->divisor);

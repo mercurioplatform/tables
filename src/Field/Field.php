@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
+use Mercurio\Tables\Api\SchemaBuilder;
 use Mercurio\Tables\Filter\FilterCondition;
 use Mercurio\Tables\Filter\Operator;
 use ReflectionFunction;
@@ -618,6 +619,42 @@ abstract class Field
     public function denormalizeFilterValue(mixed $value): mixed
     {
         return $value;
+    }
+
+    /**
+     * Стабильный kebab-case идентификатор типа поля для JSON API schema-блока.
+     * Единственный консьюмер — {@see SchemaBuilder}.
+     * Подклассы переопределяют через {@see self::defaultSchemaType()}.
+     */
+    public function schemaType(): string
+    {
+        return $this->defaultSchemaType();
+    }
+
+    protected function defaultSchemaType(): string
+    {
+        return 'text';
+    }
+
+    /**
+     * Map с per-type метаданными форматирования для JSON API schema-блока.
+     * Структура — opaque-контракт per type, фиксируется в `docs/json-api.md`.
+     * Closure-свойства намеренно не сериализуются (либо опускаем, либо отдаём
+     * presence-флаг).
+     *
+     * @return array<string, mixed>
+     */
+    public function formatHints(): array
+    {
+        return $this->defaultFormatHints();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function defaultFormatHints(): array
+    {
+        return [];
     }
 
     public function operatorLabel(Operator $op): string

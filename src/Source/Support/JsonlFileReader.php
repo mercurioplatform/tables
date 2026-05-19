@@ -50,12 +50,6 @@ final class JsonlFileReader implements FileReader
             throw new LogicException("JsonlFileReader: failed to open file for reading: {$path}");
         }
 
-        Log::debug('tables.source.file.read.open', [
-            'path' => basename($path),
-            'format' => 'jsonl',
-            'strict' => $this->strictJson,
-        ]);
-
         $rowsYielded = 0;
         $lineNumber = 0;
         $isFirstLine = true;
@@ -71,11 +65,6 @@ final class JsonlFileReader implements FileReader
 
                 $line = trim($raw);
                 if ($line === '') {
-                    Log::debug('tables.source.file.read.empty_line', [
-                        'path' => basename($path),
-                        'line' => $lineNumber,
-                    ]);
-
                     continue;
                 }
 
@@ -114,12 +103,6 @@ final class JsonlFileReader implements FileReader
                 $rowsYielded++;
             }
         } finally {
-            Log::debug('tables.source.file.read.eof', [
-                'path' => basename($path),
-                'format' => 'jsonl',
-                'rows' => $rowsYielded,
-            ]);
-
             if (is_resource($handle)) {
                 fclose($handle);
             }
