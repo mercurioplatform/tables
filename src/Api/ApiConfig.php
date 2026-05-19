@@ -37,6 +37,8 @@ final class ApiConfig
         public readonly int $maxPerPage,
         public readonly ?string $rateLimit,
         public readonly int $maxBulkIds,
+        public readonly ?string $mutateAbility,
+        public readonly int $maxPayloadBytes,
     ) {}
 
     public static function make(): self
@@ -51,6 +53,8 @@ final class ApiConfig
             maxPerPage: 200,
             rateLimit: null,
             maxBulkIds: 1000,
+            mutateAbility: null,
+            maxPayloadBytes: 65536,
         );
     }
 
@@ -98,6 +102,15 @@ final class ApiConfig
         return $this->with(maxPerPage: max(1, $value));
     }
 
+    /**
+     * Token для Laravel rate-limiter (`RateLimiter::for($token)`).
+     *
+     * Host-side wire-up: пакет НЕ применяет `throttle:<token>` middleware
+     * автоматически — это поле прочитывается host'ом (или CI-проверками) и
+     * применяется явным `->middleware('throttle:'.$token)` к
+     * `Route::tablesApi(...)` в файле маршрутов. См. closure §13.1 в
+     * `.ai-factory/audit/2026-Q2-backend.md`.
+     */
     public function rateLimit(?string $token): self
     {
         return $this->with(rateLimit: $token);
@@ -106,6 +119,34 @@ final class ApiConfig
     public function maxBulkIds(int $value): self
     {
         return $this->with(maxBulkIds: max(1, $value));
+    }
+
+    /**
+     * Coarse-grained Gate ability для mutate-эндпоинта.
+     *
+     * Если `null` (default) — coarse Gate выключен; per-action policy
+     * внутри `BulkActionHandler` / `RowActionHandler` / `CellUpdateHandler`
+     * остаётся единственным авторизационным слоем.
+     *
+     * Если установлено — `JsonApiMutateController` после hard-gate
+     * `allowMutations` вызывает `Gate::check($ability, $resource)`; при
+     * false → 403 `POLICY_DENIED`. Orthogonal к per-action policy.
+     */
+    public function mutateAbility(?string $ability): self
+    {
+        return $this->with(mutateAbility: $ability);
+    }
+
+    /**
+     * Лимит на размер сериализованного `payload` для row/bulk mutate-операций.
+     *
+     * Сравнение идёт со `strlen(json_encode($payload, JSON_UNESCAPED_UNICODE))`;
+     * превышение → 422 `VALIDATION_FAILED` с `reason='payload_too_large'`.
+     * Default 64 KiB.
+     */
+    public function maxPayloadBytes(int $value): self
+    {
+        return $this->with(maxPayloadBytes: max(1, $value));
     }
 
     /**
@@ -162,6 +203,16 @@ final class ApiConfig
         return $this->maxBulkIds;
     }
 
+    public function getMutateAbility(): ?string
+    {
+        return $this->mutateAbility;
+    }
+
+    public function getMaxPayloadBytes(): int
+    {
+        return $this->maxPayloadBytes;
+    }
+
     /**
      * @param  array<int, string>|null  $allowFields
      * @param  array<int, string>|null  $allowSavedViews
@@ -177,6 +228,8 @@ final class ApiConfig
         ?int $maxPerPage = null,
         ?string $rateLimit = null,
         ?int $maxBulkIds = null,
+        ?string $mutateAbility = null,
+        ?int $maxPayloadBytes = null,
     ): self {
         return new self(
             allowFields: $allowFields ?? $this->allowFields,
@@ -188,6 +241,8 @@ final class ApiConfig
             maxPerPage: $maxPerPage ?? $this->maxPerPage,
             rateLimit: $rateLimit ?? $this->rateLimit,
             maxBulkIds: $maxBulkIds ?? $this->maxBulkIds,
+            mutateAbility: $mutateAbility ?? $this->mutateAbility,
+            maxPayloadBytes: $maxPayloadBytes ?? $this->maxPayloadBytes,
         );
     }
 }

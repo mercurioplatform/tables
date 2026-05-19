@@ -29,6 +29,11 @@ use Mercurio\Tables\ListResource;
  * `?include=...` парсится из query-string; список известных mutate-include'ов
  * — {@see self::KNOWN_MUTATE_INCLUDES}. Неизвестные include'ы — warning,
  * но не fail (тот же подход, что list-side {@see ApiQueryParser}).
+ *
+ * Body-size guard: `payload` (`row.payload` / `bulk.payload`) — после
+ * `is_array`-проверки serialized-size через `strlen(json_encode($payload))`
+ * сравнивается с {@see ApiConfig::getMaxPayloadBytes()}; превышение →
+ * `ApiValidationException` с `reason='payload_too_large'`.
  */
 final class MutateBodyParser
 {
@@ -52,7 +57,7 @@ final class MutateBodyParser
         /** @var 'cell'|'row'|'bulk' $op */
         return match ($op) {
             'cell' => $this->parseCell($body, $config, $includes),
-            'row' => $this->parseRow($body, $includes),
+            'row' => $this->parseRow($body, $config, $includes),
             'bulk' => $this->parseBulk($body, $config, $includes),
         };
     }
@@ -110,7 +115,7 @@ final class MutateBodyParser
      * @param  array<string, mixed>  $body
      * @param  array<int, string>  $includes
      */
-    private function parseRow(array $body, array $includes): ParsedMutate
+    private function parseRow(array $body, ApiConfig $config, array $includes): ParsedMutate
     {
         $id = $body['id'] ?? null;
         if (! is_int($id) && ! is_string($id)) {
@@ -122,7 +127,7 @@ final class MutateBodyParser
             $this->fail('missing_action', 'Поле action обязательно для op=row.', ['op' => 'row']);
         }
 
-        $payload = $this->parsePayload($body, 'row');
+        $payload = $this->parsePayload($body, 'row', $config);
 
         return new ParsedMutate(
             op: 'row',
@@ -173,7 +178,7 @@ final class MutateBodyParser
             );
         }
 
-        $payload = $this->parsePayload($body, 'bulk');
+        $payload = $this->parsePayload($body, 'bulk', $config);
 
         return new ParsedMutate(
             op: 'bulk',
@@ -188,7 +193,7 @@ final class MutateBodyParser
      * @param  array<string, mixed>  $body
      * @return array<string, mixed>
      */
-    private function parsePayload(array $body, string $op): array
+    private function parsePayload(array $body, string $op, ApiConfig $config): array
     {
         if (! array_key_exists('payload', $body)) {
             return [];
@@ -202,6 +207,17 @@ final class MutateBodyParser
                 'invalid_payload',
                 'Поле payload должно быть объектом (assoc array) или null.',
                 ['op' => $op, 'received_type' => get_debug_type($payload)],
+            );
+        }
+
+        $max = $config->getMaxPayloadBytes();
+        $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        $size = $encoded === false ? PHP_INT_MAX : strlen($encoded);
+        if ($size > $max) {
+            $this->fail(
+                'payload_too_large',
+                "Payload exceeds {$max} bytes (got {$size}).",
+                ['op' => $op, 'max' => $max, 'given' => $size],
             );
         }
 

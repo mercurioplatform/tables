@@ -4,6 +4,7 @@ namespace Mercurio\Tables\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use LogicException;
@@ -25,14 +26,16 @@ use Throwable;
  * Single-action controller для mutate-эндпоинта `POST /{uri}/mutate`.
  *
  * Pipeline:
- *  1. Резолв класса ресурса через `route()->defaults['resource']`;
- *  2. {@see ListResource::resolveApiConfig()};
- *  3. Hard-gate: `! $config->getAllowMutations()` → 403 `MutationsDisabled`;
- *  4. {@see MutateBodyParser::parse()} (catch → 422);
- *  5. Source.capabilities.mutate check → 422 `CapabilityUnsupported`;
- *  6. Dispatch по op-дискриминатору к pure-методу хэндлера;
- *  7. {@see MutateRenderer::render()} → JSON-envelope;
- *  8. Status 202 (queued bulk) или 200 (sync).
+ *  1.  Резолв класса ресурса через `route()->defaults['resource']`;
+ *  2.  {@see ListResource::resolveApiConfig()};
+ *  3.  Hard-gate: `! $config->getAllowMutations()` → 403 `MutationsDisabled`;
+ *  3b. Coarse Gate: если `$config->getMutateAbility() !== null` →
+ *      `Gate::check(ability, $resource)`; при false → 403 `PolicyDenied`.
+ *  4.  {@see MutateBodyParser::parse()} (catch → 422);
+ *  5.  Source.capabilities.mutate check → 422 `CapabilityUnsupported`;
+ *  6.  Dispatch по op-дискриминатору к pure-методу хэндлера;
+ *  7.  {@see MutateRenderer::render()} → JSON-envelope;
+ *  8.  Status 202 (queued bulk) или 200 (sync).
  *
  * @internal Public surface — `Route::tablesApi('orders', OrdersResource::class)`
  *           + `ApiConfig::allowMutations(true)` на ресурсе.
@@ -97,6 +100,21 @@ final class JsonApiMutateController
                 ApiErrorCode::MutationsDisabled,
                 'Mutate API отключён для этого ресурса (allowMutations=false).',
                 ['resource' => $resource->key()],
+            );
+        }
+
+        $ability = $config->getMutateAbility();
+        if ($ability !== null && ! Gate::check($ability, $resource)) {
+            Log::warning('tables.api.mutate.coarse_gate_denied', [
+                'resource' => $resource->key(),
+                'ability' => $ability,
+                'actor_id' => $request->user()?->getKey(),
+            ]);
+
+            return ApiErrorResponse::make(
+                ApiErrorCode::PolicyDenied,
+                "Coarse Gate denied access to mutate API (ability='{$ability}').",
+                ['ability' => $ability, 'resource' => $resource->key()],
             );
         }
 
