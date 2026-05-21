@@ -27,7 +27,7 @@ class CellUpdateHandler
 {
     public function __construct(private ActionAuthorizer $authorizer) {}
 
-    public function handle(Request $request, ListResource $resource, $id, string $field): Response
+    public function handle(Request $request, ListResource $resource, int $id, string $field): Response
     {
         $resourceClass = $resource::class;
 

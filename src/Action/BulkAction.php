@@ -312,7 +312,7 @@ final class BulkAction
         return $this->reloadAfterSubmit;
     }
 
-    public function getTooltip(): ?string
+    public function getTooltip(): string
     {
         return $this->tooltip ?? $this->label;
     }

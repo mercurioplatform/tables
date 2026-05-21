@@ -14,6 +14,14 @@ use Mercurio\Tables\Services\CellUpdateHandler;
 use Mercurio\Tables\Services\UserViewHandler;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * @property class-string $resource
+ * @property ?string $routeBaseName
+ * @property ?string $tableView
+ * @property array<string, string> $bulkActionForms
+ * @property class-string|null $bulkRequest
+ * @property array<string, string> $rowActionForms
+ */
 trait HandlesResourceListing
 {
     public function index(Request $request): View
@@ -27,12 +35,10 @@ trait HandlesResourceListing
             return view('tables::partial', ['table' => $table]);
         }
 
-        $tableView = property_exists($this, 'tableView') && is_string($this->tableView) && $this->tableView !== ''
-            ? $this->tableView
-            : null;
+        $tableView = ($this->tableView ?? '') !== '' ? $this->tableView : null;
 
         $bulkActionUrl = app(BulkActionHandler::class)
-            ->resolveBulkActionUrl($resource, $this->routeBaseName ?? null);
+            ->resolveBulkActionUrl($resource, $this->routeBaseName);
 
         if ($tableView !== null && view()->exists($tableView)) {
             return view($tableView, ['table' => $table, 'bulkActionUrl' => $bulkActionUrl]);
@@ -121,7 +127,7 @@ trait HandlesResourceListing
         return app(BulkActionHandler::class)->progress($request, app($this->resource), $progress);
     }
 
-    public function rowAction(Request $request, $id, string $action): Response
+    public function rowAction(Request $request, int $id, string $action): Response
     {
         return app(RowActionHandler::class)->dispatch(
             $request,
@@ -132,7 +138,7 @@ trait HandlesResourceListing
         );
     }
 
-    public function rowActionForm(Request $request, $id, string $action): Response
+    public function rowActionForm(Request $request, int $id, string $action): Response
     {
         return app(RowActionHandler::class)->renderForm(
             $request,
@@ -145,7 +151,7 @@ trait HandlesResourceListing
         );
     }
 
-    public function rowActionPreview(Request $request, $id, string $action): Response
+    public function rowActionPreview(Request $request, int $id, string $action): Response
     {
         return app(RowActionHandler::class)->renderPreview(
             $request,
@@ -200,7 +206,7 @@ trait HandlesResourceListing
         return app(ExportHandler::class)->handle($request, app($this->resource));
     }
 
-    public function cellUpdate(Request $request, $id, string $field): Response
+    public function cellUpdate(Request $request, int $id, string $field): Response
     {
         return app(CellUpdateHandler::class)->handle($request, app($this->resource), $id, $field);
     }

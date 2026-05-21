@@ -18,6 +18,19 @@ final class GenericTablesController
     /** @var class-string */
     protected string $resource;
 
+    protected ?string $routeBaseName = null;
+
+    protected ?string $tableView = null;
+
+    /** @var array<string, string> */
+    protected array $bulkActionForms = [];
+
+    /** @var class-string|null */
+    protected ?string $bulkRequest = null;
+
+    /** @var array<string, string> */
+    protected array $rowActionForms = [];
+
     public function __construct(Request $request)
     {
         $route = $request->route();

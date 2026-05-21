@@ -14,7 +14,7 @@ use Mercurio\Tables\ListResource;
 final class FilterParser
 {
     /**
-     * @param  array<string, mixed>  $raw
+     * @param  array<array-key, mixed>  $raw
      * @return FilterCondition[]
      */
     public static function parse(array $raw, ListResource $resource): array

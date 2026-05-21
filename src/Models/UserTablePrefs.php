@@ -4,7 +4,16 @@ namespace Mercurio\Tables\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $resource_key
+ * @property array<string, mixed> $prefs_json
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ */
 class UserTablePrefs extends Model
 {
     public function __construct(array $attributes = [])

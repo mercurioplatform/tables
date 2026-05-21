@@ -4,7 +4,19 @@ namespace Mercurio\Tables\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $resource_key
+ * @property string $action_name
+ * @property string $kind
+ * @property int|null $actor_id
+ * @property array<string, mixed>|null $payload_json
+ * @property array<string, mixed>|null $subjects_json
+ * @property array<string, mixed>|null $result_json
+ * @property Carbon $created_at
+ */
 class ActionLog extends Model
 {
     public function __construct(array $attributes = [])

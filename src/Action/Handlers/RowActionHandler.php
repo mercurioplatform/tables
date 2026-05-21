@@ -34,7 +34,7 @@ class RowActionHandler
     public function dispatch(
         Request $request,
         ListResource $resource,
-        $id,
+        int $id,
         string $action,
         ?string $routeBaseName,
     ): Response {
@@ -358,7 +358,7 @@ class RowActionHandler
     public function renderForm(
         Request $request,
         ListResource $resource,
-        $id,
+        int $id,
         string $action,
         ?string $tableView,
         array $rowActionForms,
@@ -443,7 +443,7 @@ class RowActionHandler
     public function renderPreview(
         Request $request,
         ListResource $resource,
-        $id,
+        int $id,
         string $action,
         ?string $tableView,
         ?string $routeBaseName,

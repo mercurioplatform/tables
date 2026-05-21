@@ -116,10 +116,7 @@ final class ActionLogWriter
         }
 
         if ($undoSnapshot !== null && $undoSnapshot !== []) {
-            $undoBlock = self::serializeUndoSnapshot($undoSnapshot, $resourceKey, $actionName);
-            if ($undoBlock !== null) {
-                $out = ($out ?? []) + ['undo' => $undoBlock];
-            }
+            $out = ($out ?? []) + ['undo' => self::serializeUndoSnapshot($undoSnapshot, $resourceKey, $actionName)];
         }
 
         return $out;
@@ -127,9 +124,9 @@ final class ActionLogWriter
 
     /**
      * @param  array<string, mixed>  $snapshot
-     * @return array<string, mixed>|null
+     * @return array<string, mixed>
      */
-    private static function serializeUndoSnapshot(array $snapshot, string $resourceKey, string $actionName): ?array
+    private static function serializeUndoSnapshot(array $snapshot, string $resourceKey, string $actionName): array
     {
         $max = (int) config('tables.action_log.undo_snapshot_max_bytes', 65536);
         $encoded = json_encode($snapshot, JSON_UNESCAPED_UNICODE);

@@ -336,7 +336,7 @@ final class RowAction
         return $this->sharedAuthz;
     }
 
-    public function getTooltip(): ?string
+    public function getTooltip(): string
     {
         return $this->tooltip ?? $this->label;
     }

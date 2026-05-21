@@ -5,8 +5,30 @@ namespace Mercurio\Tables\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Mercurio\Tables\Action\ActionResult;
 
+/**
+ * @property string $id
+ * @property string $resource_key
+ * @property string $action_name
+ * @property string $kind
+ * @property int|null $actor_id
+ * @property string $status
+ * @property int $total
+ * @property int $processed
+ * @property int $affected
+ * @property int $missing
+ * @property int $denied
+ * @property int $skipped
+ * @property array<int, int|string>|null $affected_ids_json
+ * @property array<string, mixed>|null $payload_json
+ * @property string|null $error_message
+ * @property Carbon|null $started_at
+ * @property Carbon|null $finished_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ */
 class ActionProgress extends Model
 {
     use HasUuids;

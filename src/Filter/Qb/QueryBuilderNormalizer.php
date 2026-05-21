@@ -91,15 +91,14 @@ final class QueryBuilderNormalizer
 
                 return new AtomGroup($group->op, false, [$only]);
             }
-            if ($only instanceof AtomGroup) {
-                $rulesApplied[] = 'push_not_to_subgroup';
-                $only = new AtomGroup($only->op, ! $only->not, $only->children);
-                if ($isRoot) {
-                    return new AtomGroup($group->op, false, [$only]);
-                }
 
-                return $only;
+            $rulesApplied[] = 'push_not_to_subgroup';
+            $only = new AtomGroup($only->op, ! $only->not, $only->children);
+            if ($isRoot) {
+                return new AtomGroup($group->op, false, [$only]);
             }
+
+            return $only;
         }
 
         if (count($newChildren) === 1 && ! $group->not && ! $isRoot) {

@@ -495,18 +495,7 @@ abstract class ListResource
             return $this->resolvedAuditActors[$actorId] = null;
         }
 
-        try {
-            $provider = Auth::createUserProvider($providerName);
-        } catch (\InvalidArgumentException $e) {
-            Log::warning('tables.audit_actor.provider_driver_invalid', [
-                'resource' => $this->key(),
-                'guard' => $guard,
-                'provider' => $providerName,
-                'reason' => $e->getMessage(),
-            ]);
-
-            return $this->resolvedAuditActors[$actorId] = null;
-        }
+        $provider = Auth::createUserProvider($providerName);
 
         if ($provider === null) {
             Log::warning('tables.audit_actor.provider_not_resolvable', [
