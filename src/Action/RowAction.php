@@ -65,6 +65,24 @@ final class RowAction
      */
     protected ?Closure $previewCallback = null;
 
+    protected bool $sharedAuthz = false;
+
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>|null
+     */
+    protected ?Closure $captureCallback = null;
+
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
+     */
+    protected ?Closure $reverseCallback = null;
+
+    /** @var Closure(ActionResult): (string|array<string, mixed>)|null */
+    protected ?Closure $onSuccessCallback = null;
+
+    /** @var Closure(Throwable): (string|array<string, mixed>)|null */
+    protected ?Closure $onErrorCallback = null;
+
     private const KINDS = ['link', 'instant', 'confirm', 'form'];
 
     private function __construct(string $name, string $label)
@@ -290,8 +308,6 @@ final class RowAction
         return $this->ability;
     }
 
-    protected bool $sharedAuthz = false;
-
     /**
      * Mark this row-action as «authorization не зависит от конкретного `$row`».
      * При установленном флаге resolveRowActions() кеширует результат Gate::check
@@ -433,16 +449,6 @@ final class RowAction
     }
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>|null
-     */
-    protected ?Closure $captureCallback = null;
-
-    /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
-     */
-    protected ?Closure $reverseCallback = null;
-
-    /**
      * Декларативный undo для row-action. Capture получает [$model->getKey()] и payload.
      *
      * @param  Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>  $capture
@@ -470,12 +476,6 @@ final class RowAction
     {
         return $this->captureCallback !== null && $this->reverseCallback !== null;
     }
-
-    /** @var Closure(ActionResult): (string|array<string, mixed>)|null */
-    protected ?Closure $onSuccessCallback = null;
-
-    /** @var Closure(Throwable): (string|array<string, mixed>)|null */
-    protected ?Closure $onErrorCallback = null;
 
     /**
      * Декларативный flash-callback для success-path. Применимо к kind=instant/confirm/form

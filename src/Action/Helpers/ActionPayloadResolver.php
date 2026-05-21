@@ -183,16 +183,6 @@ class ActionPayloadResolver
         return view('tables::confirm-preview-default', ['data' => $result])->render();
     }
 
-    public function actionPreviewReturnType(mixed $result): string
-    {
-        return match (true) {
-            $result instanceof View => 'view',
-            is_string($result) => 'string',
-            is_array($result) => 'array',
-            default => 'unknown',
-        };
-    }
-
     public function buildExportFilename(string $resourceKey, string $extension = 'csv'): string
     {
         $prefix = (string) config('tables.export.filename_prefix', '');

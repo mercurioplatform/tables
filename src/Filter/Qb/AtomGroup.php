@@ -34,14 +34,4 @@ final class AtomGroup
     {
         return new self($this->op, $this->not, $children);
     }
-
-    public function withNot(bool $not): self
-    {
-        return new self($this->op, $not, $this->children);
-    }
-
-    public function withOp(string $op): self
-    {
-        return new self($op, $this->not, $this->children);
-    }
 }

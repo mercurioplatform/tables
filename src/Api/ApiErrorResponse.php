@@ -5,6 +5,7 @@ namespace Mercurio\Tables\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Mercurio\Tables\Api\Exceptions\ApiValidationException;
+use Symfony\Component\HttpFoundation\Response as Status;
 
 /**
  * Factory единого JSON-envelope'а ошибок API.
@@ -14,7 +15,10 @@ use Mercurio\Tables\Api\Exceptions\ApiValidationException;
  * {"error": {"code": "VALIDATION_FAILED", "message": "...", "details": {...}}}
  * ```
  *
- * Status code маппится из {@see ApiErrorCode::httpStatus()}.
+ * Status code маппится из {@see ApiErrorCode::httpStatus()}. Это единственная
+ * точка логирования API-ошибок — парсеры не логируют отдельно перед throw'ом,
+ * чтобы избежать дублирования. Уровень лога зависит от статуса: 5xx → error,
+ * 4xx → warning.
  */
 final class ApiErrorResponse
 {
@@ -23,9 +27,12 @@ final class ApiErrorResponse
      */
     public static function make(ApiErrorCode $code, string $message, array $details = []): JsonResponse
     {
-        Log::warning('tables.api.error', [
+        $status = $code->httpStatus();
+        $level = $status >= Status::HTTP_INTERNAL_SERVER_ERROR ? 'error' : 'warning';
+
+        Log::log($level, 'tables.api.error', [
             'code' => $code->value,
-            'status' => $code->httpStatus(),
+            'status' => $status,
             'message' => $message,
             'details' => $details,
         ]);
@@ -38,31 +45,7 @@ final class ApiErrorResponse
                     'details' => (object) $details,
                 ],
             ],
-            $code->httpStatus(),
-        );
-    }
-
-    /**
-     * @param  array<int, string>  $allowed
-     */
-    public static function fieldNotAllowed(string $field, array $allowed): JsonResponse
-    {
-        return self::make(
-            ApiErrorCode::ValidationFailed,
-            "Field '{$field}' is not allowed by API config.",
-            ['field' => $field, 'allowed' => array_values($allowed)],
-        );
-    }
-
-    /**
-     * @param  array<int, string>  $allowed
-     */
-    public static function operatorNotAllowed(string $field, string $operator, array $allowed): JsonResponse
-    {
-        return self::make(
-            ApiErrorCode::ValidationFailed,
-            "Operator '{$operator}' is not allowed for field '{$field}'.",
-            ['field' => $field, 'operator' => $operator, 'allowed' => array_values($allowed)],
+            $status,
         );
     }
 

@@ -19,7 +19,6 @@ final class ApiConfigTest extends TestCase
         $this->assertSame(['data', 'page'], $c->getDefaultIncludes());
         $this->assertSame(25, $c->getDefaultPerPage());
         $this->assertSame(200, $c->getMaxPerPage());
-        $this->assertNull($c->getRateLimit());
     }
 
     public function test_withers_are_immutable(): void
@@ -41,8 +40,7 @@ final class ApiConfigTest extends TestCase
             ->defaultFormat(FormatMode::Both)
             ->defaultIncludes(['data', 'page', 'summary'])
             ->defaultPerPage(50)
-            ->maxPerPage(100)
-            ->rateLimit('60,1');
+            ->maxPerPage(100);
 
         $this->assertSame(['id', 'number'], $c->getAllowFields());
         $this->assertSame(['paid'], $c->getAllowSavedViews());
@@ -51,7 +49,6 @@ final class ApiConfigTest extends TestCase
         $this->assertSame(['data', 'page', 'summary'], $c->getDefaultIncludes());
         $this->assertSame(50, $c->getDefaultPerPage());
         $this->assertSame(100, $c->getMaxPerPage());
-        $this->assertSame('60,1', $c->getRateLimit());
     }
 
     public function test_per_page_clamps_below_one(): void

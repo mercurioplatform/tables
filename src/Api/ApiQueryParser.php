@@ -3,7 +3,6 @@
 namespace Mercurio\Tables\Api;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use LogicException;
 use Mercurio\Tables\Api\Exceptions\ApiValidationException;
 use Mercurio\Tables\Field\Field;
@@ -35,9 +34,18 @@ use Mercurio\Tables\Source\Query;
  *   в strict-режиме и складывается в {@see Query::$qbRoot}; флэт `?filter[..]`
  *   + savedView-conditions мерджатся в общий AND-root.
  *
- * Невалидный input → {@see ApiValidationException}. Capabilities-gating
- * (filter/sort/search/qbTree vs `Source::capabilities()`) делает не парсер,
- * а контроллер — см. {@see JsonApiController::assertCapabilities()}.
+ * Невалидный input → {@see ApiValidationException}; единая точка логирования —
+ * {@see ApiErrorResponse::make()} (вызывается выше по стеку контроллером). Сам
+ * парсер не пишет дублирующих `Log::warning`-строк перед throw'ами.
+ *
+ * Capabilities-gating (filter/sort/search/qbTree vs `Source::capabilities()`)
+ * делает не парсер, а контроллер — см. {@see JsonApiController::assertCapabilities()}.
+ *
+ * Sentinel'ы `allowFields === null` / `allowSavedViews === null` в `ApiConfig`
+ * означают «резолвить из ресурса» и должны быть раскрыты в
+ * {@see ListResource::resolveApiConfig()} ДО вызова парсера. Если null
+ * прорвался до `parse()` — это контракт-bug вызывающего кода, парсер валит
+ * `LogicException`, а не silent-fallback в `[]`.
  */
 final class ApiQueryParser
 {
@@ -45,27 +53,27 @@ final class ApiQueryParser
 
     public function parse(Request $request, ApiConfig $config, ListResource $resource): ParsedApiQuery
     {
-        $allowFields = (array) $config->getAllowFields();
-        $allowSavedViews = (array) $config->getAllowSavedViews();
+        $allowFields = $this->assertAllowFieldsResolved($config);
+        $allowSavedViews = $this->assertAllowSavedViewsResolved($config);
 
         $source = $this->resolveSource($request);
 
-        $includes = $this->parseIncludes($request, $source, $config);
-        $fields = $this->parseFields($request, $source, $allowFields);
-        [$format, $perFieldFormats] = $this->parseFormat($request, $source, $config, $allowFields);
-        $perPage = $this->parsePerPage($request, $source, $config);
-        $page = $this->parsePage($request, $source);
+        $includes = $this->parseIncludes($source, $config);
+        $fields = $this->parseFields($source, $allowFields);
+        [$format, $perFieldFormats] = $this->parseFormat($source, $config, $allowFields);
+        $perPage = $this->parsePerPage($source, $config);
+        $page = $this->parsePage($source);
 
         $query = new Query;
-        $query->search = $this->parseSearch($request, $source);
+        $query->search = $this->parseSearch($source);
         $query->searchableColumns = $resource->searchable();
 
-        [$query->sortField, $query->sortDirection] = $this->parseSort($request, $source, $allowFields, $resource);
+        [$query->sortField, $query->sortDirection] = $this->parseSort($source, $allowFields, $resource);
 
-        $savedViewKey = $this->parseSavedView($request, $source, $allowSavedViews);
+        $savedViewKey = $this->parseSavedView($source, $allowSavedViews);
         $query->savedViewKey = $savedViewKey;
 
-        $userFilters = $this->parseFilters($request, $source, $allowFields, $resource);
+        $userFilters = $this->parseFilters($source, $allowFields, $resource);
         $savedViewFilters = $this->resolveSavedViewConditions($savedViewKey, $resource);
 
         $qbRoot = $this->extractQbTree($request, $source, $resource);
@@ -105,8 +113,6 @@ final class ApiQueryParser
             // дойти сюда можно только если кто-то вручную добавил роут другого
             // verb'а на этот же контроллер. Это контракт-нарушение, не пользовательская
             // ошибка, поэтому LogicException вместо 4xx envelope'а.
-            Log::error('tables.api.parser_unsupported_method', ['method' => $method]);
-
             throw new LogicException(
                 "ApiQueryParser supports only GET and POST, got '{$method}'. "
                 .'PendingTablesApiResource must not register additional HTTP methods on the index URL.',
@@ -114,58 +120,89 @@ final class ApiQueryParser
         }
 
         if (! $request->isJson()) {
-            $contentType = $request->header('Content-Type');
-            Log::warning('tables.api.parser_unsupported_media_type', [
-                'method' => $method,
-                'content_type' => $contentType,
-            ]);
-
             throw new ApiValidationException(
                 ApiErrorCode::MalformedQuery,
                 "POST body must use 'application/json' Content-Type.",
                 [
                     'reason' => 'unsupported_media_type',
-                    'received' => $contentType,
+                    'received' => $request->header('Content-Type'),
                 ],
             );
         }
 
-        $body = $request->json()->all();
-
-        return $body;
+        return $request->json()->all();
     }
 
     /**
-     * Унифицированный getter — для GET/HEAD читает из query, для POST из тела.
-     * Возвращает null, если значения нет.
-     *
-     * @param  array<int|string, mixed>  $source
+     * @return array<int, string>
      */
-    private function pick(array $source, string $key): mixed
+    private function assertAllowFieldsResolved(ApiConfig $config): array
     {
-        return $source[$key] ?? null;
+        $allowFields = $config->getAllowFields();
+        if ($allowFields === null) {
+            throw new LogicException(
+                'ApiConfig::allowFields is unresolved at ApiQueryParser. '
+                .'ListResource::resolveApiConfig() must fill the sentinel from fieldsMemo() before parsing.',
+            );
+        }
+
+        return $allowFields;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function assertAllowSavedViewsResolved(ApiConfig $config): array
+    {
+        $allowSavedViews = $config->getAllowSavedViews();
+        if ($allowSavedViews === null) {
+            throw new LogicException(
+                'ApiConfig::allowSavedViews is unresolved at ApiQueryParser. '
+                .'ListResource::resolveApiConfig() must fill the sentinel from savedViewsMemo() before parsing.',
+            );
+        }
+
+        return $allowSavedViews;
+    }
+
+    /**
+     * Унифицированный CSV-разбор для `?include` / `?fields` (и любых других
+     * CSV-or-array параметров). Возвращает `null`, если значения нет / оно
+     * пустое — каждый caller решает, что использовать как default.
+     *
+     * @return array<int, string>|null
+     */
+    private function parseCsvLike(mixed $raw): ?array
+    {
+        if (is_array($raw)) {
+            $values = array_values(array_filter(array_map(
+                static fn ($v) => is_string($v) ? trim($v) : '',
+                $raw,
+            ), static fn (string $s) => $s !== ''));
+
+            return $values === [] ? null : $values;
+        }
+
+        if (is_string($raw) && $raw !== '') {
+            $values = array_values(array_filter(
+                array_map('trim', explode(',', $raw)),
+                static fn (string $s) => $s !== '',
+            ));
+
+            return $values === [] ? null : $values;
+        }
+
+        return null;
     }
 
     /**
      * @param  array<int|string, mixed>  $source
      * @return array<int, string>
      */
-    private function parseIncludes(Request $request, array $source, ApiConfig $config): array
+    private function parseIncludes(array $source, ApiConfig $config): array
     {
-        $raw = $this->pick($source, 'include');
-
-        // POST body может прислать include как массив — поддерживаем оба формата.
-        if (is_array($raw)) {
-            $requested = array_values(array_filter(array_map(
-                static fn ($v) => is_string($v) ? trim($v) : '',
-                $raw,
-            ), static fn (string $s) => $s !== ''));
-        } elseif (is_string($raw) && $raw !== '') {
-            $requested = array_values(array_filter(
-                array_map('trim', explode(',', $raw)),
-                static fn (string $s) => $s !== '',
-            ));
-        } else {
+        $requested = $this->parseCsvLike($source['include'] ?? null);
+        if ($requested === null) {
             return $config->getDefaultIncludes();
         }
 
@@ -197,21 +234,10 @@ final class ApiQueryParser
      * @param  array<int, string>  $allowFields
      * @return array<int, string>
      */
-    private function parseFields(Request $request, array $source, array $allowFields): array
+    private function parseFields(array $source, array $allowFields): array
     {
-        $raw = $this->pick($source, 'fields');
-
-        if (is_array($raw)) {
-            $requested = array_values(array_filter(array_map(
-                static fn ($v) => is_string($v) ? trim($v) : '',
-                $raw,
-            ), static fn (string $s) => $s !== ''));
-        } elseif (is_string($raw) && $raw !== '') {
-            $requested = array_values(array_filter(
-                array_map('trim', explode(',', $raw)),
-                static fn (string $s) => $s !== '',
-            ));
-        } else {
+        $requested = $this->parseCsvLike($source['fields'] ?? null);
+        if ($requested === null) {
             return array_values($allowFields);
         }
 
@@ -242,16 +268,16 @@ final class ApiQueryParser
      * @param  array<int, string>  $allowFields
      * @return array{0: FormatMode, 1: array<string, FormatMode>}
      */
-    private function parseFormat(Request $request, array $source, ApiConfig $config, array $allowFields): array
+    private function parseFormat(array $source, ApiConfig $config, array $allowFields): array
     {
-        $raw = $this->pick($source, 'format');
+        $raw = $source['format'] ?? null;
 
         if ($raw === null || $raw === '') {
             return [$config->getDefaultFormat(), []];
         }
 
         if (is_string($raw)) {
-            $mode = FormatMode::tryFromString($raw);
+            $mode = FormatMode::tryFrom($raw);
             if ($mode === null) {
                 throw new ApiValidationException(
                     ApiErrorCode::ValidationFailed,
@@ -277,7 +303,7 @@ final class ApiQueryParser
             $baseRaw = $raw['*'];
             unset($raw['*']);
 
-            $baseMode = is_string($baseRaw) ? FormatMode::tryFromString($baseRaw) : null;
+            $baseMode = is_string($baseRaw) ? FormatMode::tryFrom($baseRaw) : null;
             if ($baseMode === null) {
                 $baseRawForMessage = is_scalar($baseRaw) ? (string) $baseRaw : '<non-scalar>';
                 throw new ApiValidationException(
@@ -307,7 +333,7 @@ final class ApiQueryParser
                 );
             }
 
-            $mode = is_string($modeRaw) ? FormatMode::tryFromString($modeRaw) : null;
+            $mode = is_string($modeRaw) ? FormatMode::tryFrom($modeRaw) : null;
             if ($mode === null) {
                 $modeRawForMessage = is_scalar($modeRaw) ? (string) $modeRaw : '<non-scalar>';
                 throw new ApiValidationException(
@@ -330,9 +356,9 @@ final class ApiQueryParser
     /**
      * @param  array<int|string, mixed>  $source
      */
-    private function parsePerPage(Request $request, array $source, ApiConfig $config): int
+    private function parsePerPage(array $source, ApiConfig $config): int
     {
-        $raw = $this->pick($source, 'per_page');
+        $raw = $source['per_page'] ?? null;
         if ($raw === null || $raw === '') {
             return $config->getDefaultPerPage();
         }
@@ -361,9 +387,9 @@ final class ApiQueryParser
     /**
      * @param  array<int|string, mixed>  $source
      */
-    private function parsePage(Request $request, array $source): int
+    private function parsePage(array $source): int
     {
-        $raw = $this->pick($source, 'page');
+        $raw = $source['page'] ?? null;
         if ($raw === null || $raw === '') {
             return 1;
         }
@@ -391,9 +417,9 @@ final class ApiQueryParser
     /**
      * @param  array<int|string, mixed>  $source
      */
-    private function parseSearch(Request $request, array $source): ?string
+    private function parseSearch(array $source): ?string
     {
-        $raw = $this->pick($source, 'q');
+        $raw = $source['q'] ?? null;
         if (! is_string($raw) || $raw === '') {
             return null;
         }
@@ -406,9 +432,9 @@ final class ApiQueryParser
      * @param  array<int, string>  $allowFields
      * @return array{0: ?string, 1: string}
      */
-    private function parseSort(Request $request, array $source, array $allowFields, ListResource $resource): array
+    private function parseSort(array $source, array $allowFields, ListResource $resource): array
     {
-        $raw = $this->pick($source, 'sort');
+        $raw = $source['sort'] ?? null;
         if (! is_string($raw) || $raw === '') {
             $default = $resource->defaultSort();
             if ($default !== null) {
@@ -440,9 +466,9 @@ final class ApiQueryParser
      * @param  array<int|string, mixed>  $source
      * @param  array<int, string>  $allowSavedViews
      */
-    private function parseSavedView(Request $request, array $source, array $allowSavedViews): ?string
+    private function parseSavedView(array $source, array $allowSavedViews): ?string
     {
-        $raw = $this->pick($source, 'savedView');
+        $raw = $source['savedView'] ?? null;
         if (! is_string($raw) || $raw === '') {
             return null;
         }
@@ -473,9 +499,9 @@ final class ApiQueryParser
      * @param  array<int, string>  $allowFields
      * @return array<int, FilterCondition>
      */
-    private function parseFilters(Request $request, array $source, array $allowFields, ListResource $resource): array
+    private function parseFilters(array $source, array $allowFields, ListResource $resource): array
     {
-        $raw = $this->pick($source, 'filter');
+        $raw = $source['filter'] ?? null;
         if (! is_array($raw) || $raw === []) {
             return [];
         }
@@ -556,8 +582,6 @@ final class ApiQueryParser
         $queryPresent = is_string($queryQb) && $queryQb !== '';
 
         if ($isPost && $bodyPresent && $queryPresent) {
-            Log::warning('tables.api.parser_qb_double_source');
-
             throw new ApiValidationException(
                 ApiErrorCode::MalformedQuery,
                 'QB-tree is specified both in JSON body and in query string. Send it through only one channel.',
@@ -611,13 +635,6 @@ final class ApiQueryParser
             ? ApiErrorCode::ValidationFailed
             : ApiErrorCode::MalformedQuery;
 
-        Log::warning('tables.api.parser_qb_rejected', [
-            'kind' => $e->kind,
-            'code' => $code->value,
-            'field' => $e->field,
-            'operator' => $e->operator,
-        ]);
-
         return new ApiValidationException($code, $e->getMessage(), $details);
     }
 
@@ -664,14 +681,10 @@ final class ApiQueryParser
         $isPlainAnd = $root->op === 'AND' && $root->not === false;
 
         if ($isPlainAnd) {
-            $merged = $root->withChildren(array_merge($root->children, $atomsFromSavedView, $atomsFromFlats));
-            $wrapped = false;
-        } else {
-            $merged = new AtomGroup('AND', false, array_merge([$root], $atomsFromSavedView, $atomsFromFlats));
-            $wrapped = true;
+            return $root->withChildren(array_merge($root->children, $atomsFromSavedView, $atomsFromFlats));
         }
 
-        return $merged;
+        return new AtomGroup('AND', false, array_merge([$root], $atomsFromSavedView, $atomsFromFlats));
     }
 
     /**

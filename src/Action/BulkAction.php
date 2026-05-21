@@ -62,6 +62,30 @@ final class BulkAction
      */
     protected ?Closure $previewCallback = null;
 
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>|null
+     */
+    protected ?Closure $captureCallback = null;
+
+    /**
+     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
+     */
+    protected ?Closure $reverseCallback = null;
+
+    protected bool $shouldQueue = false;
+
+    protected ?string $queueName = null;
+
+    protected ?int $queueChunkSize = null;
+
+    protected ?int $queueThreshold = null;
+
+    /** @var Closure(ActionResult): (string|array<string, mixed>)|null */
+    protected ?Closure $onSuccessCallback = null;
+
+    /** @var Closure(\Throwable): (string|array<string, mixed>)|null */
+    protected ?Closure $onErrorCallback = null;
+
     private const KINDS = ['instant', 'confirm', 'form'];
 
     protected function __construct(string $name, string $label)
@@ -483,16 +507,6 @@ final class BulkAction
     }
 
     /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ListResource): array<string, mixed>|null
-     */
-    protected ?Closure $captureCallback = null;
-
-    /**
-     * @var Closure(array<int, mixed>, array<string, mixed>, ?Authenticatable): ActionResult|null
-     */
-    protected ?Closure $reverseCallback = null;
-
-    /**
      * Декларативный undo. Capture снимает per-id snapshot ДО основной операции;
      * reverse применяет snapshot в обратную сторону при клике «Откатить».
      *
@@ -530,20 +544,6 @@ final class BulkAction
     {
         return $this->captureCallback !== null && $this->reverseCallback !== null;
     }
-
-    protected bool $shouldQueue = false;
-
-    protected ?string $queueName = null;
-
-    protected ?int $queueChunkSize = null;
-
-    protected ?int $queueThreshold = null;
-
-    /** @var Closure(ActionResult): (string|array<string, mixed>)|null */
-    protected ?Closure $onSuccessCallback = null;
-
-    /** @var Closure(\Throwable): (string|array<string, mixed>)|null */
-    protected ?Closure $onErrorCallback = null;
 
     /**
      * Декларативный flash-callback для success-path. Вызывается ПОСЛЕ выполнения

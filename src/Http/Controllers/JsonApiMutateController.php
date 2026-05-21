@@ -182,7 +182,7 @@ final class JsonApiMutateController
             );
         }
 
-        $envelope = $this->renderer->render($result, $parsed, $resource, $request);
+        $envelope = $this->renderer->render($result, $parsed, $resource);
         $status = $result instanceof BulkMutateResult && $result->progressId !== null ? 202 : 200;
 
         return new JsonResponse($envelope, $status);

@@ -13,8 +13,6 @@ use RuntimeException;
  * и {@see JsonApiController} при провале
  * capabilities-проверки. Контроллер ловит и превращает в
  * {@see ApiErrorResponse} с правильным HTTP-статусом.
- *
- * @property-read array<string, mixed> $details
  */
 final class ApiValidationException extends RuntimeException
 {

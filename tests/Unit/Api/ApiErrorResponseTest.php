@@ -44,26 +44,6 @@ final class ApiErrorResponseTest extends TestCase
         $this->assertSame(422, ApiErrorResponse::make(ApiErrorCode::CapabilityUnsupported, 'x')->getStatusCode());
     }
 
-    public function test_field_not_allowed_includes_details(): void
-    {
-        $r = ApiErrorResponse::fieldNotAllowed('hidden', ['id', 'name']);
-        $body = $r->getData(true);
-
-        $this->assertSame('VALIDATION_FAILED', $body['error']['code']);
-        $this->assertSame('hidden', $body['error']['details']['field']);
-        $this->assertSame(['id', 'name'], $body['error']['details']['allowed']);
-    }
-
-    public function test_operator_not_allowed_includes_details(): void
-    {
-        $r = ApiErrorResponse::operatorNotAllowed('total', 'gte', ['eq', 'in']);
-        $body = $r->getData(true);
-
-        $this->assertSame('total', $body['error']['details']['field']);
-        $this->assertSame('gte', $body['error']['details']['operator']);
-        $this->assertSame(['eq', 'in'], $body['error']['details']['allowed']);
-    }
-
     public function test_capability_unsupported_includes_capability(): void
     {
         $r = ApiErrorResponse::capabilityUnsupported('filter');

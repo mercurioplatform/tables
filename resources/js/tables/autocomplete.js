@@ -1,5 +1,5 @@
 /* ============================================================
- * Tables Engine — relation autocomplete (Tables/2.4).
+ * Tables Engine — relation autocomplete.
  *
  * XHR search popover для BelongsToField и BelongsToManyField.
  * Биндится через делегирование на [data-tables-autocomplete] root.

@@ -2,8 +2,8 @@
 
 namespace Mercurio\Tables\Api;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use LogicException;
 use Mercurio\Tables\Action\BulkAction;
 use Mercurio\Tables\Api\Mutate\BulkMutateResult;
 use Mercurio\Tables\Api\Mutate\CellMutateResult;
@@ -32,20 +32,17 @@ final class MutateRenderer
     /**
      * @return array<string, mixed>
      */
-    public function render(
-        MutateResult $result,
-        ParsedMutate $parsed,
-        ListResource $resource,
-        Request $request,
-    ): array {
-        $envelope = match (true) {
+    public function render(MutateResult $result, ParsedMutate $parsed, ListResource $resource): array
+    {
+        return match (true) {
             $result instanceof CellMutateResult => $this->renderCell($result, $parsed),
             $result instanceof RowMutateResult => $this->renderRow($result, $parsed),
             $result instanceof BulkMutateResult => $this->renderBulk($result, $parsed, $resource),
-            default => ['data' => []],
+            default => throw new LogicException(
+                'Unknown MutateResult implementation: '.$result::class.'. '
+                .'MutateResult is a sealed-like marker — extend MutateRenderer when adding a new variant.',
+            ),
         };
-
-        return $envelope;
     }
 
     /**

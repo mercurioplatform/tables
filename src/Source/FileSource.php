@@ -117,6 +117,9 @@ final class FileSource implements Source
     /** При накопленном line-скане в lazy `find()` пишется один WARN на инстанс. */
     private const FIND_LINEAR_SCAN_WARN_AT = 100_000;
 
+    /** Materialized `find()` пишет WARN, если коллекция больше этого порога. */
+    private const FIND_LINEAR_SCAN_WARN_THRESHOLD = 10_000;
+
     private readonly bool $materialized;
 
     /** @var Collection<int, mixed>|null  null в lazy режиме. */
@@ -180,7 +183,7 @@ final class FileSource implements Source
         $this->caps = $this->resolveCapabilities($capabilities, $this->materialized, $path);
 
         if ($this->materialized) {
-            $this->rows = $rows ?? $this->materializeFromFile($fileSize);
+            $this->rows = $rows ?? $this->materializeFromFile();
         } else {
             $this->rows = null;
         }
@@ -472,7 +475,7 @@ final class FileSource implements Source
         if ($this->materialized) {
             $rows = $this->rows ?? Collection::make();
 
-            if ($rows->count() > 10_000) {
+            if ($rows->count() > self::FIND_LINEAR_SCAN_WARN_THRESHOLD) {
                 Log::warning('tables.source.file.find.linear_scan', [
                     'resource' => $this->resource?->key(),
                     'path' => basename($this->path),
@@ -641,7 +644,7 @@ final class FileSource implements Source
         }
 
         if ($user->mutate) {
-            Log::warning('tables.source.file.mutate_denied', [
+            Log::warning('tables.source.file.mutate_capability_clamped', [
                 'resource' => $this->resource?->key(),
                 'path' => basename($path),
                 'reason' => 'capabilities.mutate=true ignored — FileSource is read-only by design; clamped to false.',
@@ -677,7 +680,7 @@ final class FileSource implements Source
     /**
      * @return Collection<int, mixed>
      */
-    private function materializeFromFile(int $fileSize): Collection
+    private function materializeFromFile(): Collection
     {
         $reader = $this->buildReader();
         $rows = [];
@@ -685,9 +688,7 @@ final class FileSource implements Source
             $rows[] = $row;
         }
 
-        $collection = Collection::make($rows)->values();
-
-        return $collection;
+        return Collection::make($rows)->values();
     }
 
     /**

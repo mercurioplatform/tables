@@ -1,5 +1,5 @@
 /* ============================================================
- * Tables Engine — query builder (Tables/2.5).
+ * Tables Engine — query builder.
  *
  * AST-редактор offcanvas: дерево групп (AND/OR/NOT) и атомарных
  * условий (field+operator+value+NOT). Сериализация в URL через

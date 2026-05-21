@@ -3,6 +3,7 @@
 namespace Mercurio\Tables\Filter;
 
 use Mercurio\Tables\Field\Field;
+use Mercurio\Tables\Filter\Support\ValueNormalizer;
 use Mercurio\Tables\ListResource;
 
 /**
@@ -74,7 +75,7 @@ final class FilterParser
                 $isEmptyOp = in_array($operator, [Operator::Empty_, Operator::NotEmpty], true);
 
                 if (! $isEmptyOp) {
-                    $normalized = self::normalizeRawValue($operator, $rawValue);
+                    $normalized = ValueNormalizer::normalize($operator, $rawValue);
                     if ($normalized === null) {
                         $rejected[] = $fieldName.':empty_value';
 
@@ -96,75 +97,5 @@ final class FilterParser
         usort($conditions, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return array_map(fn ($entry) => $entry['cond'], $conditions);
-    }
-
-    private static function normalizeRawValue(Operator $operator, mixed $raw): mixed
-    {
-        $listOps = [Operator::In, Operator::NotIn];
-        $rangeOps = [Operator::Between, Operator::NotBetween];
-
-        if (in_array($operator, $rangeOps, true)) {
-            if (! is_array($raw)) {
-                return null;
-            }
-
-            if (array_key_exists('min', $raw) || array_key_exists('max', $raw)) {
-                $min = self::scalarOrNull($raw['min'] ?? null);
-                $max = self::scalarOrNull($raw['max'] ?? null);
-                if ($min === null && $max === null) {
-                    return null;
-                }
-
-                return [$min, $max];
-            }
-
-            $values = array_values($raw);
-            if ($values === []) {
-                return null;
-            }
-            $min = self::scalarOrNull($values[0] ?? null);
-            $max = self::scalarOrNull($values[1] ?? null);
-            if ($min === null && $max === null) {
-                return null;
-            }
-
-            return [$min, $max];
-        }
-
-        if (in_array($operator, $listOps, true)) {
-            $items = is_array($raw) ? array_values($raw) : [$raw];
-            $cleaned = [];
-            foreach ($items as $item) {
-                $s = self::scalarOrNull($item);
-                if ($s !== null) {
-                    $cleaned[] = (string) $s;
-                }
-            }
-
-            return $cleaned === [] ? null : $cleaned;
-        }
-
-        if (is_array($raw)) {
-            return null;
-        }
-
-        return self::scalarOrNull($raw);
-    }
-
-    private static function scalarOrNull(mixed $v): mixed
-    {
-        if ($v === null) {
-            return null;
-        }
-        if (is_string($v)) {
-            $t = trim($v);
-
-            return $t === '' ? null : $t;
-        }
-        if (is_scalar($v)) {
-            return $v;
-        }
-
-        return null;
     }
 }

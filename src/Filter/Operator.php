@@ -44,9 +44,4 @@ enum Operator: string
             self::Gt, self::Lt, self::Gte, self::Lte => null,
         };
     }
-
-    public function isNot(): bool
-    {
-        return str_starts_with($this->value, 'not_');
-    }
 }

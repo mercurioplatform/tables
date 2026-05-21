@@ -2,7 +2,6 @@
 
 namespace Mercurio\Tables\Tests\Unit\Api;
 
-use Mercurio\Tables\Api\ApiConfig;
 use Mercurio\Tables\Api\SchemaBuilder;
 use Mercurio\Tables\Tests\Fixtures\JsonApi\RichFieldsResource;
 use Mercurio\Tables\Tests\Fixtures\JsonApi\TestOrdersResource;
@@ -42,7 +41,10 @@ final class SchemaBuilderTest extends TestCase
     public function test_fields_whitelist_via_allow_fields(): void
     {
         $resource = new RichFieldsResource;
-        $config = ApiConfig::make()->allowFields(['id', 'total']);
+        // Берём resolved config (sentinel'ы allowFields/allowSavedViews уже раскрыты
+        // из ресурса) и переопределяем только allowFields — SchemaBuilder требует
+        // оба whitelist'а не-null.
+        $config = $resource->resolveApiConfig()->allowFields(['id', 'total']);
         $schema = $this->builder->build($resource, $config);
 
         $this->assertCount(2, $schema['fields']);

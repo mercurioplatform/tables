@@ -35,7 +35,6 @@ final class ApiConfig
         public readonly array $defaultIncludes,
         public readonly int $defaultPerPage,
         public readonly int $maxPerPage,
-        public readonly ?string $rateLimit,
         public readonly int $maxBulkIds,
         public readonly ?string $mutateAbility,
         public readonly int $maxPayloadBytes,
@@ -51,7 +50,6 @@ final class ApiConfig
             defaultIncludes: ['data', 'page'],
             defaultPerPage: 25,
             maxPerPage: 200,
-            rateLimit: null,
             maxBulkIds: 1000,
             mutateAbility: null,
             maxPayloadBytes: 65536,
@@ -100,20 +98,6 @@ final class ApiConfig
     public function maxPerPage(int $value): self
     {
         return $this->with(maxPerPage: max(1, $value));
-    }
-
-    /**
-     * Token для Laravel rate-limiter (`RateLimiter::for($token)`).
-     *
-     * Host-side wire-up: пакет НЕ применяет `throttle:<token>` middleware
-     * автоматически — это поле прочитывается host'ом (или CI-проверками) и
-     * применяется явным `->middleware('throttle:'.$token)` к
-     * `Route::tablesApi(...)` в файле маршрутов. См. closure §13.1 в
-     * `.ai-factory/audit/2026-Q2-backend.md`.
-     */
-    public function rateLimit(?string $token): self
-    {
-        return $this->with(rateLimit: $token);
     }
 
     public function maxBulkIds(int $value): self
@@ -193,11 +177,6 @@ final class ApiConfig
         return $this->maxPerPage;
     }
 
-    public function getRateLimit(): ?string
-    {
-        return $this->rateLimit;
-    }
-
     public function getMaxBulkIds(): int
     {
         return $this->maxBulkIds;
@@ -226,7 +205,6 @@ final class ApiConfig
         ?array $defaultIncludes = null,
         ?int $defaultPerPage = null,
         ?int $maxPerPage = null,
-        ?string $rateLimit = null,
         ?int $maxBulkIds = null,
         ?string $mutateAbility = null,
         ?int $maxPayloadBytes = null,
@@ -239,7 +217,6 @@ final class ApiConfig
             defaultIncludes: $defaultIncludes ?? $this->defaultIncludes,
             defaultPerPage: $defaultPerPage ?? $this->defaultPerPage,
             maxPerPage: $maxPerPage ?? $this->maxPerPage,
-            rateLimit: $rateLimit ?? $this->rateLimit,
             maxBulkIds: $maxBulkIds ?? $this->maxBulkIds,
             mutateAbility: $mutateAbility ?? $this->mutateAbility,
             maxPayloadBytes: $maxPayloadBytes ?? $this->maxPayloadBytes,

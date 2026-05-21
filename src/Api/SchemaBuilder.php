@@ -2,8 +2,8 @@
 
 namespace Mercurio\Tables\Api;
 
+use LogicException;
 use Mercurio\Tables\Field\Field;
-use Mercurio\Tables\Filter\Operator;
 use Mercurio\Tables\Http\Controllers\JsonApiSchemaController;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Source\Source;
@@ -28,10 +28,16 @@ final class SchemaBuilder
      */
     public function build(ListResource $resource, ApiConfig $config, ?Source $source = null): array
     {
-        $allowedFields = (array) $config->getAllowFields();
-        $allowedFieldsLookup = array_flip($allowedFields);
+        $allowedFields = $config->getAllowFields();
+        $allowedViews = $config->getAllowSavedViews();
+        if ($allowedFields === null || $allowedViews === null) {
+            throw new LogicException(
+                'ApiConfig sentinels (allowFields / allowSavedViews) are unresolved at SchemaBuilder. '
+                .'ListResource::resolveApiConfig() must fill them before publishing schema.',
+            );
+        }
 
-        $allowedViews = (array) $config->getAllowSavedViews();
+        $allowedFieldsLookup = array_flip($allowedFields);
         $allowedViewsLookup = array_flip($allowedViews);
 
         $searchable = $resource->searchable();
@@ -103,9 +109,6 @@ final class SchemaBuilder
 
         $out = [];
         foreach ($field->getFilterableOperators() as $op) {
-            if (! $op instanceof Operator) {
-                continue;
-            }
             $out[] = [
                 'value' => $op->value,
                 'label' => $field->operatorLabel($op),

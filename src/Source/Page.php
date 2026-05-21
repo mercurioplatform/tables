@@ -218,8 +218,7 @@ final class Page
 
     /**
      * Deprecated-shim: позволяет читать поля LengthAwarePaginator-style
-     * (`$paginator->total`) в дополнение к method-based API. На каждый
-     * surprise-access пишется один DEBUG-лог.
+     * (`$paginator->total`) в дополнение к method-based API.
      *
      * @internal Только для обратной совместимости host-published Blade-шаблонов.
      */

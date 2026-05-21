@@ -91,8 +91,8 @@ function requestPartial(url, $page, options) {
             }
         }
 
-        // Subtitle update (Tables/3.1) — subtitle живёт в shell снаружи [data-tables-page],
-        // поэтому ищем его глобально в документе.
+        // Subtitle живёт в shell снаружи [data-tables-page], поэтому ищем его
+        // глобально в документе.
         const newSubtitle = $(doc).find(sel(ATTRS.SUBTITLE)).get(0);
         const $oldSubtitle = $(sel(ATTRS.SUBTITLE)).first();
         if (newSubtitle && $oldSubtitle.length > 0) {
@@ -100,7 +100,7 @@ function requestPartial(url, $page, options) {
             $oldSubtitle.text(text).toggleClass('d-none', text.trim() === '');
         }
 
-        // Public total-changed event (Tables/3.1)
+        // Public total-changed event
         const newTotalAttr = $(newRoot).attr(ATTRS.TOTAL);
         if (newTotalAttr !== null && newTotalAttr !== undefined) {
             const total = parseInt(newTotalAttr, 10);

@@ -219,16 +219,10 @@ class ActionLogHandler
 
     private function hasExistingUndo(int $logId): bool
     {
-        $driver = ActionLog::query()->getQuery()->getConnection()->getDriverName();
-
-        if ($driver === 'sqlite') {
-            return ActionLog::query()
-                ->whereRaw("json_extract(payload_json, '$.undo_of') = ?", [$logId])
-                ->exists();
-        }
+        $expr = $this->jsonUndoOfExpression();
 
         return ActionLog::query()
-            ->where('payload_json->undo_of', $logId)
+            ->whereRaw("{$expr} = ?", [$logId])
             ->exists();
     }
 
@@ -242,22 +236,14 @@ class ActionLogHandler
             return [];
         }
 
-        $driver = ActionLog::query()->getQuery()->getConnection()->getDriverName();
+        $expr = $this->jsonUndoOfExpression();
+        $placeholders = implode(',', array_fill(0, count($logIds), '?'));
 
-        if ($driver === 'sqlite') {
-            $placeholders = implode(',', array_fill(0, count($logIds), '?'));
-            $rows = ActionLog::query()
-                ->whereRaw("json_extract(payload_json, '$.undo_of') IN ({$placeholders})", $logIds)
-                ->selectRaw("json_extract(payload_json, '$.undo_of') as origin_id")
-                ->pluck('origin_id')
-                ->all();
-        } else {
-            $rows = ActionLog::query()
-                ->whereIn('payload_json->undo_of', $logIds)
-                ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.undo_of')) as origin_id")
-                ->pluck('origin_id')
-                ->all();
-        }
+        $rows = ActionLog::query()
+            ->whereRaw("{$expr} IN ({$placeholders})", $logIds)
+            ->selectRaw("{$expr} as origin_id")
+            ->pluck('origin_id')
+            ->all();
 
         $out = [];
         foreach ($rows as $oid) {
@@ -267,5 +253,14 @@ class ActionLogHandler
         }
 
         return $out;
+    }
+
+    private function jsonUndoOfExpression(): string
+    {
+        $driver = ActionLog::query()->getQuery()->getConnection()->getDriverName();
+
+        return $driver === 'sqlite'
+            ? "json_extract(payload_json, '$.undo_of')"
+            : "JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.undo_of'))";
     }
 }

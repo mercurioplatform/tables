@@ -4,15 +4,19 @@ namespace Mercurio\Tables\Api;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use LogicException;
 use Mercurio\Tables\Api\Exceptions\ApiValidationException;
 use Mercurio\Tables\ListResource;
 
 /**
  * Парсер body эндпоинта `POST /{uri}/mutate` → {@see ParsedMutate}.
  *
- * Контракт body — JSON (application/json) либо form-urlencoded (через
- * `$request->all()` fallback'ом). Discriminator — `op` поле в корне body:
- * `"cell"|"row"|"bulk"`. Per-op шаблон body:
+ * Контракт body — JSON (`Content-Type: application/json`); любой другой
+ * content-type → 400 MALFORMED_QUERY с `reason='unsupported_media_type'`.
+ * Это симметрично list-парсеру ({@see ApiQueryParser::resolveSource()}) и
+ * не оставляет места form-urlencoded-fallback'у.
+ *
+ * Discriminator — `op` поле в корне body: `"cell"|"row"|"bulk"`. Per-op шаблон body:
  *
  * - `cell`: `{op:"cell", id:..., field:"...", value:...}`
  * - `row`:  `{op:"row", id:..., action:"...", payload?:{...}}`
@@ -21,10 +25,10 @@ use Mercurio\Tables\ListResource;
  * Все validation-fails → {@see ApiValidationException} с {@see ApiErrorCode::ValidationFailed}
  * (HTTP 422). Никакого `InvalidArgument` — следуем precedent'у JSON API.
  *
- * Whitelist полей для cell-op:
- * `$config->getAllowFields()` к моменту вызова гарантированно НЕ null —
- * {@see ListResource::resolveApiConfig()} резолвит sentinel через
- * `fieldsMemo()`. Никакого fallback'а в парсере.
+ * Whitelist полей для cell-op: `$config->getAllowFields()` к моменту вызова
+ * гарантированно НЕ null — {@see ListResource::resolveApiConfig()} резолвит
+ * sentinel через `fieldsMemo()`. Если null прорвался — это контракт-bug
+ * вызывающего кода, парсер валит `LogicException`, а не silent-fallback.
  *
  * `?include=...` парсится из query-string; список известных mutate-include'ов
  * — {@see self::KNOWN_MUTATE_INCLUDES}. Неизвестные include'ы — warning,
@@ -34,6 +38,10 @@ use Mercurio\Tables\ListResource;
  * `is_array`-проверки serialized-size через `strlen(json_encode($payload))`
  * сравнивается с {@see ApiConfig::getMaxPayloadBytes()}; превышение →
  * `ApiValidationException` с `reason='payload_too_large'`.
+ *
+ * Единая точка логирования API-ошибок — {@see ApiErrorResponse::make()}
+ * (вызывается выше по стеку контроллером); парсер не дублирует логи перед
+ * throw'ом.
  */
 final class MutateBodyParser
 {
@@ -48,10 +56,10 @@ final class MutateBodyParser
 
         $op = $body['op'] ?? null;
         if (! is_string($op) || $op === '') {
-            $this->fail('missing_op', 'Поле op обязательно.', ['allowed' => self::ALLOWED_OPS]);
+            $this->fail('missing_op', "Field 'op' is required.", ['allowed' => self::ALLOWED_OPS]);
         }
         if (! in_array($op, self::ALLOWED_OPS, true)) {
-            $this->fail('unknown_op', "Неизвестная операция: {$op}.", ['op' => $op, 'allowed' => self::ALLOWED_OPS]);
+            $this->fail('unknown_op', "Unknown op: '{$op}'.", ['op' => $op, 'allowed' => self::ALLOWED_OPS]);
         }
 
         /** @var 'cell'|'row'|'bulk' $op */
@@ -70,35 +78,34 @@ final class MutateBodyParser
     {
         $id = $body['id'] ?? null;
         if (! is_int($id) && ! is_string($id)) {
-            $this->fail('missing_id', 'Поле id обязательно (int|string) для op=cell.', ['op' => 'cell']);
+            $this->fail('missing_id', "Field 'id' is required (int|string) for op=cell.", ['op' => 'cell']);
         }
 
         $field = $body['field'] ?? null;
         if (! is_string($field) || $field === '') {
-            $this->fail('missing_field', 'Поле field обязательно для op=cell.', ['op' => 'cell']);
+            $this->fail('missing_field', "Field 'field' is required for op=cell.", ['op' => 'cell']);
         }
 
         $allowFields = $config->getAllowFields();
         if ($allowFields === null) {
-            // Инвариант: ListResource::resolveApiConfig() резолвит sentinel
-            // через fieldsMemo(); парсер не должен получить null. Если получили —
-            // это баг вызывающего кода, явно валим.
-            $this->fail(
-                'allow_fields_not_resolved',
-                'ApiConfig.allowFields не зарезолвлен — это баг ListResource::resolveApiConfig().',
-                ['op' => 'cell', 'field' => $field],
+            // Инвариант: ListResource::resolveApiConfig() резолвит sentinel через
+            // fieldsMemo(); парсер не должен получить null. Если получили — это
+            // контракт-bug вызывающего кода, валим LogicException вместо 422.
+            throw new LogicException(
+                'ApiConfig::allowFields is unresolved at MutateBodyParser. '
+                .'ListResource::resolveApiConfig() must fill the sentinel from fieldsMemo() before parsing.',
             );
         }
         if (! in_array($field, $allowFields, true)) {
             $this->fail(
                 'field_not_allowed',
-                "Поле '{$field}' не разрешено API config'ом.",
+                "Field '{$field}' is not allowed by API config.",
                 ['op' => 'cell', 'field' => $field, 'allowed' => array_values($allowFields)],
             );
         }
 
         if (! array_key_exists('value', $body)) {
-            $this->fail('missing_value', 'Поле value обязательно для op=cell (может быть null).', ['op' => 'cell']);
+            $this->fail('missing_value', "Field 'value' is required for op=cell (may be null).", ['op' => 'cell']);
         }
         $value = $body['value'];
 
@@ -119,12 +126,12 @@ final class MutateBodyParser
     {
         $id = $body['id'] ?? null;
         if (! is_int($id) && ! is_string($id)) {
-            $this->fail('missing_id', 'Поле id обязательно (int|string) для op=row.', ['op' => 'row']);
+            $this->fail('missing_id', "Field 'id' is required (int|string) for op=row.", ['op' => 'row']);
         }
 
         $action = $body['action'] ?? null;
         if (! is_string($action) || $action === '') {
-            $this->fail('missing_action', 'Поле action обязательно для op=row.', ['op' => 'row']);
+            $this->fail('missing_action', "Field 'action' is required for op=row.", ['op' => 'row']);
         }
 
         $payload = $this->parsePayload($body, 'row', $config);
@@ -146,15 +153,15 @@ final class MutateBodyParser
     {
         $action = $body['action'] ?? null;
         if (! is_string($action) || $action === '') {
-            $this->fail('missing_action', 'Поле action обязательно для op=bulk.', ['op' => 'bulk']);
+            $this->fail('missing_action', "Field 'action' is required for op=bulk.", ['op' => 'bulk']);
         }
 
         $ids = $body['ids'] ?? null;
         if (! is_array($ids)) {
-            $this->fail('missing_ids', 'Поле ids обязательно (non-empty array) для op=bulk.', ['op' => 'bulk']);
+            $this->fail('missing_ids', "Field 'ids' is required (non-empty array) for op=bulk.", ['op' => 'bulk']);
         }
         if ($ids === []) {
-            $this->fail('empty_ids', 'Поле ids не должно быть пустым для op=bulk.', ['op' => 'bulk']);
+            $this->fail('empty_ids', "Field 'ids' must not be empty for op=bulk.", ['op' => 'bulk']);
         }
 
         $normalizedIds = [];
@@ -162,7 +169,7 @@ final class MutateBodyParser
             if (! is_int($value) && ! is_string($value)) {
                 $this->fail(
                     'invalid_ids',
-                    'Каждый id должен быть int или string.',
+                    'Every id must be int or string.',
                     ['op' => 'bulk', 'received_type' => get_debug_type($value)],
                 );
             }
@@ -173,7 +180,7 @@ final class MutateBodyParser
         if (count($normalizedIds) > $max) {
             $this->fail(
                 'too_many_ids',
-                "Превышен лимит ids: {$max}.",
+                "Too many ids: max {$max}.",
                 ['op' => 'bulk', 'max' => $max, 'given' => count($normalizedIds)],
             );
         }
@@ -205,7 +212,7 @@ final class MutateBodyParser
         if (! is_array($payload)) {
             $this->fail(
                 'invalid_payload',
-                'Поле payload должно быть объектом (assoc array) или null.',
+                "Field 'payload' must be an object (assoc array) or null.",
                 ['op' => $op, 'received_type' => get_debug_type($payload)],
             );
         }
@@ -229,13 +236,20 @@ final class MutateBodyParser
      */
     private function extractBody(Request $request): array
     {
-        if ($request->isJson()) {
-            $json = $request->json()->all();
-
-            return is_array($json) ? $json : [];
+        if (! $request->isJson()) {
+            throw new ApiValidationException(
+                ApiErrorCode::MalformedQuery,
+                "Mutate body must use 'application/json' Content-Type.",
+                [
+                    'reason' => 'unsupported_media_type',
+                    'received' => $request->header('Content-Type'),
+                ],
+            );
         }
 
-        return (array) $request->all();
+        $json = $request->json()->all();
+
+        return is_array($json) ? $json : [];
     }
 
     /**
@@ -275,11 +289,6 @@ final class MutateBodyParser
      */
     private function fail(string $reason, string $message, array $details = []): void
     {
-        Log::warning('tables.api.mutate.invalid_body', [
-            'reason' => $reason,
-            'details' => $details,
-        ]);
-
         throw new ApiValidationException(
             ApiErrorCode::ValidationFailed,
             $message,

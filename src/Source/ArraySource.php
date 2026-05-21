@@ -43,6 +43,12 @@ use Mercurio\Tables\Source\Support\RowValueExtractor;
  */
 final class ArraySource implements Source
 {
+    /**
+     * Размер коллекции, выше которого `find()` пишет linear-scan WARN.
+     * Большие массивы стоит индексировать на стороне resource'а вручную.
+     */
+    private const LINEAR_SCAN_WARN_THRESHOLD = 10_000;
+
     /** @var Collection<int, mixed> */
     private readonly Collection $rows;
 
@@ -170,7 +176,7 @@ final class ArraySource implements Source
     {
         $pk = $this->primaryKey;
 
-        if ($this->rows->count() > 10000) {
+        if ($this->rows->count() > self::LINEAR_SCAN_WARN_THRESHOLD) {
             Log::warning('tables.array_source.find.linear_scan', [
                 'resource' => $this->resource?->key(),
                 'size' => $this->rows->count(),

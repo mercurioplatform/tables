@@ -21,6 +21,31 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ActionAuthorizer
 {
+    /**
+     * Известные суффиксы Tables-маршрутов. Перечислены в порядке убывания
+     * длины — для корректного matching через `str_ends_with` сначала более
+     * специфичных вариантов (например `.row_action_preview` до `.row_action`).
+     */
+    private const ROUTE_SUFFIXES = [
+        '.row_action_preview',
+        '.bulk_action_preview',
+        '.row_action_form',
+        '.bulk_action_form',
+        '.row_action',
+        '.bulk_action',
+        '.action_log_undo',
+        '.action_log',
+        '.action_progress',
+        '.delete_user_view',
+        '.save_view',
+        '.save_prefs',
+        '.reset_prefs',
+        '.cell_update',
+        '.options',
+        '.export',
+        '.index',
+    ];
+
     public function findBulkAction(ListResource $resource, string $name): ?BulkAction
     {
         foreach ($resource->bulkActionsMemo() as $action) {
@@ -63,8 +88,10 @@ class ActionAuthorizer
                     'kind' => $kind,
                     'policy_class' => $policy['class'],
                     'policy_method' => $policy['method'],
-                    'subject_class' => $subjectClass ?? null,
-                    'subject_key' => $subjectKey ?? null,
+                    'subject_class' => is_object($subject) ? $subject::class : null,
+                    'subject_key' => (is_object($subject) && method_exists($subject, 'getKey'))
+                        ? $subject->getKey()
+                        : null,
                     'actor_id' => $actor?->getAuthIdentifier(),
                 ]);
             }
@@ -118,7 +145,7 @@ class ActionAuthorizer
             return '';
         }
 
-        foreach (['.row_action_preview', '.bulk_action_preview', '.row_action_form', '.bulk_action_form', '.row_action', '.index', '.bulk_action', '.options', '.save_view', '.delete_user_view', '.save_prefs', '.reset_prefs', '.export', '.cell_update', '.action_log_undo', '.action_log', '.action_progress'] as $suffix) {
+        foreach (self::ROUTE_SUFFIXES as $suffix) {
             if (str_ends_with($current, $suffix)) {
                 return substr($current, 0, -strlen($suffix));
             }

@@ -161,13 +161,14 @@ final class HttpSource implements Source
 
     public function withQuery(Query $query): static
     {
-        $this->applyOperatorWhitelist($query);
-        $this->guardSavedViewScope($query);
-        $this->guardQbRoot($query);
+        $applied = clone $query;
+        $this->applyOperatorWhitelist($applied);
+        $this->guardSavedViewScope($applied);
+        $this->guardQbRoot($applied);
 
         return new self(
             fetch: $this->fetch,
-            query: $query,
+            query: $applied,
             capabilities: $this->capabilities,
             resource: $this->resource,
             findOne: $this->findOne,

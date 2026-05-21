@@ -14,28 +14,13 @@ use Mercurio\Tables\Field\Field;
  *
  * Управляется глобальным `?format=raw|formatted|both` или per-field overrides
  * `?format[total]=both&format[status]=raw` (см. `docs/json-api.md` → `?format=`).
+ *
+ * Парсинг — встроенный `enum::tryFrom()` / `enum::from()`; никаких тонких
+ * обёрток сверху.
  */
 enum FormatMode: string
 {
     case Raw = 'raw';
     case Formatted = 'formatted';
     case Both = 'both';
-
-    /**
-     * Строгий парсер для URL-параметра. Кидает `\ValueError`, если строка
-     * не совпадает ни с одним case'ом — вызывающая сторона ловит и
-     * превращает в `ApiValidationException`.
-     */
-    public static function fromString(string $value): self
-    {
-        return self::from($value);
-    }
-
-    /**
-     * Безопасный парсер: возвращает `null` если строка не совпадает.
-     */
-    public static function tryFromString(string $value): ?self
-    {
-        return self::tryFrom($value);
-    }
 }

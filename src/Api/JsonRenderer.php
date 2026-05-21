@@ -2,6 +2,7 @@
 
 namespace Mercurio\Tables\Api;
 
+use LogicException;
 use Mercurio\Tables\Field\Field;
 use Mercurio\Tables\ListResource;
 use Mercurio\Tables\Source\Page;
@@ -204,9 +205,15 @@ final class JsonRenderer
      */
     private function renderSavedViews(ListResource $resource, ApiConfig $config): array
     {
-        $allowed = (array) $config->getAllowSavedViews();
-        $views = [];
+        $allowed = $config->getAllowSavedViews();
+        if ($allowed === null) {
+            throw new LogicException(
+                'ApiConfig::allowSavedViews is unresolved at JsonRenderer. '
+                .'ListResource::resolveApiConfig() must fill the sentinel from savedViewsMemo() before rendering.',
+            );
+        }
 
+        $views = [];
         foreach ($resource->savedViewsMemo() as $view) {
             if (! in_array($view->key, $allowed, true)) {
                 continue;

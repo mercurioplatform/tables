@@ -105,7 +105,7 @@ final class SqlSource implements Source
         $cloned = clone $this->builder;
 
         $this->applySearch($cloned, $query);
-        $this->applySavedView($query);
+        $this->guardSavedViewScope($query);
         $this->applyConditions($cloned, $query);
         $this->applyQb($cloned, $query);
         $this->applySort($cloned, $query);
@@ -218,7 +218,7 @@ final class SqlSource implements Source
      * задисейблить только {@see SavedView::$scope} — у anonymous-Model
      * нет model-scope / local-scope / relations.
      */
-    private function applySavedView(Query $q): void
+    private function guardSavedViewScope(Query $q): void
     {
         if ($q->savedViewKey === null || $this->resource === null) {
             return;
