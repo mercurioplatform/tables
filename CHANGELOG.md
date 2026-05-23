@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-05-23
+
+### Added
+
+- **`Mercurio\Tables\Api\ApiConfig::mutateAbility(?string $ability)`** —
+  coarse-grained Gate ability для mutate-эндпоинта. Если задано,
+  `JsonApiMutateController` после hard-gate `allowMutations` вызывает
+  `Gate::check($ability, $resource)`; при `false` → 403 `POLICY_DENIED`.
+  Default `null` (coarse Gate выключен); per-action policy внутри
+  `BulkActionHandler` / `RowActionHandler` / `CellUpdateHandler` остаётся
+  единственным авторизационным слоем в этом случае. Orthogonal к per-action.
+- **`Mercurio\Tables\Api\ApiConfig::maxPayloadBytes(int $value)`** — лимит
+  на размер сериализованного `payload` для row/bulk mutate-операций.
+  Сравнение со `strlen(json_encode($payload, JSON_UNESCAPED_UNICODE))`;
+  превышение → 422 `VALIDATION_FAILED` с `details.reason='payload_too_large'`.
+  Default 64 KiB (65 536 байт).
+- **`docs/internal/api-architecture.md`** — internal-ориентир для
+  контрибьюторов пакета: end-to-end pipeline, capabilities-matrix
+  5 драйверов × 8 флагов, inventory 17 классов `src/Api/`, правила opt-in
+  регистрации маршрутов, error envelope contract, точки расширения.
+
+### Changed
+
+- **`JsonRenderer::renderSavedViews()`** — внутренний whitelist lookup
+  переведён с `in_array($key, $allowed, true)` (O(V × A)) на
+  `array_flip($allowed)` + `array_key_exists` (O(V + A)). Поведение и
+  публичный контракт не изменились.
+
+### Tests / Internal
+
+- Unit-test coverage per Source-driver — добавлены ~251 unit-тестов через
+  планы 0029-0033: `EloquentSource` (29), `ArraySource` (49 + 15 api-feature),
+  `SqlSource` (44), `HttpSource` (51), `FileSource` (78). Контрактные
+  сценарии: capabilities, read/find/findMany, query application, mutate-gate,
+  cursor / offset paging where applicable.
+- `tests/Feature/JsonApi/ErrorEnvelopeApiTest.php` расширен с одного
+  endpoint'а (`.index`) до четырёх (`POST /{uri}` aka `.query`,
+  `GET /{uri}/schema`, `POST /{uri}/mutate`).
+- `tests/Performance/JsonRendererPerformanceTest.php` — upper-bound на
+  `SchemaBuilder::build()` (50ms @ 10k rows) и absolute-bound на
+  schema-include delta (10ms @ 10k rows); подтверждает O(fields), не
+  O(N × fields). Подключено через новый `<testsuite name="Performance">`
+  в `phpunit.xml.dist`.
+- PHPStan baseline сокращён на ≈47% по блокам и ≈56% по ошибкам
+  (88→46 блоков, 108→47 ошибок) — model `@property` PHPDoc, `$id`
+  typehints в контроллерах, dead-branches cleanup.
+- Bulk-action dispatch consolidated — единая точка реализации, без
+  дублирования между `BulkActionPipeline` и handler'ами.
+
 ## [2.0.0] — 2026-05-17
 
 ### Breaking Changes
