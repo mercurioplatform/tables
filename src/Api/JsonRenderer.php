@@ -213,9 +213,11 @@ final class JsonRenderer
             );
         }
 
+        $allowedLookup = array_flip($allowed);
+
         $views = [];
         foreach ($resource->savedViewsMemo() as $view) {
-            if (! in_array($view->key, $allowed, true)) {
+            if (! array_key_exists($view->key, $allowedLookup)) {
                 continue;
             }
             $views[] = $this->serializeSavedView($view);
